@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/api/go.mod
           cache-dependency-path: apps/api/go.sum
@@ -70,7 +70,7 @@ jobs:
       DATABASE_URL: postgres://nsa:ci-only-password@127.0.0.1:5432/nsa_training_ci?sslmode=disable
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/api/go.mod
       - name: Install Goose
@@ -106,7 +106,7 @@ jobs:
       E2E_BASE_URL: http://127.0.0.1:5173
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/api/go.mod
           cache-dependency-path: apps/api/go.sum
