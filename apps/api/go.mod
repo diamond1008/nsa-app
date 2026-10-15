@@ -14,7 +14,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
-	github.com/signintech/gopdf v0.38.0
+	github.com/signintech/gopdf v0.38.1
 	github.com/xuri/excelize/v2 v2.11.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/image v0.44.0
