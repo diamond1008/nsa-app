@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -38,7 +39,108 @@ type changePasswordRequest struct {
 	NewPassword     string `json:"new_password"`
 }
 
+type ssoLoginRequest struct {
+	Provider string `json:"provider"`
+	Email    string `json:"email"`
+}
+
+type oauthCallbackRequest struct {
+	Provider    string `json:"provider"`
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirect_uri"`
+}
+
 // ---------- Handlers ----------
+
+// OAuthConfig handles GET /api/v1/auth/oauth/config.
+func (h *Handler) OAuthConfig(w http.ResponseWriter, r *http.Request) {
+	response.OK(w, map[string]any{
+		"google_configured":    h.svc.GoogleClientID() != "",
+		"google_client_id":     h.svc.GoogleClientID(),
+		"microsoft_configured": h.svc.MicrosoftClientID() != "",
+		"microsoft_client_id":  h.svc.MicrosoftClientID(),
+	})
+}
+
+// OAuthCallback handles POST /api/v1/auth/oauth/callback.
+func (h *Handler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
+	var req oauthCallbackRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+	req.Provider = strings.TrimSpace(strings.ToLower(req.Provider))
+	if req.Provider != "google" && req.Provider != "microsoft" {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Provider must be 'google' or 'microsoft'")
+		return
+	}
+	if req.Code == "" {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Authorization code is required")
+		return
+	}
+
+	bundle, email, err := h.svc.ExchangeOAuthCode(r.Context(), req.Provider, req.Code, req.RedirectURI)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrSSOAccountNotFound):
+			errMsg := "Email này chưa được cấp tài khoản trong hệ thống. Vui lòng liên hệ Quản trị viên để được tạo tài khoản."
+			if email != "" {
+				errMsg = fmt.Sprintf("Email %s chưa được cấp tài khoản trong hệ thống. Vui lòng liên hệ Quản trị viên để được tạo tài khoản.", email)
+			}
+			response.Fail(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", errMsg)
+		case errors.Is(err, ErrSSOAccountSuspended):
+			errMsg := "Tài khoản của bạn đã bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên."
+			if email != "" {
+				errMsg = fmt.Sprintf("Tài khoản %s đã bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên.", email)
+			}
+			response.Fail(w, http.StatusForbidden, "ACCOUNT_SUSPENDED", errMsg)
+		default:
+			h.log.Error("oauth callback exchange error", "error", err, "provider", req.Provider)
+			response.Fail(w, http.StatusInternalServerError, "OAUTH_ERROR", err.Error())
+		}
+		return
+	}
+
+	h.setRefreshCookie(w, bundle.RefreshToken, bundle.RefreshExpiresAt)
+	response.OK(w, bundle)
+}
+
+// SSOLogin handles POST /api/v1/auth/sso.
+func (h *Handler) SSOLogin(w http.ResponseWriter, r *http.Request) {
+	var req ssoLoginRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+	req.Provider = strings.TrimSpace(strings.ToLower(req.Provider))
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	if req.Provider != "google" && req.Provider != "microsoft" {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Provider must be 'google' or 'microsoft'")
+		return
+	}
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "A valid email address is required")
+		return
+	}
+
+	bundle, err := h.svc.LoginSSO(r.Context(), req.Provider, req.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrSSOAccountNotFound):
+			response.Fail(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "Email này chưa được cấp tài khoản trong hệ thống. Vui lòng liên hệ Quản trị viên để được tạo tài khoản.")
+		case errors.Is(err, ErrSSOAccountSuspended):
+			response.Fail(w, http.StatusForbidden, "ACCOUNT_SUSPENDED", "Tài khoản của bạn đã bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên.")
+		default:
+			h.log.Error("sso login internal error", "error", err, "email", req.Email, "provider", req.Provider)
+			response.Fail(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		}
+		return
+	}
+
+	h.setRefreshCookie(w, bundle.RefreshToken, bundle.RefreshExpiresAt)
+	response.OK(w, bundle)
+}
 
 // Login handles POST /api/v1/auth/login.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {

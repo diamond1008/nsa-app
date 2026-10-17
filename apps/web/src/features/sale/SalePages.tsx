@@ -4,3 +4,8 @@ export { LeadProfilePage } from "./LeadProfilePage";
 export { LeadConvertPage } from "./LeadConvertPage";
 export { OrdersPage } from "./OrdersPage";
 export { SaleReportsPage } from "./SaleReportsPage";
+export { SaleStudentsPage } from "./SaleStudentsPage";
+export { SaleRegistrationOrdersPage } from "./SaleRegistrationOrdersPage";
+export { SaleReceiptsPage } from "./SaleReceiptsPage";
+export { LeadDetailDrawer } from "./LeadDetailDrawer";
+

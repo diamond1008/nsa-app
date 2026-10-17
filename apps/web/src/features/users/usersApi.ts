@@ -17,6 +17,8 @@ export interface ManagedUser {
   student_code?: string;
   teacher_code?: string;
   created_by_email?: string;
+  is_accepting_leads?: boolean;
+  lead_assignment_order?: number;
 }
 
 export interface UserAuditLog {
@@ -63,6 +65,15 @@ export interface ResetPasswordInput {
   reason?: string;
 }
 
+export interface UpdateLeadRoutingInput {
+  is_accepting_leads?: boolean;
+  lead_assignment_order?: number;
+}
+
+export interface ReorderLeadRoutingInput {
+  ordered_user_ids: string[];
+}
+
 export const usersApi = {
   list: (params: UserListParams = {}) => api<Paginated<ManagedUser>>(`/users${toQuery(params)}`),
 
@@ -76,6 +87,12 @@ export const usersApi = {
   updateProfile: (userID: string, data: UpdateProfileInput) =>
     api<ManagedUser>(`/users/${userID}/profile`, { method: "PATCH", body: data }),
 
+  updateLeadRouting: (userID: string, data: UpdateLeadRoutingInput) =>
+    api<ManagedUser>(`/users/${userID}/lead-routing`, { method: "PATCH", body: data }),
+
+  reorderLeadRouting: (data: ReorderLeadRoutingInput) =>
+    api<{ message: string }>("/users/reorder-lead-routing", { method: "PUT", body: data }),
+
   resetPassword: (userID: string, data: ResetPasswordInput) =>
     api<{ message: string }>(`/users/${userID}/reset-password`, {
       method: "POST",
@@ -85,3 +102,4 @@ export const usersApi = {
   listAuditLogs: (userID: string, page = 1, perPage = 20) =>
     api<Paginated<UserAuditLog>>(`/users/${userID}/audit-logs?page=${page}&per_page=${perPage}`),
 };
+

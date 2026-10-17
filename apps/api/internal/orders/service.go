@@ -15,6 +15,7 @@ import (
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/pagination"
 	db "github.com/diamond1008/nsa-training-platform/database/generated"
+	"github.com/xuri/excelize/v2"
 )
 
 type Service struct {
@@ -418,4 +419,223 @@ func isValidOrderStatus(s db.OrderStatus) bool {
 	default:
 		return false
 	}
+}
+
+func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*excelize.File, error) {
+	var status db.NullOrderStatus
+	if filter.Status != "" {
+		status = db.NullOrderStatus{
+			OrderStatus: db.OrderStatus(filter.Status),
+			Valid:       true,
+		}
+	}
+
+	var studentID pgtype.UUID
+	if filter.StudentID != "" {
+		parsed, err := data.UUID(filter.StudentID)
+		if err == nil {
+			studentID = parsed
+		}
+	}
+
+	var leadID pgtype.UUID
+	if filter.LeadID != "" {
+		parsed, err := data.UUID(filter.LeadID)
+		if err == nil {
+			leadID = parsed
+		}
+	}
+
+	var createdFrom pgtype.Timestamptz
+	if filter.CreatedFrom != "" {
+		t, err := time.Parse(time.RFC3339, filter.CreatedFrom)
+		if err == nil {
+			createdFrom = pgtype.Timestamptz{Time: t, Valid: true}
+		}
+	}
+
+	var createdTo pgtype.Timestamptz
+	if filter.CreatedTo != "" {
+		t, err := time.Parse(time.RFC3339, filter.CreatedTo)
+		if err == nil {
+			createdTo = pgtype.Timestamptz{Time: t, Valid: true}
+		}
+	}
+
+	ordersList, err := s.queries.ListAllOrdersForExport(ctx, db.ListAllOrdersForExportParams{
+		Search:      strings.TrimSpace(filter.Search),
+		Status:      status,
+		StudentID:   studentID,
+		LeadID:      leadID,
+		CreatedFrom: createdFrom,
+		CreatedTo:   createdTo,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list orders for export: %w", err)
+	}
+
+	f := excelize.NewFile()
+	sheetName := "Danh sách Đơn hàng"
+	f.SetSheetName("Sheet1", sheetName)
+
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Color: "#FFFFFF", Size: 11, Family: "Segoe UI"},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#0A2540"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#CCCCCC", Style: 1},
+			{Type: "bottom", Color: "#CCCCCC", Style: 1},
+			{Type: "left", Color: "#CCCCCC", Style: 1},
+			{Type: "right", Color: "#CCCCCC", Style: 1},
+		},
+	})
+
+	dataStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment: &excelize.Alignment{Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#E5E7EB", Style: 1},
+			{Type: "bottom", Color: "#E5E7EB", Style: 1},
+			{Type: "left", Color: "#E5E7EB", Style: 1},
+			{Type: "right", Color: "#E5E7EB", Style: 1},
+		},
+	})
+
+	centerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#E5E7EB", Style: 1},
+			{Type: "bottom", Color: "#E5E7EB", Style: 1},
+			{Type: "left", Color: "#E5E7EB", Style: 1},
+			{Type: "right", Color: "#E5E7EB", Style: 1},
+		},
+	})
+
+	currencyFormat := "#,##0 ₫"
+	currencyStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"},
+		CustomNumFmt: &currencyFormat,
+		Border: []excelize.Border{
+			{Type: "top", Color: "#E5E7EB", Style: 1},
+			{Type: "bottom", Color: "#E5E7EB", Style: 1},
+			{Type: "left", Color: "#E5E7EB", Style: 1},
+			{Type: "right", Color: "#E5E7EB", Style: 1},
+		},
+	})
+
+	headers := []string{
+		"STT", "Mã đơn hàng", "Khách hàng / Học viên", "Mã học viên", "Khóa học",
+		"Lớp học", "Học phí gốc", "Giảm giá", "Thành tiền", "Trạng thái",
+		"Phương thức TT", "Ngày thanh toán", "Người tạo", "Ngày tạo",
+	}
+
+	for colIdx, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
+		_ = f.SetCellValue(sheetName, cell, h)
+		_ = f.SetCellStyle(sheetName, cell, cell, headerStyle)
+	}
+	_ = f.SetRowHeight(sheetName, 1, 28)
+
+	statusMap := map[string]string{
+		"pending":   "Chờ thanh toán",
+		"paid":      "Đã thanh toán",
+		"cancelled": "Đã hủy",
+		"refunded":  "Hoàn tiền",
+	}
+
+	methodMap := map[string]string{
+		"transfer": "Chuyển khoản",
+		"cash":     "Tiền mặt",
+		"card":     "Thẻ ngân hàng",
+		"other":    "Khác",
+	}
+
+	for rowIdx, o := range ordersList {
+		row := rowIdx + 2
+		stt := rowIdx + 1
+
+		customerName := ""
+		if o.StudentName.Valid && o.StudentName.String != "" {
+			customerName = o.StudentName.String
+		} else if o.LeadName.Valid && o.LeadName.String != "" {
+			customerName = o.LeadName.String
+		}
+
+		studentCode := ""
+		if o.StudentCode.Valid {
+			studentCode = o.StudentCode.String
+		}
+
+		courseName := ""
+		if o.CourseName.Valid {
+			courseName = o.CourseName.String
+		}
+
+		className := ""
+		if o.ClassName.Valid {
+			className = o.ClassName.String
+		}
+
+		amount := data.NumericFloat(o.Amount)
+		discount := data.NumericFloat(o.DiscountAmount)
+		finalAmount := data.NumericFloat(o.FinalAmount)
+
+		statusStr := statusMap[string(o.Status)]
+		if statusStr == "" {
+			statusStr = string(o.Status)
+		}
+
+		methodStr := ""
+		if o.PaymentMethod.Valid {
+			methodStr = methodMap[o.PaymentMethod.String]
+			if methodStr == "" {
+				methodStr = o.PaymentMethod.String
+			}
+		}
+
+		paidAtStr := ""
+		if o.PaidAt.Valid {
+			paidAtStr = o.PaidAt.Time.UTC().Format("02/01/2006 15:04")
+		}
+
+		createdByStr := ""
+		if o.CreatedByEmail.Valid {
+			createdByStr = o.CreatedByEmail.String
+		}
+
+		createdAtStr := o.CreatedAt.Time.UTC().Format("02/01/2006 15:04")
+
+		values := []interface{}{
+			stt, o.OrderCode, customerName, studentCode, courseName,
+			className, amount, discount, finalAmount, statusStr,
+			methodStr, paidAtStr, createdByStr, createdAtStr,
+		}
+
+		for colIdx, v := range values {
+			cell, _ := excelize.CoordinatesToCellName(colIdx+1, row)
+			_ = f.SetCellValue(sheetName, cell, v)
+			if colIdx == 0 || colIdx == 1 || colIdx == 3 || colIdx == 9 || colIdx == 10 || colIdx == 11 || colIdx == 13 {
+				_ = f.SetCellStyle(sheetName, cell, cell, centerStyle)
+			} else if colIdx == 6 || colIdx == 7 || colIdx == 8 {
+				_ = f.SetCellStyle(sheetName, cell, cell, currencyStyle)
+			} else {
+				_ = f.SetCellStyle(sheetName, cell, cell, dataStyle)
+			}
+		}
+		_ = f.SetRowHeight(sheetName, row, 22)
+	}
+
+	colWidths := map[int]float64{
+		1: 8, 2: 18, 3: 24, 4: 16, 5: 22,
+		6: 20, 7: 16, 8: 16, 9: 18, 10: 18,
+		11: 18, 12: 20, 13: 24, 14: 20,
+	}
+	for col, width := range colWidths {
+		colName, _ := excelize.ColumnNumberToName(col)
+		_ = f.SetColWidth(sheetName, colName, colName, width)
+	}
+
+	return f, nil
 }

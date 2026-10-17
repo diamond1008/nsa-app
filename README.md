@@ -1,7 +1,6 @@
-# NSA Training Platform
-# NSA Training Platform
+# NSA App
 
-Training management platform for an automotive vocational training center. It manages the post-admission lifecycle: student accounts, class assignment, schedules, attendance, practical skill assessment, progress tracking, and course completion.
+Training & Admissions management platform for an automotive vocational training center. It manages the full lifecycle: admissions & lead CRM, student accounts, class assignment, schedules, attendance, practical skill assessment, progress tracking, and course completion.
 
 **Repository model:** monorepo — Go API (`apps/api`) + React SPA (`apps/web`) + one PostgreSQL database.
 

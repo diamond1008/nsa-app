@@ -360,6 +360,141 @@ func (q *Queries) GetRevenueSummary(ctx context.Context) (GetRevenueSummaryRow, 
 	return i, err
 }
 
+const listAllOrdersForExport = `-- name: ListAllOrdersForExport :many
+SELECT
+  o.id,
+  o.order_code,
+  o.amount,
+  o.discount_amount,
+  o.final_amount,
+  o.discount_note,
+  o.status,
+  o.payment_method,
+  o.paid_at,
+  o.notes,
+  o.created_at,
+  l.full_name AS lead_name,
+  sp.student_code,
+  sp.full_name AS student_name,
+  c.name AS course_name,
+  c.code AS course_code,
+  cl.class_code,
+  cl.name AS class_name,
+  u.email AS created_by_email
+FROM orders o
+LEFT JOIN leads l ON l.id = o.lead_id
+LEFT JOIN student_profiles sp ON sp.id = o.student_id
+LEFT JOIN courses c ON c.id = o.course_id
+LEFT JOIN classes cl ON cl.id = o.class_id
+LEFT JOIN users u ON u.id = o.created_by
+WHERE (
+  $1::text = ''
+  OR o.order_code ILIKE '%' || $1 || '%'
+  OR COALESCE(sp.student_code, '') ILIKE '%' || $1 || '%'
+  OR COALESCE(sp.full_name, '') ILIKE '%' || $1 || '%'
+  OR COALESCE(l.full_name, '') ILIKE '%' || $1 || '%'
+)
+AND (
+  $2::order_status IS NULL
+  OR o.status = $2
+)
+AND (
+  $3::uuid IS NULL
+  OR o.student_id = $3::uuid
+)
+AND (
+  $4::uuid IS NULL
+  OR o.lead_id = $4::uuid
+)
+AND (
+  $5::timestamptz IS NULL
+  OR o.created_at >= $5::timestamptz
+)
+AND (
+  $6::timestamptz IS NULL
+  OR o.created_at <= $6::timestamptz
+)
+ORDER BY o.created_at DESC
+`
+
+type ListAllOrdersForExportParams struct {
+	Search      string             `json:"search"`
+	Status      NullOrderStatus    `json:"status"`
+	StudentID   pgtype.UUID        `json:"student_id"`
+	LeadID      pgtype.UUID        `json:"lead_id"`
+	CreatedFrom pgtype.Timestamptz `json:"created_from"`
+	CreatedTo   pgtype.Timestamptz `json:"created_to"`
+}
+
+type ListAllOrdersForExportRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	OrderCode      string             `json:"order_code"`
+	Amount         pgtype.Numeric     `json:"amount"`
+	DiscountAmount pgtype.Numeric     `json:"discount_amount"`
+	FinalAmount    pgtype.Numeric     `json:"final_amount"`
+	DiscountNote   pgtype.Text        `json:"discount_note"`
+	Status         OrderStatus        `json:"status"`
+	PaymentMethod  pgtype.Text        `json:"payment_method"`
+	PaidAt         pgtype.Timestamptz `json:"paid_at"`
+	Notes          pgtype.Text        `json:"notes"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	LeadName       pgtype.Text        `json:"lead_name"`
+	StudentCode    pgtype.Text        `json:"student_code"`
+	StudentName    pgtype.Text        `json:"student_name"`
+	CourseName     pgtype.Text        `json:"course_name"`
+	CourseCode     pgtype.Text        `json:"course_code"`
+	ClassCode      pgtype.Text        `json:"class_code"`
+	ClassName      pgtype.Text        `json:"class_name"`
+	CreatedByEmail pgtype.Text        `json:"created_by_email"`
+}
+
+func (q *Queries) ListAllOrdersForExport(ctx context.Context, arg ListAllOrdersForExportParams) ([]ListAllOrdersForExportRow, error) {
+	rows, err := q.db.Query(ctx, listAllOrdersForExport,
+		arg.Search,
+		arg.Status,
+		arg.StudentID,
+		arg.LeadID,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllOrdersForExportRow{}
+	for rows.Next() {
+		var i ListAllOrdersForExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderCode,
+			&i.Amount,
+			&i.DiscountAmount,
+			&i.FinalAmount,
+			&i.DiscountNote,
+			&i.Status,
+			&i.PaymentMethod,
+			&i.PaidAt,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.LeadName,
+			&i.StudentCode,
+			&i.StudentName,
+			&i.CourseName,
+			&i.CourseCode,
+			&i.ClassCode,
+			&i.ClassName,
+			&i.CreatedByEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrders = `-- name: ListOrders :many
 SELECT
   o.id, o.order_code, o.lead_id, o.student_id, o.course_id, o.class_id, o.amount, o.discount_amount, o.final_amount, o.discount_note, o.status, o.payment_method, o.paid_at, o.notes, o.created_by, o.created_at, o.updated_at,

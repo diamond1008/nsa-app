@@ -40,9 +40,18 @@ export type IconName =
   | "upload"
   | "download"
   | "user"
-  | "chevron-up";
+  | "chevron-up"
+  | "grip-vertical"
+  | "external-link";
 
 const paths: Record<IconName, JSX.Element> = {
+  "external-link": (
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </>
+  ),
   filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   sidebar: (
     <>
@@ -253,6 +262,16 @@ const paths: Record<IconName, JSX.Element> = {
     </>
   ),
   "chevron-up": <path d="m18 15-6-6-6 6" />,
+  "grip-vertical": (
+    <>
+      <circle cx="9" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="9" cy="6" r="1.2" fill="currentColor" />
+      <circle cx="9" cy="18" r="1.2" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="15" cy="6" r="1.2" fill="currentColor" />
+      <circle cx="15" cy="18" r="1.2" fill="currentColor" />
+    </>
+  ),
 };
 
 export function Icon({ name, className, ...props }: SVGProps<SVGSVGElement> & { name: IconName }) {

@@ -11,6 +11,8 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
+  COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
   COALESCE(sp.student_code, '')::varchar(50) AS student_code,
   COALESCE(tp.teacher_code, '')::varchar(50) AS teacher_code,
@@ -95,6 +97,8 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
+  COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
   COALESCE(sp.student_code, '')::varchar(50) AS student_code,
   COALESCE(tp.teacher_code, '')::varchar(50) AS teacher_code,
@@ -117,7 +121,7 @@ GROUP BY u.id, sp.student_code, tp.teacher_code;
 
 -- name: CreateUserAccount :one
 INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone)
-VALUES ($1, $2, $3, TRUE, $4, $5)
+VALUES ($1, $2, $3, FALSE, $4, $5)
 RETURNING id, email, status, must_change_password, full_name, phone, created_at, updated_at;
 
 -- name: UpdateUserStatus :one
@@ -132,9 +136,25 @@ SET full_name = $2, phone = $3, updated_at = NOW()
 WHERE id = $1
 RETURNING id, email, status, full_name, phone, updated_at;
 
+-- name: UpdateUserLeadRouting :one
+UPDATE users
+SET
+  is_accepting_leads = COALESCE(sqlc.narg('is_accepting_leads')::boolean, is_accepting_leads),
+  lead_assignment_order = COALESCE(sqlc.narg('lead_assignment_order')::int, lead_assignment_order),
+  updated_at = NOW()
+WHERE id = $1
+RETURNING id, email, is_accepting_leads, lead_assignment_order, updated_at;
+
+-- name: UpdateLeadAssignmentOrder :exec
+UPDATE users
+SET
+  lead_assignment_order = $2,
+  updated_at = NOW()
+WHERE id = $1;
+
 -- name: ResetUserAccountPassword :exec
 UPDATE users
-SET password_hash = $2, must_change_password = TRUE, updated_at = NOW()
+SET password_hash = $2, must_change_password = FALSE, updated_at = NOW()
 WHERE id = $1;
 
 -- name: ListUserAuditLogs :many

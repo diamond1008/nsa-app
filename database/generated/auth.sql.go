@@ -11,6 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearMustChangePassword = `-- name: ClearMustChangePassword :exec
+UPDATE users SET must_change_password = FALSE
+WHERE id = $1
+`
+
+func (q *Queries) ClearMustChangePassword(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearMustChangePassword, id)
+	return err
+}
+
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
 SELECT id, user_id, expires_at, revoked_at
 FROM refresh_tokens

@@ -17,6 +17,12 @@ interface AuthContextValue {
   status: AuthStatus;
   user: UserInfo | null;
   login: (email: string, password: string) => Promise<UserInfo>;
+  loginSSO: (provider: "google" | "microsoft", email: string) => Promise<UserInfo>;
+  exchangeOAuthCode: (
+    provider: "google" | "microsoft",
+    code: string,
+    redirectUri?: string,
+  ) => Promise<UserInfo>;
   logout: () => Promise<void>;
   hasRole: (...roles: Role[]) => boolean;
   homePath: (u?: UserInfo | null) => string;
@@ -74,6 +80,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return bundle.user;
   }, []);
 
+  const loginSSO = useCallback(async (provider: "google" | "microsoft", email: string) => {
+    const bundle = await authApi.loginSSO(provider, email);
+    tokenStore.set(bundle.access_token);
+    setUser(bundle.user);
+    setStatus("authenticated");
+    return bundle.user;
+  }, []);
+
+  const exchangeOAuthCode = useCallback(
+    async (provider: "google" | "microsoft", code: string, redirectUri?: string) => {
+      const bundle = await authApi.exchangeOAuthCode(provider, code, redirectUri);
+      tokenStore.set(bundle.access_token);
+      setUser(bundle.user);
+      setStatus("authenticated");
+      return bundle.user;
+    },
+    [],
+  );
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -90,8 +115,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ status, user, login, logout, hasRole, homePath: homePathFor }),
-    [status, user, login, logout, hasRole],
+    () => ({
+      status,
+      user,
+      login,
+      loginSSO,
+      exchangeOAuthCode,
+      logout,
+      hasRole,
+      homePath: homePathFor,
+    }),
+    [status, user, login, loginSSO, exchangeOAuthCode, logout, hasRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

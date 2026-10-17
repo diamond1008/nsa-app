@@ -55,20 +55,14 @@ export default function ChangePasswordPage() {
     }
   });
 
-  const forced = user?.must_change_password ?? false;
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(239,192,75,.16),transparent_35%),#F5F7FB] px-4">
       <div className="w-full max-w-[480px]">
         <Card className="border-0 p-6 shadow-elevated sm:p-8">
           <div className="mb-8 text-center">
-            <h1 className="text-[28px] font-bold text-navy-dark">
-              {forced ? "Đổi mật khẩu bắt buộc" : "Đổi mật khẩu"}
-            </h1>
+            <h1 className="text-[28px] font-bold text-navy-dark">Đổi mật khẩu</h1>
             <p className="mt-2 text-sm text-gtext">
-              {forced
-                ? "Tài khoản của bạn cần đổi mật khẩu trước khi tiếp tục sử dụng hệ thống."
-                : "Cập nhật mật khẩu để bảo vệ tài khoản của bạn."}
+              Cập nhật mật khẩu để bảo vệ tài khoản của bạn.
             </p>
           </div>
 
@@ -106,13 +100,13 @@ export default function ChangePasswordPage() {
             </form>
           )}
 
-          {!forced && !done && (
+          {!done && (
             <button
               type="button"
-              className="mt-4 w-full text-center text-sm text-gtext hover:text-navy hover:underline"
+              className="mt-4 w-full text-center text-sm font-medium text-navy-dark hover:text-navy hover:underline"
               onClick={() => navigate(homePath(user))}
             >
-              ← Quay lại trang tổng quan
+              ← Bỏ qua & Quay lại trang tổng quan
             </button>
           )}
         </Card>

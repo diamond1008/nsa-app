@@ -43,6 +43,12 @@ type Config struct {
 	R2SecretAccessKey string
 	R2BucketName      string
 	R2PublicDomain    string
+
+	// Google and Microsoft OAuth credentials
+	GoogleClientID        string
+	GoogleClientSecret    string
+	MicrosoftClientID     string
+	MicrosoftClientSecret string
 }
 
 // Load reads configuration from environment variables.
@@ -70,6 +76,11 @@ func Load() (*Config, error) {
 		R2SecretAccessKey: strings.TrimSpace(os.Getenv("R2_SECRET_ACCESS_KEY")),
 		R2BucketName:      getEnv("R2_BUCKET_NAME", "nsa-diplomas"),
 		R2PublicDomain:    strings.TrimRight(getEnv("R2_PUBLIC_DOMAIN", ""), "/"),
+
+		GoogleClientID:        strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
+		GoogleClientSecret:    strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET")),
+		MicrosoftClientID:     strings.TrimSpace(os.Getenv("MICROSOFT_CLIENT_ID")),
+		MicrosoftClientSecret: strings.TrimSpace(os.Getenv("MICROSOFT_CLIENT_SECRET")),
 	}
 
 	if cfg.DatabaseURL == "" {

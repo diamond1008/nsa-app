@@ -170,3 +170,21 @@ type ImportResult struct {
 	Failed   int              `json:"failed"`
 	Errors   []ImportRowError `json:"errors"`
 }
+
+// DuplicateCheckResponse returns information when checking if a lead phone/email is duplicate.
+type DuplicateCheckResponse struct {
+	IsDuplicate    bool                 `json:"is_duplicate"`
+	DuplicateField string               `json:"duplicate_field,omitempty"`
+	ExistingLead   *ExistingLeadSummary `json:"existing_lead,omitempty"`
+}
+
+// ExistingLeadSummary provides a short preview of the duplicate lead.
+type ExistingLeadSummary struct {
+	ID              string  `json:"id"`
+	FullName        string  `json:"full_name"`
+	Phone           *string `json:"phone,omitempty"`
+	Email           *string `json:"email,omitempty"`
+	PipelineStatus  string  `json:"pipeline_status"`
+	AssignedToEmail *string `json:"assigned_to_email,omitempty"`
+	CreatedAt       string  `json:"created_at"`
+}

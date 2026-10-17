@@ -159,7 +159,7 @@ export function LeadConvertPage() {
               <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
                 <Button variant="primary">Xem hồ sơ Đào tạo →</Button>
               </Link>
-              <Link to="/sale/don-hang">
+              <Link to="/sale/orders">
                 <Button variant="ghost">Xem danh sách Đơn hàng</Button>
               </Link>
               <Link to={`/sale/leads/${lead.id}`}>
@@ -263,7 +263,7 @@ export function LeadConvertPage() {
               <Link to="/sale/leads">
                 <Button variant="ghost">← Về danh sách Lead</Button>
               </Link>
-              <Link to="/sale/don-hang">
+              <Link to="/sale/orders">
                 <Button variant="soft">Xem danh sách đơn hàng</Button>
               </Link>
               <Link to={`/admin/hoc-vien/${convertResult.student_id}`}>

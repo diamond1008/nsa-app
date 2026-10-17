@@ -32,6 +32,33 @@ export function OrdersPage() {
   const [newStatus, setNewStatus] = useState<OrderStatus>("paid");
   const [modalError, setModalError] = useState("");
 
+  // Export State
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportOrders = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await saleApi.exportOrders({
+        search: debouncedSearch || undefined,
+        status: statusFilter || undefined,
+        created_from: fromDate ? `${fromDate}T00:00:00Z` : undefined,
+        created_to: toDate ? `${toDate}T23:59:59Z` : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `danh_sach_don_hang_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export orders error", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Queries
   const ordersQuery = useQuery({
     queryKey: [
@@ -188,6 +215,17 @@ export function OrdersPage() {
         title="Quản lý Đơn hàng & Phiếu thu"
         eyebrow="Tài chính Tuyển sinh"
         subtitle="Theo dõi toàn bộ đơn hàng học phí phát sinh từ quy trình tư vấn và chuyển đổi học viên."
+        actions={
+          <Button
+            variant="ghost"
+            onClick={handleExportOrders}
+            loading={isExporting}
+            title="Xuất danh sách đơn hàng ra file Excel"
+          >
+            <Icon name="download" className="h-4 w-4 mr-1.5" />
+            Xuất Excel
+          </Button>
+        }
       />
 
       {/* Filter Bar */}

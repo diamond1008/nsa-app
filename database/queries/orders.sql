@@ -179,3 +179,59 @@ SELECT
       AND DATE_TRUNC('month', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE_TRUNC('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
   )::bigint AS month_paid_orders
 FROM orders;
+
+-- name: ListAllOrdersForExport :many
+SELECT
+  o.id,
+  o.order_code,
+  o.amount,
+  o.discount_amount,
+  o.final_amount,
+  o.discount_note,
+  o.status,
+  o.payment_method,
+  o.paid_at,
+  o.notes,
+  o.created_at,
+  l.full_name AS lead_name,
+  sp.student_code,
+  sp.full_name AS student_name,
+  c.name AS course_name,
+  c.code AS course_code,
+  cl.class_code,
+  cl.name AS class_name,
+  u.email AS created_by_email
+FROM orders o
+LEFT JOIN leads l ON l.id = o.lead_id
+LEFT JOIN student_profiles sp ON sp.id = o.student_id
+LEFT JOIN courses c ON c.id = o.course_id
+LEFT JOIN classes cl ON cl.id = o.class_id
+LEFT JOIN users u ON u.id = o.created_by
+WHERE (
+  sqlc.arg(search)::text = ''
+  OR o.order_code ILIKE '%' || sqlc.arg(search) || '%'
+  OR COALESCE(sp.student_code, '') ILIKE '%' || sqlc.arg(search) || '%'
+  OR COALESCE(sp.full_name, '') ILIKE '%' || sqlc.arg(search) || '%'
+  OR COALESCE(l.full_name, '') ILIKE '%' || sqlc.arg(search) || '%'
+)
+AND (
+  sqlc.narg(status)::order_status IS NULL
+  OR o.status = sqlc.narg(status)
+)
+AND (
+  sqlc.narg(student_id)::uuid IS NULL
+  OR o.student_id = sqlc.narg(student_id)::uuid
+)
+AND (
+  sqlc.narg(lead_id)::uuid IS NULL
+  OR o.lead_id = sqlc.narg(lead_id)::uuid
+)
+AND (
+  sqlc.narg(created_from)::timestamptz IS NULL
+  OR o.created_at >= sqlc.narg(created_from)::timestamptz
+)
+AND (
+  sqlc.narg(created_to)::timestamptz IS NULL
+  OR o.created_at <= sqlc.narg(created_to)::timestamptz
+)
+ORDER BY o.created_at DESC;

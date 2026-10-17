@@ -63,6 +63,20 @@ export interface LeadImportResult {
   errors: Array<{ row: number; name?: string; message: string }>;
 }
 
+export interface DuplicateCheckResponse {
+  is_duplicate: boolean;
+  duplicate_field?: "phone" | "email";
+  existing_lead?: {
+    id: string;
+    full_name: string;
+    phone?: string;
+    email?: string;
+    pipeline_status: string;
+    assigned_to_email?: string;
+    created_at: string;
+  };
+}
+
 export interface OrderListParams {
   search?: string;
   status?: string;
@@ -110,6 +124,12 @@ export const saleApi = {
   convertLead: (id: string, data: ConvertLeadInput) =>
     post<ConvertResult>(`/sale/leads/${id}/convert`, data),
 
+  checkDuplicate: (params: { phone?: string; email?: string; exclude_id?: string }) =>
+    get<DuplicateCheckResponse>(`/sale/leads/check-duplicate${toQuery(params)}`),
+
+  exportLeads: (params: LeadListParams = {}) =>
+    apiDownload(`/sale/leads/export${toQuery(params)}`),
+
   downloadLeadTemplate: (format: "xlsx" | "csv" = "xlsx") =>
     apiDownload(`/sale/leads/template${format === "csv" ? "?format=csv" : ""}`),
 
@@ -156,6 +176,9 @@ export const saleApi = {
   // Orders
   listOrders: (params: OrderListParams = {}) =>
     get<Paginated<Order>>(`/sale/orders${toQuery(params)}`),
+
+  exportOrders: (params: OrderListParams = {}) =>
+    apiDownload(`/sale/orders/export${toQuery(params)}`),
 
   getOrder: (id: string) => get<Order>(`/sale/orders/${id}`),
 

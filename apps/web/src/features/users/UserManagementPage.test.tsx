@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +13,8 @@ vi.mock("./usersApi", () => ({
     create: vi.fn(),
     updateStatus: vi.fn(),
     updateProfile: vi.fn(),
+    updateLeadRouting: vi.fn(),
+    reorderLeadRouting: vi.fn(),
     resetPassword: vi.fn(),
     listAuditLogs: vi.fn(),
   },
@@ -172,4 +174,63 @@ describe("UserManagementPage", () => {
     expect(await screen.findByText("Thêm tài khoản người dùng")).toBeInTheDocument();
     expect(screen.getByLabelText(/Email đăng nhập/i)).toBeInTheDocument();
   });
+
+  it("renders lead routing banner and controls when mode is sale", async () => {
+    vi.mocked(usersApi.list).mockResolvedValue({
+      items: [
+        {
+          id: "sale-1",
+          email: "sale1@nsa.edu.vn",
+          status: "active",
+          must_change_password: false,
+          created_at: "2026-10-09T09:00:00Z",
+          updated_at: "2026-10-09T09:00:00Z",
+          roles: ["SALE"],
+          full_name: "Lê Tư Vấn",
+          phone: "0933333333",
+          is_accepting_leads: true,
+          lead_assignment_order: 1,
+        },
+      ],
+      meta: { page: 1, per_page: 20, total: 1, total_pages: 1 },
+    });
+
+    vi.mocked(usersApi.updateLeadRouting).mockResolvedValue({
+      id: "sale-1",
+      email: "sale1@nsa.edu.vn",
+      status: "active",
+      must_change_password: false,
+      created_at: "2026-10-09T09:00:00Z",
+      updated_at: "2026-10-09T09:00:00Z",
+      roles: ["SALE"],
+      full_name: "Lê Tư Vấn",
+      phone: "0933333333",
+      is_accepting_leads: false,
+      lead_assignment_order: 1,
+    });
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <UserManagementPage mode="sale" />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Thứ tự xoay vòng")).toBeInTheDocument();
+    expect(screen.getAllByText("Nhận Lead tự động").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Đang nhận/i })).toBeInTheDocument();
+
+    // Toggle lead receiving status
+    fireEvent.click(screen.getByRole("button", { name: /Đang nhận/i }));
+    await waitFor(() => {
+      expect(usersApi.updateLeadRouting).toHaveBeenCalledWith("sale-1", { is_accepting_leads: false });
+    });
+  });
 });
+

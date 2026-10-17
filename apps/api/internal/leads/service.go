@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -27,6 +28,8 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+var roundRobinCounter uint64
+
 type Service struct {
 	pool       *pgxpool.Pool
 	queries    *db.Queries
@@ -39,6 +42,20 @@ func NewService(pool *pgxpool.Pool, bcryptCost int) *Service {
 		queries:    db.New(pool),
 		bcryptCost: bcryptCost,
 	}
+}
+
+func (s *Service) getNextRoundRobinStaff(ctx context.Context) (pgtype.UUID, error) {
+	staffList, err := s.queries.ListActiveSaleStaffForRoundRobin(ctx)
+	if err != nil || len(staffList) == 0 {
+		fallbackList, fErr := s.queries.ListSaleStaff(ctx)
+		if fErr != nil || len(fallbackList) == 0 {
+			return pgtype.UUID{}, nil
+		}
+		idx := atomic.AddUint64(&roundRobinCounter, 1) % uint64(len(fallbackList))
+		return fallbackList[idx].ID, nil
+	}
+	idx := atomic.AddUint64(&roundRobinCounter, 1) % uint64(len(staffList))
+	return staffList[idx].ID, nil
 }
 
 func (s *Service) Create(ctx context.Context, actorID string, input WriteInput) (View, error) {
@@ -63,13 +80,22 @@ func (s *Service) Create(ctx context.Context, actorID string, input WriteInput) 
 	var assignee pgtype.UUID
 	var assignedAt pgtype.Timestamptz
 	var assignedBy pgtype.UUID
-	if input.AssignedTo != nil && *input.AssignedTo != "" {
+	isAutoAssigned := false
+	if input.AssignedTo != nil && *input.AssignedTo != "" && *input.AssignedTo != "round_robin" {
 		assignee, err = data.UUID(*input.AssignedTo)
 		if err != nil {
 			return View{}, fmt.Errorf("invalid assignee ID: %w", err)
 		}
 		assignedAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
 		assignedBy = actor
+	} else {
+		rrStaff, rrErr := s.getNextRoundRobinStaff(ctx)
+		if rrErr == nil && rrStaff.Valid {
+			assignee = rrStaff
+			assignedAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+			assignedBy = actor
+			isAutoAssigned = true
+		}
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -107,11 +133,15 @@ func (s *Service) Create(ctx context.Context, actorID string, input WriteInput) 
 	}
 
 	// Record initial pipeline history
+	initialReason := "Tiếp nhận Lead mới"
+	if isAutoAssigned {
+		initialReason = "Tiếp nhận Lead mới (Tự động chia Round-Robin)"
+	}
 	_, err = q.CreatePipelineHistory(ctx, db.CreatePipelineHistoryParams{
 		LeadID:    lead.ID,
 		OldStatus: db.NullLeadPipelineStatus{},
 		NewStatus: db.LeadPipelineStatusDataMoi,
-		Reason:    data.Text(stringPtr("Tiếp nhận Lead mới")),
+		Reason:    data.Text(stringPtr(initialReason)),
 		ChangedBy: actor,
 	})
 	if err != nil {
@@ -1443,4 +1473,271 @@ func mapLeadErrorMessage(err error) string {
 	default:
 		return err.Error()
 	}
+}
+
+func (s *Service) CheckDuplicate(ctx context.Context, phone, email, excludeIDStr string) (DuplicateCheckResponse, error) {
+	phone = strings.TrimSpace(phone)
+	email = strings.TrimSpace(email)
+	if phone == "" && email == "" {
+		return DuplicateCheckResponse{IsDuplicate: false}, nil
+	}
+
+	var excludeID pgtype.UUID
+	if excludeIDStr != "" {
+		parsed, err := data.UUID(excludeIDStr)
+		if err == nil {
+			excludeID = parsed
+		}
+	}
+
+	var phoneArg pgtype.Text
+	if phone != "" {
+		phoneArg = pgtype.Text{String: phone, Valid: true}
+	}
+	var emailArg pgtype.Text
+	if email != "" {
+		emailArg = pgtype.Text{String: email, Valid: true}
+	}
+
+	dup, err := s.queries.FindDuplicateLead(ctx, db.FindDuplicateLeadParams{
+		Phone:     phoneArg,
+		Email:     emailArg,
+		ExcludeID: excludeID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return DuplicateCheckResponse{IsDuplicate: false}, nil
+		}
+		return DuplicateCheckResponse{}, fmt.Errorf("find duplicate lead: %w", err)
+	}
+
+	field := "phone"
+	if phone != "" && dup.Phone.Valid && strings.EqualFold(strings.TrimSpace(dup.Phone.String), phone) {
+		field = "phone"
+	} else if email != "" && dup.Email.Valid && strings.EqualFold(strings.TrimSpace(dup.Email.String), email) {
+		field = "email"
+	}
+
+	var assignedEmail *string
+	if dup.AssignedToEmail.Valid && dup.AssignedToEmail.String != "" {
+		assignedEmail = &dup.AssignedToEmail.String
+	}
+
+	var leadPhone *string
+	if dup.Phone.Valid {
+		leadPhone = &dup.Phone.String
+	}
+	var leadEmail *string
+	if dup.Email.Valid {
+		leadEmail = &dup.Email.String
+	}
+
+	return DuplicateCheckResponse{
+		IsDuplicate:    true,
+		DuplicateField: field,
+		ExistingLead: &ExistingLeadSummary{
+			ID:              data.UUIDString(dup.ID),
+			FullName:        dup.FullName,
+			Phone:           leadPhone,
+			Email:           leadEmail,
+			PipelineStatus:  string(dup.PipelineStatus),
+			AssignedToEmail: assignedEmail,
+			CreatedAt:       dup.CreatedAt.Time.UTC().Format("02/01/2006 15:04"),
+		},
+	}, nil
+}
+
+func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*excelize.File, error) {
+	var pipelineStatus db.NullLeadPipelineStatus
+	if filter.PipelineStatus != "" {
+		pipelineStatus = db.NullLeadPipelineStatus{
+			LeadPipelineStatus: db.LeadPipelineStatus(filter.PipelineStatus),
+			Valid:              true,
+		}
+	}
+
+	var source db.NullLeadSource
+	if filter.Source != "" {
+		source = db.NullLeadSource{
+			LeadSource: db.LeadSource(filter.Source),
+			Valid:      true,
+		}
+	}
+
+	var assignedTo pgtype.UUID
+	if filter.AssignedTo != "" {
+		parsed, err := data.UUID(filter.AssignedTo)
+		if err == nil {
+			assignedTo = parsed
+		}
+	}
+
+	var createdFrom pgtype.Timestamptz
+	if filter.CreatedFrom != "" {
+		t, err := time.Parse(time.RFC3339, filter.CreatedFrom)
+		if err == nil {
+			createdFrom = pgtype.Timestamptz{Time: t, Valid: true}
+		}
+	}
+
+	var createdTo pgtype.Timestamptz
+	if filter.CreatedTo != "" {
+		t, err := time.Parse(time.RFC3339, filter.CreatedTo)
+		if err == nil {
+			createdTo = pgtype.Timestamptz{Time: t, Valid: true}
+		}
+	}
+
+	leadsList, err := s.queries.ListAllLeadsForExport(ctx, db.ListAllLeadsForExportParams{
+		Search:         strings.TrimSpace(filter.Search),
+		PipelineStatus: pipelineStatus,
+		Source:         source,
+		AssignedTo:     assignedTo,
+		CreatedFrom:    createdFrom,
+		CreatedTo:      createdTo,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list leads for export: %w", err)
+	}
+
+	f := excelize.NewFile()
+	sheetName := "Danh sách Lead"
+	f.SetSheetName("Sheet1", sheetName)
+
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Color: "#FFFFFF", Size: 11, Family: "Segoe UI"},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#0A2540"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#CCCCCC", Style: 1},
+			{Type: "bottom", Color: "#CCCCCC", Style: 1},
+			{Type: "left", Color: "#CCCCCC", Style: 1},
+			{Type: "right", Color: "#CCCCCC", Style: 1},
+		},
+	})
+
+	dataStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment: &excelize.Alignment{Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#E5E7EB", Style: 1},
+			{Type: "bottom", Color: "#E5E7EB", Style: 1},
+			{Type: "left", Color: "#E5E7EB", Style: 1},
+			{Type: "right", Color: "#E5E7EB", Style: 1},
+		},
+	})
+
+	centerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#E5E7EB", Style: 1},
+			{Type: "bottom", Color: "#E5E7EB", Style: 1},
+			{Type: "left", Color: "#E5E7EB", Style: 1},
+			{Type: "right", Color: "#E5E7EB", Style: 1},
+		},
+	})
+
+	headers := []string{
+		"STT", "Họ và tên", "Số điện thoại", "Email", "Giới tính",
+		"Nguồn tiếp cận", "Khóa học quan tâm", "Trạng thái Pipeline",
+		"Sale phụ trách", "Ghi chú tư vấn", "Ngày tạo",
+	}
+
+	for colIdx, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
+		_ = f.SetCellValue(sheetName, cell, h)
+		_ = f.SetCellStyle(sheetName, cell, cell, headerStyle)
+	}
+	_ = f.SetRowHeight(sheetName, 1, 28)
+
+	statusMap := map[string]string{
+		"data_moi":     "Data mới",
+		"knm_thue_bao": "KNM / Thuê bao",
+		"goi_lai_sau":  "Gọi lại sau",
+		"follow":       "Follow / Chăm sóc",
+		"tu_choi":      "Từ chối",
+		"da_dang_ky":   "Đã đăng ký",
+		"dang_hoc":     "Đang học",
+		"ket_thuc":     "Kết thúc",
+	}
+
+	sourceMap := map[string]string{
+		"facebook": "Facebook",
+		"tiktok":   "TikTok",
+		"google":   "Google",
+		"zalo":     "Zalo",
+		"website":  "Website",
+		"referral": "Giới thiệu",
+		"walk_in":  "Đến trực tiếp",
+		"event":    "Sự kiện",
+		"other":    "Khác",
+	}
+
+	for rowIdx, l := range leadsList {
+		row := rowIdx + 2
+		stt := rowIdx + 1
+
+		phoneStr := ""
+		if l.Phone.Valid {
+			phoneStr = l.Phone.String
+		}
+		emailStr := ""
+		if l.Email.Valid {
+			emailStr = l.Email.String
+		}
+		genderStr := ""
+		if l.Gender.Valid {
+			genderStr = l.Gender.String
+		}
+		srcStr := sourceMap[string(l.Source)]
+		if srcStr == "" {
+			srcStr = string(l.Source)
+		}
+		courseStr := ""
+		if l.CourseName.Valid && l.CourseName.String != "" {
+			courseStr = l.CourseName.String
+		}
+		statusStr := statusMap[string(l.PipelineStatus)]
+		if statusStr == "" {
+			statusStr = string(l.PipelineStatus)
+		}
+		saleStr := "Chưa phân bổ"
+		if l.AssignedToEmail.Valid && l.AssignedToEmail.String != "" {
+			saleStr = l.AssignedToEmail.String
+		}
+		notesStr := ""
+		if l.Notes.Valid {
+			notesStr = l.Notes.String
+		}
+		createdAtStr := l.CreatedAt.Time.UTC().Format("02/01/2006 15:04")
+
+		values := []interface{}{
+			stt, l.FullName, phoneStr, emailStr, genderStr,
+			srcStr, courseStr, statusStr,
+			saleStr, notesStr, createdAtStr,
+		}
+
+		for colIdx, v := range values {
+			cell, _ := excelize.CoordinatesToCellName(colIdx+1, row)
+			_ = f.SetCellValue(sheetName, cell, v)
+			if colIdx == 0 || colIdx == 2 || colIdx == 4 || colIdx == 7 || colIdx == 10 {
+				_ = f.SetCellStyle(sheetName, cell, cell, centerStyle)
+			} else {
+				_ = f.SetCellStyle(sheetName, cell, cell, dataStyle)
+			}
+		}
+		_ = f.SetRowHeight(sheetName, row, 22)
+	}
+
+	colWidths := map[int]float64{
+		1: 8, 2: 24, 3: 16, 4: 26, 5: 12,
+		6: 18, 7: 24, 8: 20, 9: 26, 10: 32, 11: 20,
+	}
+	for col, width := range colWidths {
+		colName, _ := excelize.ColumnNumberToName(col)
+		_ = f.SetColWidth(sheetName, colName, colName, width)
+	}
+
+	return f, nil
 }

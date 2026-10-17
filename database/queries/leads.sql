@@ -208,3 +208,88 @@ JOIN user_roles ur ON ur.user_id = u.id
 JOIN roles r ON r.id = ur.role_id
 WHERE r.code IN ('SALE', 'SALE_ADMIN', 'ADMIN') AND u.status = 'active'
 ORDER BY u.email ASC;
+
+-- name: ListActiveSaleStaffForRoundRobin :many
+SELECT DISTINCT
+  u.id,
+  u.email
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+JOIN roles r ON r.id = ur.role_id
+WHERE r.code = 'SALE' AND u.status = 'active' AND u.is_accepting_leads = true
+ORDER BY u.lead_assignment_order ASC, u.email ASC;
+
+-- name: FindDuplicateLead :one
+SELECT
+  l.id,
+  l.full_name,
+  l.phone,
+  l.email,
+  l.pipeline_status,
+  l.assigned_to,
+  l.created_at,
+  u.email AS assigned_to_email
+FROM leads l
+LEFT JOIN users u ON u.id = l.assigned_to
+WHERE (
+  (sqlc.narg(phone)::text IS NOT NULL AND sqlc.narg(phone)::text <> '' AND l.phone = sqlc.narg(phone)::text)
+  OR
+  (sqlc.narg(email)::citext IS NOT NULL AND sqlc.narg(email)::citext <> '' AND l.email = sqlc.narg(email)::citext)
+)
+AND (
+  sqlc.narg(exclude_id)::uuid IS NULL
+  OR l.id <> sqlc.narg(exclude_id)::uuid
+)
+ORDER BY l.created_at DESC
+LIMIT 1;
+
+-- name: ListAllLeadsForExport :many
+SELECT
+  l.id,
+  l.full_name,
+  l.phone,
+  l.email,
+  l.gender,
+  l.date_of_birth,
+  l.address,
+  l.source,
+  l.source_detail,
+  l.pipeline_status,
+  l.notes,
+  l.created_at,
+  c.code AS course_code,
+  c.name AS course_name,
+  u_assignee.email AS assigned_to_email,
+  sp.student_code AS converted_student_code,
+  sp.full_name AS converted_student_name
+FROM leads l
+LEFT JOIN courses c ON c.id = l.interested_course_id
+LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
+LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
+WHERE (
+  sqlc.arg(search)::text = ''
+  OR l.full_name ILIKE '%' || sqlc.arg(search) || '%'
+  OR COALESCE(l.phone, '') ILIKE '%' || sqlc.arg(search) || '%'
+  OR COALESCE(l.email::text, '') ILIKE '%' || sqlc.arg(search) || '%'
+)
+AND (
+  sqlc.narg(pipeline_status)::lead_pipeline_status IS NULL
+  OR l.pipeline_status = sqlc.narg(pipeline_status)
+)
+AND (
+  sqlc.narg(source)::lead_source IS NULL
+  OR l.source = sqlc.narg(source)
+)
+AND (
+  sqlc.narg(assigned_to)::uuid IS NULL
+  OR l.assigned_to = sqlc.narg(assigned_to)::uuid
+)
+AND (
+  sqlc.narg(created_from)::timestamptz IS NULL
+  OR l.created_at >= sqlc.narg(created_from)::timestamptz
+)
+AND (
+  sqlc.narg(created_to)::timestamptz IS NULL
+  OR l.created_at <= sqlc.narg(created_to)::timestamptz
+)
+ORDER BY l.created_at DESC;

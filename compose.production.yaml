@@ -1,4 +1,4 @@
-name: nsa-training-production
+name: nsa-app-production
 
 services:
   postgres:

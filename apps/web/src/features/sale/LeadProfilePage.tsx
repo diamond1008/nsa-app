@@ -386,18 +386,26 @@ export function LeadProfilePage() {
               <Link to={`/sale/leads/${lead.id}/convert`}>
                 <Button variant="accent">
                   <Icon name="user-check" className="h-4 w-4" />
-                  Chuyển thành Học viên
+                  Chốt thành Học viên
                 </Button>
               </Link>
             ) : (
-              lead.converted_student_id && (
-                <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
-                  <Button variant="primary">
-                    <Icon name="academic" className="h-4 w-4" />
-                    Hồ sơ Học viên →
+              <div className="flex items-center gap-2">
+                <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
+                  <Button variant="ghost" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 shadow-2xs">
+                    <Icon name="shopping-bag" className="h-4 w-4 mr-1" />
+                    Phiếu đăng ký
                   </Button>
                 </Link>
-              )
+                {lead.converted_student_id && (
+                  <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
+                    <Button variant="primary">
+                      <Icon name="academic" className="h-4 w-4" />
+                      Hồ sơ Học viên →
+                    </Button>
+                  </Link>
+                )}
+              </div>
             )}
           </div>
         </div>

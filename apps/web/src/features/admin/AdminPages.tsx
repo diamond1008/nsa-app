@@ -2247,7 +2247,7 @@ function CourseTestsPanel({ course }: { course: Course }) {
   );
 }
 
-export function ClassesPage() {
+export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const client = useQueryClient();
   const config: ListQueryConfig<string, string> = useMemo(
     () => ({
@@ -2373,16 +2373,22 @@ export function ClassesPage() {
     <div>
       <PageHeader
         title="Lớp học"
-        subtitle="Quản lý lớp, sĩ số, ghi danh và phân công."
+        subtitle={
+          readOnly
+            ? "Tra cứu danh sách lớp học, sĩ số, ngày khai giảng và tình trạng còn chỗ."
+            : "Quản lý lớp, sĩ số, ghi danh và phân công."
+        }
         actions={
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-          >
-            <Icon name="plus" className="h-4 w-4" /> Tạo lớp
-          </Button>
+          readOnly ? null : (
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+            >
+              <Icon name="plus" className="h-4 w-4" /> Tạo lớp
+            </Button>
+          )
         }
       />
       <FilterBar
@@ -2537,18 +2543,20 @@ export function ClassesPage() {
               className: "whitespace-nowrap text-right w-1",
               cell: (c) => (
                 <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                  <Link to={`/admin/lop-hoc/${c.id}`}>
+                  <Link to={readOnly ? `/sale/lop-hoc` : `/admin/lop-hoc/${c.id}`}>
                     <Button variant="ghost">Chi tiết</Button>
                   </Link>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setEditing(c);
-                      setOpen(true);
-                    }}
-                  >
-                    Sửa
-                  </Button>
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setEditing(c);
+                        setOpen(true);
+                      }}
+                    >
+                      Sửa
+                    </Button>
+                  )}
                 </div>
               ),
             },
@@ -3138,7 +3146,7 @@ const scheduleListConfig: ListQueryConfig<string, string> = {
   defaultOrder: "asc",
 };
 
-export function ScheduleAdminPage() {
+export function ScheduleAdminPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const client = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const listState = readListQuery(searchParams, scheduleListConfig);
@@ -3409,17 +3417,23 @@ export function ScheduleAdminPage() {
       <PageHeader
         eyebrow="Điều phối đào tạo"
         title="Lịch học"
-        subtitle="Lập lịch, theo dõi giảng viên và xem điểm danh trên một lịch thống nhất."
+        subtitle={
+          readOnly
+            ? "Xem lịch học các lớp, thời khóa biểu và ca học để tư vấn học viên."
+            : "Lập lịch, theo dõi giảng viên và xem điểm danh trên một lịch thống nhất."
+        }
         actions={
-          <>
-            <Button variant="ghost" onClick={() => setLocationsOpen(true)}>
-              Phòng / xưởng
-            </Button>
-            <Button onClick={() => setOpen(true)}>
-              <Icon name="plus" className="h-4 w-4" />
-              Tạo buổi học
-            </Button>
-          </>
+          readOnly ? null : (
+            <>
+              <Button variant="ghost" onClick={() => setLocationsOpen(true)}>
+                Phòng / xưởng
+              </Button>
+              <Button onClick={() => setOpen(true)}>
+                <Icon name="plus" className="h-4 w-4" />
+                Tạo buổi học
+              </Button>
+            </>
+          )
         }
       />
       <FilterBar
@@ -3511,11 +3525,18 @@ export function ScheduleAdminPage() {
                 <span> · {formatDateTime(selectedSession.starts_at)}</span>
                 <p>{selectedSession.location_name || "Chưa xếp phòng"}</p>
               </div>
-              <Link to={`/admin/diem-danh?session=${selectedSession.id}`}>
+              <Link to={readOnly ? `/sale/diem-danh?session=${selectedSession.id}` : `/admin/diem-danh?session=${selectedSession.id}`}>
                 <Button variant="soft">Xem điểm danh</Button>
               </Link>
             </div>
-            {selectedSession.status === "locked" || selectedSession.attendance_locked_at ? (
+            {readOnly ? (
+              <div className="rounded-xl border border-gborder p-4 text-xs text-slate-600 space-y-2 bg-slate-50">
+                <p><b>Giảng viên:</b> {selectedSession.teacher_name || "Chưa phân công"}</p>
+                <p><b>Phòng học:</b> {selectedSession.location_name || "Chưa xếp phòng"}</p>
+                <p><b>Thời gian:</b> {formatDateTime(selectedSession.starts_at)} - {formatDateTime(selectedSession.ends_at)}</p>
+                <p><b>Trạng thái:</b> {statusLabel(selectedSession.status)}</p>
+              </div>
+            ) : selectedSession.status === "locked" || selectedSession.attendance_locked_at ? (
               <div className="rounded-xl border border-gborder p-4 text-sm text-gtext">
                 Buổi học đã được khóa sau ngày điểm danh. Bạn vẫn có thể xem tình trạng điểm danh
                 nhưng không thể thay đổi lịch.

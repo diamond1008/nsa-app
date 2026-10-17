@@ -114,7 +114,7 @@ export function DataTable<T extends { id: string }>({
           </div>
         ))}
       </div>
-      <div className="hidden max-h-[calc(100dvh-15rem)] overflow-auto md:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
           <thead className="sticky top-0 z-10 bg-white/75 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-md">
             <tr>

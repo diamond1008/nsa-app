@@ -200,6 +200,8 @@ func (s *Service) List(ctx context.Context, claims *auth.AccessClaims, filter Li
 			StudentCode:        r.StudentCode,
 			TeacherCode:        r.TeacherCode,
 			CreatedByEmail:     r.CreatedByEmail,
+			IsAcceptingLeads:    r.IsAcceptingLeads,
+			LeadAssignmentOrder: int(r.LeadAssignmentOrder),
 		})
 	}
 
@@ -245,6 +247,8 @@ func (s *Service) Get(ctx context.Context, claims *auth.AccessClaims, id string)
 		StudentCode:        row.StudentCode,
 		TeacherCode:        row.TeacherCode,
 		CreatedByEmail:     row.CreatedByEmail,
+		IsAcceptingLeads:    row.IsAcceptingLeads,
+		LeadAssignmentOrder: int(row.LeadAssignmentOrder),
 	}, nil
 }
 
@@ -407,6 +411,8 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		StudentCode:        studentCode,
 		TeacherCode:        teacherCode,
 		CreatedByEmail:     claims.Email,
+		IsAcceptingLeads:    true,
+		LeadAssignmentOrder: 0,
 	}, nil
 }
 
@@ -667,3 +673,122 @@ func (s *Service) ListAuditLogs(ctx context.Context, claims *auth.AccessClaims, 
 
 	return pagination.New(items, page, perPage, total), nil
 }
+
+// UpdateLeadRouting updates the is_accepting_leads flag and/or assignment order for a sale user.
+func (s *Service) UpdateLeadRouting(ctx context.Context, claims *auth.AccessClaims, id string, input UpdateLeadRoutingInput) (UserView, error) {
+	uid, err := data.UUID(id)
+	if err != nil {
+		return UserView{}, ErrNotFound
+	}
+
+	existing, err := s.queries.GetUserDetail(ctx, uid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return UserView{}, ErrNotFound
+		}
+		return UserView{}, fmt.Errorf("get user detail: %w", err)
+	}
+
+	if !s.checkUserInScope(claims, existing.RoleCodes) {
+		return UserView{}, ErrForbidden
+	}
+
+	if !claims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin) {
+		return UserView{}, ErrForbidden
+	}
+
+	var isAccepting pgtype.Bool
+	if input.IsAcceptingLeads != nil {
+		isAccepting = pgtype.Bool{Bool: *input.IsAcceptingLeads, Valid: true}
+	}
+	var assignmentOrder pgtype.Int4
+	if input.LeadAssignmentOrder != nil {
+		assignmentOrder = pgtype.Int4{Int32: int32(*input.LeadAssignmentOrder), Valid: true}
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return UserView{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := s.queries.WithTx(tx)
+
+	_, err = q.UpdateUserLeadRouting(ctx, db.UpdateUserLeadRoutingParams{
+		ID:                  uid,
+		IsAcceptingLeads:    isAccepting,
+		LeadAssignmentOrder: assignmentOrder,
+	})
+	if err != nil {
+		return UserView{}, fmt.Errorf("update user lead routing: %w", err)
+	}
+
+	oldValues := map[string]any{
+		"is_accepting_leads":    existing.IsAcceptingLeads,
+		"lead_assignment_order": existing.LeadAssignmentOrder,
+	}
+	newValues := map[string]any{}
+	if input.IsAcceptingLeads != nil {
+		newValues["is_accepting_leads"] = *input.IsAcceptingLeads
+	}
+	if input.LeadAssignmentOrder != nil {
+		newValues["lead_assignment_order"] = *input.LeadAssignmentOrder
+	}
+
+	if err := audit.Write(ctx, q, claims.UserID, "user.update_lead_routing", "user", uid, oldValues, newValues); err != nil {
+		return UserView{}, fmt.Errorf("write audit log: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return UserView{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return s.Get(ctx, claims, id)
+}
+
+// ReorderLeadRouting updates the assignment order for multiple sale staff sequentially.
+func (s *Service) ReorderLeadRouting(ctx context.Context, claims *auth.AccessClaims, input ReorderLeadRoutingInput) error {
+	if !claims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin) {
+		return ErrForbidden
+	}
+
+	if len(input.OrderedUserIDs) == 0 {
+		return nil
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := s.queries.WithTx(tx)
+
+	for index, idStr := range input.OrderedUserIDs {
+		uid, err := data.UUID(idStr)
+		if err != nil {
+			continue
+		}
+		err = q.UpdateLeadAssignmentOrder(ctx, db.UpdateLeadAssignmentOrderParams{
+			ID:                  uid,
+			LeadAssignmentOrder: int32(index + 1),
+		})
+		if err != nil {
+			return fmt.Errorf("update order for user %s: %w", idStr, err)
+		}
+	}
+
+	actorID, _ := data.UUID(claims.UserID)
+	if err := audit.Write(ctx, q, claims.UserID, "user.reorder_lead_routing", "user", actorID, nil, map[string]any{
+		"ordered_user_ids": input.OrderedUserIDs,
+	}); err != nil {
+		return fmt.Errorf("write reorder audit: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	return nil
+}
+

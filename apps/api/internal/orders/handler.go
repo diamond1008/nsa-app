@@ -2,8 +2,10 @@ package orders
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -155,5 +157,31 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 		response.Fail(w, http.StatusBadRequest, "INVALID_ORDER_STATUS", "Invalid order status value")
 	default:
 		response.InternalError(w, h.log, auth.RequestIDFrom(r.Context()), err)
+	}
+}
+
+func (h *Handler) ExportExcel(w http.ResponseWriter, r *http.Request) {
+	filter := ListFilter{
+		Status:      r.URL.Query().Get("status"),
+		StudentID:   r.URL.Query().Get("student_id"),
+		LeadID:      r.URL.Query().Get("lead_id"),
+		Search:      r.URL.Query().Get("search"),
+		CreatedFrom: r.URL.Query().Get("created_from"),
+		CreatedTo:   r.URL.Query().Get("created_to"),
+	}
+
+	file, err := h.service.ExportOrdersExcel(r.Context(), filter)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	defer file.Close()
+
+	filename := fmt.Sprintf("danh_sach_don_hang_%s.xlsx", time.Now().Format("20060102_150405"))
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	if err := file.Write(w); err != nil {
+		h.log.Error("failed to write orders excel file to response", "error", err)
 	}
 }

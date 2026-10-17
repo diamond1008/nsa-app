@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import clsx from "clsx";
 
 import { DataTable, Pagination, QueryState } from "../../components/data";
 import type { Column } from "../../components/data";
@@ -16,11 +17,14 @@ import {
   Textarea,
 } from "../../components/ui";
 import { useAuth } from "../auth/AuthContext";
-import type { Course, Lead, SaleStaff } from "../../lib/domainTypes";
+import type { Course, Lead, LeadPipelineStatus, SaleStaff } from "../../lib/domainTypes";
 import { formatDate, mutationMessage } from "../../lib/format";
+import { LeadKanbanBoard } from "./LeadKanbanBoard";
+import { LeadDetailDrawer } from "./LeadDetailDrawer";
 import { saleApi } from "./saleApi";
-import type { CreateLeadInput, LeadImportResult } from "./saleApi";
+import type { CreateLeadInput, DuplicateCheckResponse, LeadImportResult } from "./saleApi";
 import {
+  getPipelineStatusLabel,
   getSourceLabel,
   LeadPipelineBadge,
   PIPELINE_STATUS_OPTIONS,
@@ -31,6 +35,9 @@ export function LeadPipelinePage() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole("ADMIN", "SALE_ADMIN");
   const queryClient = useQueryClient();
+
+  // Slide-over Drawer Selected Lead
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   // Filters & Pagination
   const [search, setSearch] = useState("");
@@ -43,9 +50,26 @@ export function LeadPipelinePage() {
   const [page, setPage] = useState(1);
   const perPage = 20;
 
-  // Create Modal
+  // View Mode: Table vs Kanban
+  const [viewMode, setViewMode] = useState<"table" | "kanban">(() => {
+    return (localStorage.getItem("nsa_lead_view_mode") as "table" | "kanban") || "table";
+  });
+
+  const handleSetViewMode = (mode: "table" | "kanban") => {
+    setViewMode(mode);
+    localStorage.setItem("nsa_lead_view_mode", mode);
+  };
+
+  // Export State
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+
+  // Create Modal & Duplicate Check
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [formError, setFormError] = useState("");
+  const [duplicateInfo, setDuplicateInfo] = useState<DuplicateCheckResponse | null>(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+
   const [formData, setFormData] = useState<CreateLeadInput>({
     full_name: "",
     phone: "",
@@ -56,6 +80,40 @@ export function LeadPipelinePage() {
     notes: "",
     assigned_to: "",
   });
+
+  const debouncedPhone = useDebouncedValue(formData.phone, 400);
+  const debouncedEmail = useDebouncedValue(formData.email, 400);
+
+  useEffect(() => {
+    if (!isCreateOpen) {
+      setDuplicateInfo(null);
+      return;
+    }
+    const phone = debouncedPhone?.trim() || "";
+    const email = debouncedEmail?.trim() || "";
+    if (!phone && !email) {
+      setDuplicateInfo(null);
+      return;
+    }
+    let active = true;
+    setIsCheckingDuplicate(true);
+    saleApi
+      .checkDuplicate({ phone: phone || undefined, email: email || undefined })
+      .then((res) => {
+        if (active) {
+          setDuplicateInfo(res);
+        }
+      })
+      .catch(() => {
+        if (active) setDuplicateInfo(null);
+      })
+      .finally(() => {
+        if (active) setIsCheckingDuplicate(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [debouncedPhone, debouncedEmail, isCreateOpen]);
 
   // Import Modal & State
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -86,6 +144,33 @@ export function LeadPipelinePage() {
     }
   };
 
+  const handleExportLeads = async () => {
+    setIsExporting(true);
+    setExportError("");
+    try {
+      const blob = await saleApi.exportLeads({
+        search: debouncedSearch || undefined,
+        pipeline_status: statusFilter || undefined,
+        source: sourceFilter || undefined,
+        assigned_to: assignedFilter || undefined,
+        created_from: fromDate ? `${fromDate}T00:00:00Z` : undefined,
+        created_to: toDate ? `${toDate}T23:59:59Z` : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `danh_sach_lead_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(mutationMessage(err));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const importMutation = useMutation({
     mutationFn: async (file: File) => saleApi.importLeads(file),
     onSuccess: (data) => {
@@ -100,6 +185,15 @@ export function LeadPipelinePage() {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ leadId, newStatus }: { leadId: string; newStatus: LeadPipelineStatus }) =>
+      saleApi.updateLeadStatus(leadId, newStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
+    },
+  });
+
   // Queries
   const leadsQuery = useQuery({
     queryKey: [
@@ -107,7 +201,7 @@ export function LeadPipelinePage() {
       "leads",
       {
         page,
-        per_page: perPage,
+        per_page: viewMode === "kanban" ? 100 : perPage,
         search: debouncedSearch,
         pipeline_status: statusFilter,
         source: sourceFilter,
@@ -119,7 +213,7 @@ export function LeadPipelinePage() {
     queryFn: () =>
       saleApi.listLeads({
         page,
-        per_page: perPage,
+        per_page: viewMode === "kanban" ? 100 : perPage,
         search: debouncedSearch || undefined,
         pipeline_status: statusFilter || undefined,
         source: sourceFilter || undefined,
@@ -194,12 +288,13 @@ export function LeadPipelinePage() {
       className: "min-w-[160px]",
       cell: (lead) => (
         <div>
-          <Link
-            to={`/sale/leads/${lead.id}`}
-            className="font-semibold text-navy hover:text-[#0532e6] hover:underline"
+          <button
+            type="button"
+            onClick={() => setSelectedLeadId(lead.id)}
+            className="font-semibold text-navy hover:text-[#0532e6] hover:underline text-left cursor-pointer transition-colors"
           >
             {lead.full_name}
-          </Link>
+          </button>
           {lead.email && <div className="text-xs text-gtext">{lead.email}</div>}
         </div>
       ),
@@ -247,11 +342,13 @@ export function LeadPipelinePage() {
       className: "w-28 text-right",
       cell: (lead) => (
         <div className="flex items-center justify-end gap-1.5">
-          <Link to={`/sale/leads/${lead.id}`}>
-            <Button variant="soft" className="h-8 px-2.5 text-xs">
-              Chi tiết
-            </Button>
-          </Link>
+          <Button
+            variant="soft"
+            className="h-8 px-2.5 text-xs"
+            onClick={() => setSelectedLeadId(lead.id)}
+          >
+            Chi tiết
+          </Button>
           {!lead.converted_student_id && (
             <Link to={`/sale/leads/${lead.id}/convert`}>
               <Button
@@ -286,6 +383,37 @@ export function LeadPipelinePage() {
         subtitle="Danh sách khách hàng tiềm năng, theo dõi tiến độ chuyển đổi và quản lý thông tin tư vấn."
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-0.5">
+              <button
+                type="button"
+                onClick={() => handleSetViewMode("table")}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                  viewMode === "table" ? "bg-white text-navy shadow-xs" : "text-slate-600 hover:text-navy",
+                )}
+              >
+                <span>📋</span> Danh sách
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetViewMode("kanban")}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                  viewMode === "kanban" ? "bg-white text-navy shadow-xs" : "text-slate-600 hover:text-navy",
+                )}
+              >
+                <span>📊</span> Kanban
+              </button>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={handleExportLeads}
+              loading={isExporting}
+              title="Xuất danh sách Lead ra file Excel"
+            >
+              <Icon name="download" className="h-4 w-4 mr-1.5" />
+              Xuất Excel
+            </Button>
             <Button
               variant="ghost"
               onClick={() => {
@@ -302,6 +430,7 @@ export function LeadPipelinePage() {
               variant="primary"
               onClick={() => {
                 setFormError("");
+                setDuplicateInfo(null);
                 setIsCreateOpen(true);
               }}
             >
@@ -311,6 +440,8 @@ export function LeadPipelinePage() {
           </div>
         }
       />
+
+      {exportError && <ErrorBanner message={exportError} />}
 
       {/* Filter Bar */}
       <FilterBar
@@ -419,15 +550,28 @@ export function LeadPipelinePage() {
         }
       />
 
-      {/* Leads Table */}
+      {/* Leads Content: Table or Kanban */}
       <QueryState
         loading={leadsQuery.isLoading}
         error={leadsQuery.error}
         empty={leadsQuery.data?.items.length === 0}
         emptyTitle="Không tìm thấy Lead nào phù hợp"
       >
-        <DataTable items={leadsQuery.data?.items ?? []} columns={columns} />
-        <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+        {viewMode === "table" ? (
+          <>
+            <DataTable items={leadsQuery.data?.items ?? []} columns={columns} />
+            <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+          </>
+        ) : (
+          <LeadKanbanBoard
+            leads={leadsQuery.data?.items ?? []}
+            onStatusChange={(leadId, newStatus) =>
+              updateStatusMutation.mutate({ leadId, newStatus })
+            }
+            isUpdating={updateStatusMutation.isPending}
+            onSelectLead={setSelectedLeadId}
+          />
+        )}
       </QueryState>
 
       {/* Modal: Thêm Lead Mới */}
@@ -438,6 +582,33 @@ export function LeadPipelinePage() {
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           {formError && <ErrorBanner message={formError} />}
+
+          {isCheckingDuplicate && (
+            <p className="text-[11px] text-slate-500 italic flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              Đang kiểm tra trùng lặp thông tin...
+            </p>
+          )}
+
+          {/* Real-time Duplicate Lead Warning */}
+          {duplicateInfo?.is_duplicate && duplicateInfo.existing_lead && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-950 animate-in fade-in">
+              <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                <Icon name="alert" className="h-4 w-4 text-amber-600 shrink-0" />
+                Cảnh báo trùng lặp ({duplicateInfo.duplicate_field === "phone" ? "Số điện thoại" : "Email"})
+              </div>
+              <p className="mt-1 text-amber-800 leading-relaxed">
+                Đã có Lead <strong>{duplicateInfo.existing_lead.full_name}</strong> (Trạng thái:{" "}
+                <em>{getPipelineStatusLabel(duplicateInfo.existing_lead.pipeline_status)}</em>
+                {duplicateInfo.existing_lead.assigned_to_email &&
+                  ` — Phụ trách: ${duplicateInfo.existing_lead.assigned_to_email}`}
+                ).
+              </p>
+              <p className="mt-1 text-[11px] text-amber-700">
+                💡 Bạn vẫn có thể tiếp tục bấm <strong>"Tạo Lead"</strong> nếu đây là khách hàng hỏi lại hoặc đăng ký thêm khóa mới.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
@@ -508,7 +679,7 @@ export function LeadPipelinePage() {
               value={formData.assigned_to ?? ""}
               onChange={(e) => setFormData((prev) => ({ ...prev, assigned_to: e.target.value }))}
             >
-              <option value="">-- Tự phụ trách / Chưa phân bổ --</option>
+              <option value="">-- Tự động chia Round-Robin cho Sale --</option>
               {staffQuery.data?.map((staff: SaleStaff) => (
                 <option key={staff.id} value={staff.id}>
                   {staff.email}
@@ -701,6 +872,16 @@ export function LeadPipelinePage() {
           </div>
         </div>
       </Modal>
+
+      {/* Slide-over Drawer Chi tiết Lead */}
+      <LeadDetailDrawer
+        leadId={selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        onLeadUpdated={() => {
+          queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+          queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
+        }}
+      />
     </div>
   );
 }

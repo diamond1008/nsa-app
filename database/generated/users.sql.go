@@ -76,7 +76,7 @@ func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, 
 
 const createUserAccount = `-- name: CreateUserAccount :one
 INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone)
-VALUES ($1, $2, $3, TRUE, $4, $5)
+VALUES ($1, $2, $3, FALSE, $4, $5)
 RETURNING id, email, status, must_change_password, full_name, phone, created_at, updated_at
 `
 
@@ -132,6 +132,8 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
+  COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
   COALESCE(sp.student_code, '')::varchar(50) AS student_code,
   COALESCE(tp.teacher_code, '')::varchar(50) AS teacher_code,
@@ -154,19 +156,21 @@ GROUP BY u.id, sp.student_code, tp.teacher_code
 `
 
 type GetUserDetailRow struct {
-	ID                 pgtype.UUID        `json:"id"`
-	Email              string             `json:"email"`
-	Status             UserStatus         `json:"status"`
-	MustChangePassword bool               `json:"must_change_password"`
-	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
-	FullName           string             `json:"full_name"`
-	Phone              string             `json:"phone"`
-	RoleCodes          []string           `json:"role_codes"`
-	StudentCode        string             `json:"student_code"`
-	TeacherCode        string             `json:"teacher_code"`
-	CreatedByEmail     string             `json:"created_by_email"`
+	ID                  pgtype.UUID        `json:"id"`
+	Email               string             `json:"email"`
+	Status              UserStatus         `json:"status"`
+	MustChangePassword  bool               `json:"must_change_password"`
+	LastLoginAt         pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	FullName            string             `json:"full_name"`
+	Phone               string             `json:"phone"`
+	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
+	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
+	RoleCodes           []string           `json:"role_codes"`
+	StudentCode         string             `json:"student_code"`
+	TeacherCode         string             `json:"teacher_code"`
+	CreatedByEmail      string             `json:"created_by_email"`
 }
 
 func (q *Queries) GetUserDetail(ctx context.Context, id pgtype.UUID) (GetUserDetailRow, error) {
@@ -182,6 +186,8 @@ func (q *Queries) GetUserDetail(ctx context.Context, id pgtype.UUID) (GetUserDet
 		&i.UpdatedAt,
 		&i.FullName,
 		&i.Phone,
+		&i.IsAcceptingLeads,
+		&i.LeadAssignmentOrder,
 		&i.RoleCodes,
 		&i.StudentCode,
 		&i.TeacherCode,
@@ -268,6 +274,8 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
+  COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
   COALESCE(sp.student_code, '')::varchar(50) AS student_code,
   COALESCE(tp.teacher_code, '')::varchar(50) AS teacher_code,
@@ -322,19 +330,21 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	ID                 pgtype.UUID        `json:"id"`
-	Email              string             `json:"email"`
-	Status             UserStatus         `json:"status"`
-	MustChangePassword bool               `json:"must_change_password"`
-	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
-	FullName           string             `json:"full_name"`
-	Phone              string             `json:"phone"`
-	RoleCodes          []string           `json:"role_codes"`
-	StudentCode        string             `json:"student_code"`
-	TeacherCode        string             `json:"teacher_code"`
-	CreatedByEmail     string             `json:"created_by_email"`
+	ID                  pgtype.UUID        `json:"id"`
+	Email               string             `json:"email"`
+	Status              UserStatus         `json:"status"`
+	MustChangePassword  bool               `json:"must_change_password"`
+	LastLoginAt         pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	FullName            string             `json:"full_name"`
+	Phone               string             `json:"phone"`
+	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
+	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
+	RoleCodes           []string           `json:"role_codes"`
+	StudentCode         string             `json:"student_code"`
+	TeacherCode         string             `json:"teacher_code"`
+	CreatedByEmail      string             `json:"created_by_email"`
 }
 
 // User management queries for scoped account administration and audit history.
@@ -364,6 +374,8 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.UpdatedAt,
 			&i.FullName,
 			&i.Phone,
+			&i.IsAcceptingLeads,
+			&i.LeadAssignmentOrder,
 			&i.RoleCodes,
 			&i.StudentCode,
 			&i.TeacherCode,
@@ -381,7 +393,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 
 const resetUserAccountPassword = `-- name: ResetUserAccountPassword :exec
 UPDATE users
-SET password_hash = $2, must_change_password = TRUE, updated_at = NOW()
+SET password_hash = $2, must_change_password = FALSE, updated_at = NOW()
 WHERE id = $1
 `
 
@@ -392,6 +404,24 @@ type ResetUserAccountPasswordParams struct {
 
 func (q *Queries) ResetUserAccountPassword(ctx context.Context, arg ResetUserAccountPasswordParams) error {
 	_, err := q.db.Exec(ctx, resetUserAccountPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const updateLeadAssignmentOrder = `-- name: UpdateLeadAssignmentOrder :exec
+UPDATE users
+SET
+  lead_assignment_order = $2,
+  updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateLeadAssignmentOrderParams struct {
+	ID                  pgtype.UUID `json:"id"`
+	LeadAssignmentOrder int32       `json:"lead_assignment_order"`
+}
+
+func (q *Queries) UpdateLeadAssignmentOrder(ctx context.Context, arg UpdateLeadAssignmentOrderParams) error {
+	_, err := q.db.Exec(ctx, updateLeadAssignmentOrder, arg.ID, arg.LeadAssignmentOrder)
 	return err
 }
 
@@ -426,6 +456,43 @@ func (q *Queries) UpdateUserAccountProfile(ctx context.Context, arg UpdateUserAc
 		&i.Status,
 		&i.FullName,
 		&i.Phone,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserLeadRouting = `-- name: UpdateUserLeadRouting :one
+UPDATE users
+SET
+  is_accepting_leads = COALESCE($2::boolean, is_accepting_leads),
+  lead_assignment_order = COALESCE($3::int, lead_assignment_order),
+  updated_at = NOW()
+WHERE id = $1
+RETURNING id, email, is_accepting_leads, lead_assignment_order, updated_at
+`
+
+type UpdateUserLeadRoutingParams struct {
+	ID                  pgtype.UUID `json:"id"`
+	IsAcceptingLeads    pgtype.Bool `json:"is_accepting_leads"`
+	LeadAssignmentOrder pgtype.Int4 `json:"lead_assignment_order"`
+}
+
+type UpdateUserLeadRoutingRow struct {
+	ID                  pgtype.UUID        `json:"id"`
+	Email               string             `json:"email"`
+	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
+	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpdateUserLeadRouting(ctx context.Context, arg UpdateUserLeadRoutingParams) (UpdateUserLeadRoutingRow, error) {
+	row := q.db.QueryRow(ctx, updateUserLeadRouting, arg.ID, arg.IsAcceptingLeads, arg.LeadAssignmentOrder)
+	var i UpdateUserLeadRoutingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.IsAcceptingLeads,
+		&i.LeadAssignmentOrder,
 		&i.UpdatedAt,
 	)
 	return i, err

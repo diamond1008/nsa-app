@@ -8,6 +8,7 @@ import { FullPageLoading } from "../components/ui";
 import { homePathFor, useAuth } from "../features/auth/AuthContext";
 import ChangePasswordPage from "../features/auth/ChangePasswordPage";
 import LoginPage from "../features/auth/LoginPage";
+import OAuthCallbackPage from "../features/auth/OAuthCallbackPage";
 import type { Role } from "../lib/types";
 
 function lazyLoad<P extends object = Record<string, never>>(
@@ -37,15 +38,15 @@ const AdminOperationsPage = lazyLoad(
   "AdminOperationsPage",
 );
 const ClassDetailPage = lazyLoad(() => import("../features/admin/AdminPages"), "ClassDetailPage");
-const ClassesPage = lazyLoad(() => import("../features/admin/AdminPages"), "ClassesPage");
+const ClassesPage = lazyLoad<{ readOnly?: boolean }>(() => import("../features/admin/AdminPages"), "ClassesPage");
 const CoursesPage = lazyLoad(() => import("../features/admin/AdminPages"), "CoursesPage");
-const ScheduleAdminPage = lazyLoad(
+const ScheduleAdminPage = lazyLoad<{ readOnly?: boolean }>(
   () => import("../features/admin/AdminPages"),
   "ScheduleAdminPage",
 );
 const StudentsPage = lazyLoad(() => import("../features/admin/AdminPages"), "StudentsPage");
 const TeachersPage = lazyLoad(() => import("../features/admin/AdminPages"), "TeachersPage");
-const AdminAttendancePage = lazyLoad(
+const AdminAttendancePage = lazyLoad<{ readOnly?: boolean }>(
   () => import("../features/admin/AdminAttendancePage"),
   "AdminAttendancePage",
 );
@@ -116,8 +117,13 @@ const SaleDashboardPage = lazyLoad(() => import("../features/sale/SalePages"), "
 const LeadPipelinePage = lazyLoad(() => import("../features/sale/SalePages"), "LeadPipelinePage");
 const LeadProfilePage = lazyLoad(() => import("../features/sale/SalePages"), "LeadProfilePage");
 const LeadConvertPage = lazyLoad(() => import("../features/sale/SalePages"), "LeadConvertPage");
-const OrdersPage = lazyLoad(() => import("../features/sale/SalePages"), "OrdersPage");
 const SaleReportsPage = lazyLoad(() => import("../features/sale/SalePages"), "SaleReportsPage");
+const SaleStudentsPage = lazyLoad(() => import("../features/sale/SalePages"), "SaleStudentsPage");
+const SaleRegistrationOrdersPage = lazyLoad(
+  () => import("../features/sale/SalePages"),
+  "SaleRegistrationOrdersPage",
+);
+const SaleReceiptsPage = lazyLoad(() => import("../features/sale/SalePages"), "SaleReceiptsPage");
 
 /** Blocks everything until the silent refresh finishes; forces login when anonymous. */
 function RequireAuth({ children }: { children?: ReactNode }) {
@@ -127,10 +133,6 @@ function RequireAuth({ children }: { children?: ReactNode }) {
   if (status === "loading") return <FullPageLoading />;
   if (status === "anonymous" || !user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-  // Accounts flagged must_change_password may only visit /doi-mat-khau.
-  if (user.must_change_password && location.pathname !== "/doi-mat-khau") {
-    return <Navigate to="/doi-mat-khau" replace />;
   }
   return children ?? <Outlet />;
 }
@@ -156,9 +158,7 @@ function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
   if (status === "loading") return <FullPageLoading />;
   if (status === "authenticated" && user) {
-    return (
-      <Navigate to={user.must_change_password ? "/doi-mat-khau" : homePathFor(user)} replace />
-    );
+    return <Navigate to={homePathFor(user)} replace />;
   }
   return <>{children}</>;
 }
@@ -178,6 +178,10 @@ export const router = createBrowserRouter([
         <LoginPage />
       </RedirectIfAuthed>
     ),
+  },
+  {
+    path: "/auth/callback",
+    element: <OAuthCallbackPage />,
   },
   {
     path: "/doi-mat-khau",
@@ -227,23 +231,63 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "/sale/don-hang",
+            path: "/sale/hoc-vien",
             element: (
               <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
-                <OrdersPage />
+                <SaleStudentsPage />
               </RequireRole>
             ),
           },
           {
-            path: "/sale/don-hang/:id",
+            path: "/sale/phieu-dang-ky",
             element: (
               <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
-                <OrdersPage />
+                <SaleRegistrationOrdersPage />
               </RequireRole>
             ),
           },
           {
-            path: "/sale/bao-cao",
+            path: "/sale/phieu-thu",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <SaleReceiptsPage />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "/sale/lop-hoc",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <ClassesPage readOnly />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "/sale/lich-hoc",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <ScheduleAdminPage readOnly />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "/sale/diem-danh",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <AdminAttendancePage readOnly />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "/sale/orders",
+            element: <Navigate to="/sale/phieu-dang-ky" replace />,
+          },
+          {
+            path: "/sale/orders/:id",
+            element: <Navigate to="/sale/phieu-dang-ky" replace />,
+          },
+          {
+            path: "/sale/reports",
             element: (
               <RequireRole roles={["SALE_ADMIN", "ADMIN"]}>
                 <SaleReportsPage />
@@ -251,13 +295,20 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "/sale/nhan-vien",
+            path: "/sale/users",
             element: (
               <RequireRole roles={["SALE_ADMIN", "ADMIN"]}>
                 <UserManagementPage mode="sale" />
               </RequireRole>
             ),
           },
+          // Legacy redirects for Vietnamese routes
+          { path: "/sale/don-hang", element: <Navigate to="/sale/phieu-dang-ky" replace /> },
+          { path: "/sale/don-hang/:id", element: <Navigate to="/sale/phieu-dang-ky" replace /> },
+          { path: "/sale/students", element: <Navigate to="/sale/hoc-vien" replace /> },
+          { path: "/sale/receipts", element: <Navigate to="/sale/phieu-thu" replace /> },
+          { path: "/sale/bao-cao", element: <Navigate to="/sale/reports" replace /> },
+          { path: "/sale/nhan-vien", element: <Navigate to="/sale/users" replace /> },
           {
             path: "/admin",
             element: (
@@ -267,13 +318,14 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "/admin/tai-khoan",
+            path: "/admin/users",
             element: (
               <RequireRole roles={["ADMIN", "ACADEMIC_ADMIN"]}>
                 <UserManagementPage mode="all" />
               </RequireRole>
             ),
           },
+          { path: "/admin/tai-khoan", element: <Navigate to="/admin/users" replace /> },
           {
             path: "/admin/van-hanh",
             element: (

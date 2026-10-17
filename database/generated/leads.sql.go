@@ -402,6 +402,64 @@ func (q *Queries) CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, e
 	return i, err
 }
 
+const findDuplicateLead = `-- name: FindDuplicateLead :one
+SELECT
+  l.id,
+  l.full_name,
+  l.phone,
+  l.email,
+  l.pipeline_status,
+  l.assigned_to,
+  l.created_at,
+  u.email AS assigned_to_email
+FROM leads l
+LEFT JOIN users u ON u.id = l.assigned_to
+WHERE (
+  ($1::text IS NOT NULL AND $1::text <> '' AND l.phone = $1::text)
+  OR
+  ($2::citext IS NOT NULL AND $2::citext <> '' AND l.email = $2::citext)
+)
+AND (
+  $3::uuid IS NULL
+  OR l.id <> $3::uuid
+)
+ORDER BY l.created_at DESC
+LIMIT 1
+`
+
+type FindDuplicateLeadParams struct {
+	Phone     pgtype.Text `json:"phone"`
+	Email     pgtype.Text `json:"email"`
+	ExcludeID pgtype.UUID `json:"exclude_id"`
+}
+
+type FindDuplicateLeadRow struct {
+	ID              pgtype.UUID        `json:"id"`
+	FullName        string             `json:"full_name"`
+	Phone           pgtype.Text        `json:"phone"`
+	Email           pgtype.Text        `json:"email"`
+	PipelineStatus  LeadPipelineStatus `json:"pipeline_status"`
+	AssignedTo      pgtype.UUID        `json:"assigned_to"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	AssignedToEmail pgtype.Text        `json:"assigned_to_email"`
+}
+
+func (q *Queries) FindDuplicateLead(ctx context.Context, arg FindDuplicateLeadParams) (FindDuplicateLeadRow, error) {
+	row := q.db.QueryRow(ctx, findDuplicateLead, arg.Phone, arg.Email, arg.ExcludeID)
+	var i FindDuplicateLeadRow
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Phone,
+		&i.Email,
+		&i.PipelineStatus,
+		&i.AssignedTo,
+		&i.CreatedAt,
+		&i.AssignedToEmail,
+	)
+	return i, err
+}
+
 const getLead = `-- name: GetLead :one
 SELECT
   l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at,
@@ -496,6 +554,168 @@ func (q *Queries) GetLead(ctx context.Context, id pgtype.UUID) (GetLeadRow, erro
 		&i.CreatedByEmail,
 	)
 	return i, err
+}
+
+const listActiveSaleStaffForRoundRobin = `-- name: ListActiveSaleStaffForRoundRobin :many
+SELECT DISTINCT
+  u.id,
+  u.email
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+JOIN roles r ON r.id = ur.role_id
+WHERE r.code = 'SALE' AND u.status = 'active' AND u.is_accepting_leads = true
+ORDER BY u.lead_assignment_order ASC, u.email ASC
+`
+
+type ListActiveSaleStaffForRoundRobinRow struct {
+	ID    pgtype.UUID `json:"id"`
+	Email string      `json:"email"`
+}
+
+func (q *Queries) ListActiveSaleStaffForRoundRobin(ctx context.Context) ([]ListActiveSaleStaffForRoundRobinRow, error) {
+	rows, err := q.db.Query(ctx, listActiveSaleStaffForRoundRobin)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActiveSaleStaffForRoundRobinRow{}
+	for rows.Next() {
+		var i ListActiveSaleStaffForRoundRobinRow
+		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllLeadsForExport = `-- name: ListAllLeadsForExport :many
+SELECT
+  l.id,
+  l.full_name,
+  l.phone,
+  l.email,
+  l.gender,
+  l.date_of_birth,
+  l.address,
+  l.source,
+  l.source_detail,
+  l.pipeline_status,
+  l.notes,
+  l.created_at,
+  c.code AS course_code,
+  c.name AS course_name,
+  u_assignee.email AS assigned_to_email,
+  sp.student_code AS converted_student_code,
+  sp.full_name AS converted_student_name
+FROM leads l
+LEFT JOIN courses c ON c.id = l.interested_course_id
+LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
+LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
+WHERE (
+  $1::text = ''
+  OR l.full_name ILIKE '%' || $1 || '%'
+  OR COALESCE(l.phone, '') ILIKE '%' || $1 || '%'
+  OR COALESCE(l.email::text, '') ILIKE '%' || $1 || '%'
+)
+AND (
+  $2::lead_pipeline_status IS NULL
+  OR l.pipeline_status = $2
+)
+AND (
+  $3::lead_source IS NULL
+  OR l.source = $3
+)
+AND (
+  $4::uuid IS NULL
+  OR l.assigned_to = $4::uuid
+)
+AND (
+  $5::timestamptz IS NULL
+  OR l.created_at >= $5::timestamptz
+)
+AND (
+  $6::timestamptz IS NULL
+  OR l.created_at <= $6::timestamptz
+)
+ORDER BY l.created_at DESC
+`
+
+type ListAllLeadsForExportParams struct {
+	Search         string                 `json:"search"`
+	PipelineStatus NullLeadPipelineStatus `json:"pipeline_status"`
+	Source         NullLeadSource         `json:"source"`
+	AssignedTo     pgtype.UUID            `json:"assigned_to"`
+	CreatedFrom    pgtype.Timestamptz     `json:"created_from"`
+	CreatedTo      pgtype.Timestamptz     `json:"created_to"`
+}
+
+type ListAllLeadsForExportRow struct {
+	ID                   pgtype.UUID        `json:"id"`
+	FullName             string             `json:"full_name"`
+	Phone                pgtype.Text        `json:"phone"`
+	Email                pgtype.Text        `json:"email"`
+	Gender               pgtype.Text        `json:"gender"`
+	DateOfBirth          pgtype.Date        `json:"date_of_birth"`
+	Address              pgtype.Text        `json:"address"`
+	Source               LeadSource         `json:"source"`
+	SourceDetail         pgtype.Text        `json:"source_detail"`
+	PipelineStatus       LeadPipelineStatus `json:"pipeline_status"`
+	Notes                pgtype.Text        `json:"notes"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	CourseCode           pgtype.Text        `json:"course_code"`
+	CourseName           pgtype.Text        `json:"course_name"`
+	AssignedToEmail      pgtype.Text        `json:"assigned_to_email"`
+	ConvertedStudentCode pgtype.Text        `json:"converted_student_code"`
+	ConvertedStudentName pgtype.Text        `json:"converted_student_name"`
+}
+
+func (q *Queries) ListAllLeadsForExport(ctx context.Context, arg ListAllLeadsForExportParams) ([]ListAllLeadsForExportRow, error) {
+	rows, err := q.db.Query(ctx, listAllLeadsForExport,
+		arg.Search,
+		arg.PipelineStatus,
+		arg.Source,
+		arg.AssignedTo,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllLeadsForExportRow{}
+	for rows.Next() {
+		var i ListAllLeadsForExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FullName,
+			&i.Phone,
+			&i.Email,
+			&i.Gender,
+			&i.DateOfBirth,
+			&i.Address,
+			&i.Source,
+			&i.SourceDetail,
+			&i.PipelineStatus,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.CourseCode,
+			&i.CourseName,
+			&i.AssignedToEmail,
+			&i.ConvertedStudentCode,
+			&i.ConvertedStudentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listLeads = `-- name: ListLeads :many

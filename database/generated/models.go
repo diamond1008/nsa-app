@@ -1269,16 +1269,18 @@ type TrainingLocation struct {
 }
 
 type User struct {
-	ID                 pgtype.UUID        `json:"id"`
-	Email              string             `json:"email"`
-	PasswordHash       string             `json:"password_hash"`
-	Status             UserStatus         `json:"status"`
-	MustChangePassword bool               `json:"must_change_password"`
-	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
-	FullName           pgtype.Text        `json:"full_name"`
-	Phone              pgtype.Text        `json:"phone"`
+	ID                  pgtype.UUID        `json:"id"`
+	Email               string             `json:"email"`
+	PasswordHash        string             `json:"password_hash"`
+	Status              UserStatus         `json:"status"`
+	MustChangePassword  bool               `json:"must_change_password"`
+	LastLoginAt         pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	FullName            pgtype.Text        `json:"full_name"`
+	Phone               pgtype.Text        `json:"phone"`
+	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
+	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
 }
 
 type UserRole struct {

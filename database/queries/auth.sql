@@ -26,6 +26,10 @@ WHERE id = $1;
 UPDATE users SET password_hash = $2, must_change_password = FALSE
 WHERE id = $1;
 
+-- name: ClearMustChangePassword :exec
+UPDATE users SET must_change_password = FALSE
+WHERE id = $1;
+
 -- name: InsertRefreshToken :one
 INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
 VALUES ($1, $2, $3)

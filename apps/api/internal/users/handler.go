@@ -171,6 +171,48 @@ func (h *Handler) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, logs)
 }
 
+func (h *Handler) UpdateLeadRouting(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFrom(r.Context())
+	if !ok || claims == nil {
+		response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		return
+	}
+
+	userID := chi.URLParam(r, "userID")
+	var body UpdateLeadRoutingInput
+	if err := request.DecodeJSON(w, r, &body); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+
+	user, err := h.service.UpdateLeadRouting(r.Context(), claims, userID, body)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	response.OK(w, user)
+}
+
+func (h *Handler) ReorderLeadRouting(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFrom(r.Context())
+	if !ok || claims == nil {
+		response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		return
+	}
+
+	var body ReorderLeadRoutingInput
+	if err := request.DecodeJSON(w, r, &body); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+
+	if err := h.service.ReorderLeadRouting(r.Context(), claims, body); err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	response.OK(w, map[string]string{"message": "Lead routing sequence updated successfully"})
+}
+
 func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrNotFound) {
 		response.Fail(w, http.StatusNotFound, "NOT_FOUND", "User not found")

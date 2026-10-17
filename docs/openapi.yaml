@@ -6,10 +6,10 @@
 openapi: 3.1.0
 
 info:
-  title: NSA Training Platform API
+  title: NSA App API
   version: "1.3.0"
   description: |
-    REST/JSON API for the NSA Training Platform (modular monolith).
+    REST/JSON API for the NSA App (modular monolith).
     Base path: `/api/v1`. All timestamps are UTC (RFC 3339).
 
     **Roles:** ADMIN, TEACHER, STUDENT (RBAC + ownership checks).
@@ -135,6 +135,119 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
               example:
                 error: { code: INVALID_CREDENTIALS, message: "Invalid email or password" }
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/v1/auth/sso:
+    post:
+      tags: [auth]
+      summary: Log in via SSO provider (Google or Microsoft)
+      description: Authenticates existing active accounts matching the verified email. Non-existent accounts return 404 ACCOUNT_NOT_FOUND; locked/suspended accounts return 403 ACCOUNT_SUSPENDED.
+      operationId: ssoLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SSOLoginRequest"
+      responses:
+        "200":
+          description: SSO login successful. Refresh token is set as an HttpOnly cookie.
+          headers:
+            Set-Cookie:
+              description: "nsa_refresh=<opaque>; Path=/api/v1/auth; HttpOnly; SameSite=Lax (Secure outside development)"
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenBundleResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Account suspended or inactive
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error: { code: ACCOUNT_SUSPENDED, message: "Tài khoản của bạn đã bị tạm khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên." }
+        "404":
+          description: Account not found in system
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error: { code: ACCOUNT_NOT_FOUND, message: "Email này chưa được cấp tài khoản trong hệ thống. Vui lòng liên hệ Quản trị viên để được tạo tài khoản." }
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/v1/auth/oauth/config:
+    get:
+      tags: [auth]
+      summary: Get OAuth client IDs and configuration status
+      operationId: getOAuthConfig
+      security: []
+      responses:
+        "200":
+          description: OAuth provider configuration status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  google_configured: { type: boolean }
+                  google_client_id: { type: string }
+                  microsoft_configured: { type: boolean }
+                  microsoft_client_id: { type: string }
+
+  /api/v1/auth/oauth/callback:
+    post:
+      tags: [auth]
+      summary: Exchange OAuth authorization code for session bundle
+      description: Exchanges authorization code with provider to verify email, then enforces pre-created active user policy.
+      operationId: oauthCallback
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthCallbackRequest"
+      responses:
+        "200":
+          description: OAuth login successful
+          headers:
+            Set-Cookie:
+              description: "nsa_refresh=<opaque>; Path=/api/v1/auth; HttpOnly; SameSite=Lax (Secure outside development)"
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenBundleResponse"
+        "400":
+          description: Validation or code exchange failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Account suspended or inactive
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Account not found in system
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
         "429":
           description: Rate limit exceeded
           content:
@@ -2592,6 +2705,21 @@ components:
       properties:
         email: { type: string, format: email, example: admin@nsa.local }
         password: { type: string, format: password, example: NsaDemo@123 }
+
+    SSOLoginRequest:
+      type: object
+      required: [provider, email]
+      properties:
+        provider: { type: string, enum: [google, microsoft], example: google }
+        email: { type: string, format: email, example: admin@nsa.local }
+
+    OAuthCallbackRequest:
+      type: object
+      required: [provider, code]
+      properties:
+        provider: { type: string, enum: [google, microsoft], example: google }
+        code: { type: string, example: 4/0AfgeXvu... }
+        redirect_uri: { type: string, example: http://localhost:5173/auth/callback }
 
     ChangePasswordRequest:
       type: object

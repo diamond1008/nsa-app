@@ -2,7 +2,7 @@
 
 -- name: CreateManagedUser :one
 INSERT INTO users (email, password_hash, status, must_change_password)
-VALUES ($1, $2, $3, TRUE)
+VALUES ($1, $2, $3, FALSE)
 RETURNING id, email, status, must_change_password, created_at, updated_at;
 
 -- name: AssignManagedUserRole :exec

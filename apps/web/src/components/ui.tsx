@@ -614,6 +614,7 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const isMouseDownOnBackdrop = useRef(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -661,8 +662,19 @@ export function Modal({
   const modalElement = (
     <div
       className="fixed inset-0 z-[9990] flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-xl backdrop-saturate-150 sm:items-center sm:p-4 animate-in fade-in duration-200"
+      onMouseDown={(e) => {
+        isMouseDownOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onMouseUp={(e) => {
+        if (e.target !== e.currentTarget) {
+          isMouseDownOnBackdrop.current = false;
+        }
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onCloseRef.current();
+        if (e.target === e.currentTarget && isMouseDownOnBackdrop.current) {
+          onCloseRef.current();
+        }
+        isMouseDownOnBackdrop.current = false;
       }}
     >
       <div
@@ -679,7 +691,7 @@ export function Modal({
         <div className="flex shrink-0 items-center justify-between border-b border-white/70 bg-white/50 px-5 py-4 sm:px-6 rounded-t-3xl">
           <div className="min-w-0">
             <p className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0532e6]">
-              NSA Training
+              NSA App
             </p>
             <h2 id={titleId} className="truncate text-lg font-bold text-navy">
               {title}
@@ -721,10 +733,28 @@ export function Drawer({
   const drawerRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const isMouseDownOnBackdrop = useRef(false);
+
+  const [rendered, setRendered] = useState(open);
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      setIsClosing(false);
+    } else if (rendered) {
+      setIsClosing(true);
+      const timer = setTimeout(() => {
+        setRendered(false);
+        setIsClosing(false);
+      }, 260);
+      return () => clearTimeout(timer);
+    }
+  }, [open, rendered]);
 
   useEffect(() => {
     if (!open) return;
@@ -744,7 +774,7 @@ export function Drawer({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!rendered) return null;
 
   const trapFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab" || !drawerRef.current) return;
@@ -767,9 +797,23 @@ export function Drawer({
 
   const drawerElement = (
     <div
-      className="fixed inset-0 z-[9990] flex justify-end bg-[#000e47]/40 backdrop-blur-md animate-backdrop-navy"
+      className={clsx(
+        "fixed inset-0 z-[9990] flex justify-end bg-[#000e47]/40 backdrop-blur-md",
+        isClosing ? "animate-backdrop-navy-out pointer-events-none" : "animate-backdrop-navy",
+      )}
+      onMouseDown={(e) => {
+        isMouseDownOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onMouseUp={(e) => {
+        if (e.target !== e.currentTarget) {
+          isMouseDownOnBackdrop.current = false;
+        }
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onCloseRef.current();
+        if (!isClosing && e.target === e.currentTarget && isMouseDownOnBackdrop.current) {
+          onCloseRef.current();
+        }
+        isMouseDownOnBackdrop.current = false;
       }}
     >
       <div
@@ -779,7 +823,8 @@ export function Drawer({
         aria-labelledby={title ? titleId : undefined}
         onKeyDown={trapFocus}
         className={clsx(
-          "relative h-full w-full flex flex-col border-l border-white/90 bg-white/95 backdrop-blur-3xl shadow-[-28px_0_90px_rgba(0,18,88,0.22),_-1px_0_1px_rgba(255,255,255,0.95)] animate-drawer-right motion-reduce:animate-none overflow-hidden",
+          "relative h-full w-full flex flex-col border-l border-white/90 bg-white/95 backdrop-blur-3xl shadow-[-28px_0_90px_rgba(0,18,88,0.22),_-1px_0_1px_rgba(255,255,255,0.95)] motion-reduce:animate-none overflow-hidden",
+          isClosing ? "animate-drawer-right-out" : "animate-drawer-right",
           width,
           className,
         )}
@@ -798,7 +843,7 @@ export function Drawer({
           <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/70 bg-white/70 backdrop-blur-md px-6 py-4 shadow-2xs">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#0532e6]">
-                NSA Training
+                NSA App
               </p>
               <h2 id={titleId} className="truncate text-lg font-bold text-navy">
                 {title}

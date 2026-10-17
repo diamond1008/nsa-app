@@ -105,3 +105,24 @@ func TestService_CheckUserInScope(t *testing.T) {
 		t.Error("sale admin must NOT modify teacher")
 	}
 }
+
+func TestService_LeadRoutingAuth(t *testing.T) {
+	adminClaims := &auth.AccessClaims{Roles: []string{auth.RoleAdmin}}
+	saleAdminClaims := &auth.AccessClaims{Roles: []string{auth.RoleSaleAdmin}}
+	saleClaims := &auth.AccessClaims{Roles: []string{auth.RoleSale}}
+	academicClaims := &auth.AccessClaims{Roles: []string{auth.RoleAcademicAdmin}}
+
+	if !adminClaims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin) {
+		t.Error("admin should be authorized for lead routing")
+	}
+	if !saleAdminClaims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin) {
+		t.Error("sale admin should be authorized for lead routing")
+	}
+	if saleClaims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin) {
+		t.Error("sale staff should not have admin lead routing permission")
+	}
+	if academicClaims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin) {
+		t.Error("academic admin should not manage sale lead routing")
+	}
+}
+

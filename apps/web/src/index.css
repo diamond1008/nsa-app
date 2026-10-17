@@ -67,7 +67,7 @@ body {
   height: 0 !important;
 }
 
-/* Slim modern overlay scrollbar */
+/* Slim modern overlay scrollbar - auto fades out when idle */
 ::-webkit-scrollbar,
 *::-webkit-scrollbar {
   width: 6px !important;
@@ -85,9 +85,15 @@ body {
 
 ::-webkit-scrollbar-thumb,
 *::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.4) !important;
+  background-color: transparent !important;
   border-radius: 9999px !important;
-  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*:hover::-webkit-scrollbar-thumb,
+html:hover::-webkit-scrollbar-thumb,
+body:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.45) !important;
 }
 
 ::-webkit-scrollbar-thumb:hover,
@@ -99,7 +105,10 @@ body {
 @supports (-moz-appearance: none) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+    scrollbar-color: transparent transparent;
+  }
+  *:hover {
+    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
   }
 }
 
@@ -194,6 +203,26 @@ body {
   }
 }
 
+@keyframes drawerSlideOutRight {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(100%, 0, 0);
+    opacity: 0.3;
+  }
+}
+
+@keyframes backdropFadeOutNavy {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes drawerContentFadeInUp {
   from {
     opacity: 0;
@@ -206,12 +235,21 @@ body {
 }
 
 .animate-drawer-right {
-  animation: drawerSlideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: drawerSlideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-drawer-right-out {
+  animation: drawerSlideOutRight 0.26s cubic-bezier(0.32, 0.72, 0, 1) forwards;
   will-change: transform, opacity;
 }
 
 .animate-backdrop-navy {
-  animation: backdropFadeInNavy 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: backdropFadeInNavy 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-backdrop-navy-out {
+  animation: backdropFadeOutNavy 0.24s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
 .animate-fade-in-up {
@@ -233,3 +271,73 @@ body {
 .animation-delay-300 {
   animation-delay: 300ms;
 }
+
+@keyframes rowDetachSlideUp {
+  0% {
+    transform: translateY(100%);
+    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.2), 0 4px 10px -3px rgba(0, 18, 88, 0.12);
+    background-color: #ffffff;
+    z-index: 20;
+    position: relative;
+  }
+  50% {
+    transform: translateY(-2px);
+    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.15), 0 2px 6px -2px rgba(5, 50, 230, 0.1);
+    background-color: #f0f5ff;
+  }
+  100% {
+    transform: translateY(0);
+    box-shadow: none;
+    background-color: transparent;
+    z-index: 1;
+    position: relative;
+  }
+}
+
+@keyframes rowDetachSlideDown {
+  0% {
+    transform: translateY(-100%);
+    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.2), 0 4px 10px -3px rgba(0, 18, 88, 0.12);
+    background-color: #ffffff;
+    z-index: 20;
+    position: relative;
+  }
+  50% {
+    transform: translateY(2px);
+    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.15), 0 2px 6px -2px rgba(5, 50, 230, 0.1);
+    background-color: #f0f5ff;
+  }
+  100% {
+    transform: translateY(0);
+    box-shadow: none;
+    background-color: transparent;
+    z-index: 1;
+    position: relative;
+  }
+}
+
+@keyframes rowLandingGlow {
+  0% {
+    background-color: rgba(5, 50, 230, 0.15);
+    box-shadow: inset 0 0 0 2px rgba(5, 50, 230, 0.35);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+.animate-row-up {
+  animation: rowDetachSlideUp 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+  will-change: transform, box-shadow;
+}
+
+.animate-row-down {
+  animation: rowDetachSlideDown 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+  will-change: transform, box-shadow;
+}
+
+.animate-row-landing {
+  animation: rowLandingGlow 0.8s ease-out forwards;
+}
+

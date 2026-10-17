@@ -5,7 +5,7 @@
 # Secrets come from .env (copy .env.example first) — never commit .env.
 # ==========================================================================
 
-name: nsa-training-platform
+name: nsa-app
 
 services:
   postgres:

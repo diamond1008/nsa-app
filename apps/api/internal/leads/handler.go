@@ -3,10 +3,12 @@ package leads
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -426,4 +428,44 @@ func validateLeadWrite(body leadWriteRequest) (WriteInput, string) {
 		Notes:              body.Notes,
 		AssignedTo:         body.AssignedTo,
 	}, ""
+}
+
+func (h *Handler) CheckDuplicate(w http.ResponseWriter, r *http.Request) {
+	phone := r.URL.Query().Get("phone")
+	email := r.URL.Query().Get("email")
+	excludeID := r.URL.Query().Get("exclude_id")
+
+	result, err := h.service.CheckDuplicate(r.Context(), phone, email, excludeID)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+
+	response.OK(w, result)
+}
+
+func (h *Handler) ExportExcel(w http.ResponseWriter, r *http.Request) {
+	filter := ListFilter{
+		Search:         r.URL.Query().Get("search"),
+		PipelineStatus: r.URL.Query().Get("pipeline_status"),
+		Source:         r.URL.Query().Get("source"),
+		AssignedTo:     r.URL.Query().Get("assigned_to"),
+		CreatedFrom:    r.URL.Query().Get("created_from"),
+		CreatedTo:      r.URL.Query().Get("created_to"),
+	}
+
+	file, err := h.service.ExportLeadsExcel(r.Context(), filter)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	defer file.Close()
+
+	filename := fmt.Sprintf("danh_sach_lead_%s.xlsx", time.Now().Format("20060102_150405"))
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	if err := file.Write(w); err != nil {
+		h.log.Error("failed to write excel file to response", "error", err)
+	}
 }

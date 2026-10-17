@@ -37,7 +37,7 @@ WEB_DIR        := apps/web
 
 # ---------- Help ----------
 help: ## Show this help
-	@echo NSA Training Platform - available commands
+	@echo NSA App - available commands
 	@echo   setup            Copy .env.example to .env (first time only)
 	@echo   db-up            Start PostgreSQL via Docker Compose
 	@echo   db-down          Stop PostgreSQL

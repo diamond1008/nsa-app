@@ -10,8 +10,8 @@ const ROLE_LABEL: Record<Role, string> = {
   ACADEMIC_ADMIN: "Quản lý Đào tạo",
   TEACHER: "Giảng viên",
   STUDENT: "Học viên",
-  SALE: "Chuyên viên Tuyển sinh",
-  SALE_ADMIN: "Quản lý Tuyển sinh",
+  SALE: "Chuyên viên Tuyển sinh (Sale)",
+  SALE_ADMIN: "Trưởng phòng Tuyển sinh (Sale Manager)",
 };
 
 interface ModuleCard {

@@ -21,6 +21,8 @@ export interface NavGroup {
   id: string;
   label: string;
   icon: IconName;
+  to?: string;
+  end?: boolean;
   items: NavSubItem[];
 }
 
@@ -33,8 +35,9 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { to: "/sale", label: "Tổng quan", end: true },
         { to: "/sale/leads", label: "Quản lý Lead" },
-        { to: "/sale/don-hang", label: "Đơn hàng" },
-        { to: "/sale/bao-cao", label: "Báo cáo" },
+        { to: "/sale/phieu-dang-ky", label: "Phiếu đăng ký" },
+        { to: "/sale/phieu-thu", label: "Phiếu thu" },
+        { to: "/sale/reports", label: "Báo cáo" },
       ],
     },
     {
@@ -56,7 +59,7 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       id: "he-thong",
       label: "Hệ thống",
       icon: "users",
-      items: [{ to: "/admin/tai-khoan", label: "Tài khoản & Phân quyền" }],
+      items: [{ to: "/admin/users", label: "Tài khoản & Phân quyền" }],
     },
   ],
   ACADEMIC_ADMIN: [
@@ -73,33 +76,85 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { to: "/admin/lich-hoc", label: "Lịch học" },
         { to: "/admin/diem-danh", label: "Điểm danh" },
         { to: "/admin/van-hanh", label: "Vận hành" },
-        { to: "/admin/tai-khoan", label: "Tài khoản Đào tạo" },
+        { to: "/admin/users", label: "Tài khoản Đào tạo" },
       ],
     },
   ],
   SALE_ADMIN: [
     {
-      id: "tuyen-sinh",
-      label: "Tuyển sinh",
-      icon: "user",
-      items: [
-        { to: "/sale", label: "Tổng quan", end: true },
-        { to: "/sale/leads", label: "Quản lý Lead" },
-        { to: "/sale/don-hang", label: "Đơn hàng" },
-        { to: "/sale/bao-cao", label: "Báo cáo" },
-        { to: "/sale/nhan-vien", label: "Đội ngũ Sale" },
-      ],
+      id: "tong-quan",
+      label: "Tổng quan",
+      icon: "home",
+      to: "/sale",
+      end: true,
+      items: [],
     },
-  ],
-  SALE: [
     {
       id: "tuyen-sinh",
       label: "Tuyển sinh",
       icon: "user",
       items: [
-        { to: "/sale", label: "Tổng quan", end: true },
         { to: "/sale/leads", label: "Quản lý Lead" },
-        { to: "/sale/don-hang", label: "Đơn hàng" },
+        { to: "/sale/hoc-vien", label: "Học viên" },
+        { to: "/sale/reports", label: "Báo cáo" },
+        { to: "/sale/users", label: "Đội ngũ Sale" },
+      ],
+    },
+    {
+      id: "doanh-thu",
+      label: "Doanh thu",
+      icon: "shopping-bag",
+      items: [
+        { to: "/sale/phieu-dang-ky", label: "Phiếu đăng ký" },
+        { to: "/sale/phieu-thu", label: "Phiếu thu" },
+      ],
+    },
+    {
+      id: "dao-tao",
+      label: "Đào tạo",
+      icon: "academic",
+      items: [
+        { to: "/sale/lop-hoc", label: "Lớp học" },
+        { to: "/sale/lich-hoc", label: "Lịch học" },
+        { to: "/sale/diem-danh", label: "Điểm danh" },
+      ],
+    },
+  ],
+  SALE: [
+    {
+      id: "tong-quan",
+      label: "Tổng quan",
+      icon: "home",
+      to: "/sale",
+      end: true,
+      items: [],
+    },
+    {
+      id: "tuyen-sinh",
+      label: "Tuyển sinh",
+      icon: "user",
+      items: [
+        { to: "/sale/leads", label: "Quản lý Lead" },
+        { to: "/sale/hoc-vien", label: "Học viên" },
+      ],
+    },
+    {
+      id: "doanh-thu",
+      label: "Doanh thu",
+      icon: "shopping-bag",
+      items: [
+        { to: "/sale/phieu-dang-ky", label: "Phiếu đăng ký" },
+        { to: "/sale/phieu-thu", label: "Phiếu thu" },
+      ],
+    },
+    {
+      id: "dao-tao",
+      label: "Đào tạo",
+      icon: "academic",
+      items: [
+        { to: "/sale/lop-hoc", label: "Lớp học" },
+        { to: "/sale/lich-hoc", label: "Lịch học" },
+        { to: "/sale/diem-danh", label: "Điểm danh" },
       ],
     },
   ],
@@ -166,6 +221,10 @@ function isItemActive(pathname: string, item: NavSubItem): boolean {
 }
 
 function isGroupActive(pathname: string, group: NavGroup): boolean {
+  if (group.to) {
+    if (group.end) return pathname === group.to;
+    return pathname === group.to || pathname.startsWith(group.to + "/");
+  }
   return group.items.some((item) => isItemActive(pathname, item));
 }
 
@@ -352,6 +411,21 @@ export default function AppLayout() {
   };
 
   const handleClickGroup = (group: NavGroup, collapsed: boolean, mobile: boolean) => {
+    if (group.to) {
+      navigate(group.to);
+      setHoveredGroupId(null);
+      setShowTooltipBadge(false);
+      if (tooltipDelayTimeoutRef.current !== null) {
+        window.clearTimeout(tooltipDelayTimeoutRef.current);
+        tooltipDelayTimeoutRef.current = null;
+      }
+      if (hoverTimeoutRef.current !== null) {
+        window.clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+      if (mobile) closeMobileMenu();
+      return;
+    }
     if (collapsed && !mobile) {
       const overviewItem = group.items.find((it) => it.label === "Tổng quan") ?? group.items[0];
       if (overviewItem) {
@@ -442,18 +516,18 @@ export default function AppLayout() {
                 if (collapsed && !mobile) setIsHoveredLogo(false);
               }}
               className={clsx(
-                "flex h-9 w-9 items-center justify-center select-none cursor-pointer",
+                "flex h-9 w-9 items-center justify-center select-none cursor-pointer overflow-hidden",
                 "transition-all duration-150 ease-out active:duration-75 active:scale-90",
                 collapsed && !mobile && isHoveredLogo
-                  ? "rounded-xl bg-[#E5E7EB] text-slate-800 shadow-xs"
-                  : "rounded-xl bg-navy font-extrabold text-white shadow-xs",
+                  ? "rounded-xl bg-[#E5E7EB] text-slate-800 shadow-xs p-1.5"
+                  : "rounded-xl bg-white border border-slate-200/80 shadow-xs p-1",
               )}
-              aria-label={collapsed && !mobile ? "Mở rộng thanh điều hướng" : "NSA Training"}
+              aria-label={collapsed && !mobile ? "Mở rộng thanh điều hướng" : "NSA App"}
             >
               {collapsed && !mobile && isHoveredLogo ? (
-                <Icon name="sidebar-expand" className="h-5 w-5 shrink-0" />
+                <Icon name="sidebar-expand" className="h-5 w-5 shrink-0 text-slate-800" />
               ) : (
-                "N"
+                <img src="/logo.png" alt="NSA App" className="h-full w-full object-contain" />
               )}
             </button>
 
@@ -473,8 +547,8 @@ export default function AppLayout() {
             )}
           >
             <div className="truncate min-w-0">
-              <p className="text-sm font-bold tracking-tight text-navy truncate">NSA Training</p>
-              <p className="text-[10px] text-gtext truncate">Learning Platform</p>
+              <p className="text-sm font-bold tracking-tight text-navy truncate">NSA App</p>
+              <p className="text-[10px] text-gtext truncate">Management Platform</p>
             </div>
             {mobile ? (
               <button
@@ -577,74 +651,96 @@ export default function AppLayout() {
                     )}
                   >
                     <span className="truncate text-sm font-semibold">{group.label}</span>
-                    <Icon
-                      name={isOpen ? "chevron-up" : "chevron-down"}
-                      className="h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200"
-                    />
+                    {!group.to && group.items.length > 0 && (
+                      <Icon
+                        name={isOpen ? "chevron-up" : "chevron-down"}
+                        className="h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200"
+                      />
+                    )}
                   </div>
                 </button>
 
                 {/* Collapsed Flyout on hover */}
                 {isHovered && collapsed && !mobile && (
-                  <div
-                    className="absolute left-full top-0 z-50 flex flex-col min-w-[210px] drop-shadow-2xl animate-in fade-in zoom-in-95 duration-100"
-                    onMouseEnter={() => handleMouseEnterFlyout(group.id)}
-                    onMouseLeave={handleMouseLeaveGroup}
-                  >
+                  group.to ? (
                     <div
-                      onClick={() => {
-                        const overviewItem =
-                          group.items.find((it) => it.label === "Tổng quan") ?? group.items[0];
-                        if (overviewItem) {
-                          navigate(overviewItem.to);
+                      className="absolute left-full top-0 z-50 flex items-center h-11 pl-2 drop-shadow-md animate-in fade-in zoom-in-95 duration-100"
+                      onMouseEnter={() => handleMouseEnterFlyout(group.id)}
+                      onMouseLeave={handleMouseLeaveGroup}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate(group.to!);
                           setHoveredGroupId(null);
                           setShowTooltipBadge(false);
-                        }
-                      }}
-                      className="flex h-11 items-center bg-white/90 px-3.5 pr-6 rounded-tr-xl rounded-l-none cursor-pointer transition-colors active:bg-white/95 border-t border-r border-white/90"
+                        }}
+                        className="flex items-center bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-slate-800 rounded-lg shadow-md border border-white/90 whitespace-nowrap cursor-pointer hover:text-[#0532e6] transition-colors"
+                      >
+                        {group.label}
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="absolute left-full top-0 z-50 flex flex-col min-w-[210px] drop-shadow-2xl animate-in fade-in zoom-in-95 duration-100"
+                      onMouseEnter={() => handleMouseEnterFlyout(group.id)}
+                      onMouseLeave={handleMouseLeaveGroup}
                     >
-                      {showTooltipBadge ? (
-                        <div className="relative flex items-center bg-white px-3 py-1 text-xs font-semibold text-slate-800 rounded-md shadow-xs border border-white/90 whitespace-nowrap animate-in fade-in duration-150">
-                          <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-l border-b border-slate-200/90 rotate-45" />
-                          <span className="relative z-10 pl-0.5">{group.label}</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm font-semibold text-[#0532e6] pl-1 tracking-tight select-none">
-                          {group.label}
-                        </span>
-                      )}
-                    </div>
+                      <div
+                        onClick={() => {
+                          const overviewItem =
+                            group.items.find((it) => it.label === "Tổng quan") ?? group.items[0];
+                          if (overviewItem) {
+                            navigate(overviewItem.to);
+                            setHoveredGroupId(null);
+                            setShowTooltipBadge(false);
+                          }
+                        }}
+                        className="flex h-11 items-center bg-white/90 px-3.5 pr-6 rounded-tr-xl rounded-l-none cursor-pointer transition-colors active:bg-white/95 border-t border-r border-white/90"
+                      >
+                        {showTooltipBadge ? (
+                          <div className="relative flex items-center bg-white px-3 py-1 text-xs font-semibold text-slate-800 rounded-md shadow-xs border border-white/90 whitespace-nowrap animate-in fade-in duration-150">
+                            <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-l border-b border-slate-200/90 rotate-45" />
+                            <span className="relative z-10 pl-0.5">{group.label}</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-semibold text-[#0532e6] pl-1 tracking-tight select-none">
+                            {group.label}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="bg-white/90 backdrop-blur-3xl border-b border-l border-r border-white/90 rounded-b-2xl shadow-2xl py-1.5 flex flex-col">
-                      {group.items.map((sub) => {
-                        const isSubActive = isItemActive(location.pathname, sub);
-                        return (
-                          <NavLink
-                            key={sub.to}
-                            to={sub.to}
-                            end={sub.end}
-                            onClick={() => {
-                              setHoveredGroupId(null);
-                              if (mobile) closeMobileMenu();
-                            }}
-                            className={clsx(
-                              "group/sub relative flex h-9 items-center px-4 text-sm transition-all duration-150 ease-out active:duration-75 active:scale-[0.98] select-none cursor-pointer",
-                              isSubActive
-                                ? "font-semibold text-slate-900 bg-white/70"
-                                : "text-slate-700 hover:text-slate-900 hover:bg-white/50 active:bg-white/80",
-                            )}
-                          >
-                            <div className="w-3.5 flex items-center justify-start shrink-0 mr-1.5">
-                              {isSubActive && (
-                                <span className="h-4.5 w-[3.5px] rounded-full bg-[#0532e6]" />
+                      <div className="bg-white/90 backdrop-blur-3xl border-b border-l border-r border-white/90 rounded-b-2xl shadow-2xl py-1.5 flex flex-col">
+                        {group.items.map((sub) => {
+                          const isSubActive = isItemActive(location.pathname, sub);
+                          return (
+                            <NavLink
+                              key={sub.to}
+                              to={sub.to}
+                              end={sub.end}
+                              onClick={() => {
+                                setHoveredGroupId(null);
+                                if (mobile) closeMobileMenu();
+                              }}
+                              className={clsx(
+                                "group/sub relative flex h-9 items-center px-4 text-sm transition-all duration-150 ease-out active:duration-75 active:scale-[0.98] select-none cursor-pointer",
+                                isSubActive
+                                  ? "font-semibold text-slate-900 bg-white/70"
+                                  : "text-slate-700 hover:text-slate-900 hover:bg-white/50 active:bg-white/80",
                               )}
-                            </div>
-                            <span className="truncate">{sub.label}</span>
-                          </NavLink>
-                        );
-                      })}
+                            >
+                              <div className="w-3.5 flex items-center justify-start shrink-0 mr-1.5">
+                                {isSubActive && (
+                                  <span className="h-4.5 w-[3.5px] rounded-full bg-[#0532e6]" />
+                                )}
+                              </div>
+                              <span className="truncate">{sub.label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
 
                 {/* Expanded Subitems */}

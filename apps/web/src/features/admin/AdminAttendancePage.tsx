@@ -63,7 +63,7 @@ function errorText(error: unknown) {
     : "Không thể hiệu chỉnh điểm danh. Vui lòng thử lại.";
 }
 
-export function AdminAttendancePage() {
+export function AdminAttendancePage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const [params, setParams] = useSearchParams();
   const sessionId = params.get("session") ?? "";
   const client = useQueryClient();
@@ -196,7 +196,11 @@ export function AdminAttendancePage() {
       <PageHeader
         eyebrow="Kiểm soát dữ liệu"
         title="Quản lý điểm danh"
-        subtitle="Xem mọi buổi học và hiệu chỉnh có kiểm soát. Mỗi thay đổi đều bắt buộc có lý do và được lưu vào nhật ký kiểm toán."
+        subtitle={
+          readOnly
+            ? "Xem tình trạng chuyên cần và điểm danh học viên từng buổi học."
+            : "Xem mọi buổi học và hiệu chỉnh có kiểm soát. Mỗi thay đổi đều bắt buộc có lý do và được lưu vào nhật ký kiểm toán."
+        }
       />
 
       <Card className="mb-5">
@@ -309,7 +313,7 @@ export function AdminAttendancePage() {
                           Tên học viên
                         </th>
                         <th className="min-w-[14rem] px-4 py-3.5 text-center whitespace-nowrap">
-                          Trạng thái & Điều chỉnh
+                          {readOnly ? "Trạng thái chuyên cần" : "Trạng thái & Điều chỉnh"}
                         </th>
                         <th className="min-w-[14rem] px-4 py-3.5 whitespace-nowrap">Ghi chú</th>
                         <th className="min-w-[12rem] px-4 py-3.5 whitespace-nowrap">
@@ -349,42 +353,60 @@ export function AdminAttendancePage() {
                               </div>
                             </td>
                             <td className="px-4 py-3.5">
-                              <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  disabled={
-                                    item.attendance_id ? projectedStatus === "present" : false
-                                  }
-                                  aria-label="Có mặt"
-                                  aria-pressed={projectedStatus === "present"}
-                                  onClick={() => openCorrection(item, "present")}
-                                  className={clsx(
-                                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-2xs hover:scale-105 active:scale-95 disabled:hover:scale-100 disabled:active:scale-100",
-                                    projectedStatus === "present"
-                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-200 scale-105"
-                                      : "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-600 hover:text-white",
+                              {readOnly ? (
+                                <div className="flex items-center justify-center">
+                                  {projectedStatus === "present" ? (
+                                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                                      ✓ Có mặt
+                                    </span>
+                                  ) : projectedStatus === "absent" ? (
+                                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                                      ✗ Vắng mặt
+                                    </span>
+                                  ) : (
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                      Chưa ghi
+                                    </span>
                                   )}
-                                >
-                                  ✓ Có mặt
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={
-                                    item.attendance_id ? projectedStatus === "absent" : false
-                                  }
-                                  aria-label="Vắng"
-                                  aria-pressed={projectedStatus === "absent"}
-                                  onClick={() => openCorrection(item, "absent")}
-                                  className={clsx(
-                                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-2xs hover:scale-105 active:scale-95 disabled:hover:scale-100 disabled:active:scale-100",
-                                    projectedStatus === "absent"
-                                      ? "bg-red-600 text-white border-red-600 shadow-xs ring-2 ring-red-200 scale-105"
-                                      : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-600 hover:text-white",
-                                  )}
-                                >
-                                  ✗ Vắng
-                                </button>
-                              </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      item.attendance_id ? projectedStatus === "present" : false
+                                    }
+                                    aria-label="Có mặt"
+                                    aria-pressed={projectedStatus === "present"}
+                                    onClick={() => openCorrection(item, "present")}
+                                    className={clsx(
+                                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-2xs hover:scale-105 active:scale-95 disabled:hover:scale-100 disabled:active:scale-100",
+                                      projectedStatus === "present"
+                                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-200 scale-105"
+                                        : "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-600 hover:text-white",
+                                    )}
+                                  >
+                                    ✓ Có mặt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      item.attendance_id ? projectedStatus === "absent" : false
+                                    }
+                                    aria-label="Vắng"
+                                    aria-pressed={projectedStatus === "absent"}
+                                    onClick={() => openCorrection(item, "absent")}
+                                    className={clsx(
+                                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-2xs hover:scale-105 active:scale-95 disabled:hover:scale-100 disabled:active:scale-100",
+                                      projectedStatus === "absent"
+                                        ? "bg-red-600 text-white border-red-600 shadow-xs ring-2 ring-red-200 scale-105"
+                                        : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-600 hover:text-white",
+                                    )}
+                                  >
+                                    ✗ Vắng
+                                  </button>
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3.5 text-sm text-gtext">
                               {item.note?.trim() || "—"}
@@ -439,7 +461,7 @@ export function AdminAttendancePage() {
         </QueryState>
       )}
 
-      <Modal open={Boolean(target)} title="Xác nhận hiệu chỉnh" onClose={closeCorrection}>
+      <Modal open={!readOnly && Boolean(target)} title="Xác nhận hiệu chỉnh" onClose={closeCorrection}>
         {target ? (
           <form
             className="space-y-4"

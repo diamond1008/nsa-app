@@ -19,6 +19,8 @@ type UserView struct {
 	StudentCode        string     `json:"student_code,omitempty"`
 	TeacherCode        string     `json:"teacher_code,omitempty"`
 	CreatedByEmail     string     `json:"created_by_email,omitempty"`
+	IsAcceptingLeads    bool       `json:"is_accepting_leads"`
+	LeadAssignmentOrder int        `json:"lead_assignment_order"`
 }
 
 // AuditLogView represents an immutable change record on a user account.
@@ -70,3 +72,15 @@ type ResetPasswordInput struct {
 	NewPassword string `json:"new_password"`
 	Reason      string `json:"reason"`
 }
+
+// UpdateLeadRoutingInput carries lead distribution configuration.
+type UpdateLeadRoutingInput struct {
+	IsAcceptingLeads    *bool `json:"is_accepting_leads"`
+	LeadAssignmentOrder *int  `json:"lead_assignment_order"`
+}
+
+// ReorderLeadRoutingInput carries ordered user IDs for priority sequence.
+type ReorderLeadRoutingInput struct {
+	OrderedUserIDs []string `json:"ordered_user_ids"`
+}
+
