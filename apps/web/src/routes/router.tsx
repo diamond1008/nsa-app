@@ -53,7 +53,7 @@ const AdminAttendancePage = lazyLoad<{ readOnly?: boolean }>(
   () => import("../features/admin/AdminAttendancePage"),
   "AdminAttendancePage",
 );
-const PersonProfilePage = lazyLoad<{ kind: "student" | "teacher" }>(
+const PersonProfilePage = lazyLoad<{ kind: "student" | "teacher"; readOnly?: boolean }>(
   () => import("../features/admin/PersonProfilePage"),
   "PersonProfilePage",
 );
@@ -238,6 +238,14 @@ export const router = createBrowserRouter([
             element: (
               <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
                 <SaleStudentsPage />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "/sale/hoc-vien/:personId",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <PersonProfilePage kind="student" readOnly />
               </RequireRole>
             ),
           },

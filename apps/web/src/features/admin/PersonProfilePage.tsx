@@ -29,6 +29,7 @@ import type {
   Teacher,
 } from "../../lib/domainTypes";
 import { formatDate, formatDateTime, mutationMessage, statusLabel } from "../../lib/format";
+import { useOptionalAuth } from "../auth/AuthContext";
 import { adminApi } from "./adminApi";
 import { PersonAvatar } from "./PersonIdentity";
 
@@ -38,7 +39,10 @@ type ProfileTab =
 type ProfileSummary = StudentProfileSummary | TeacherProfileSummary;
 type ClassHistory = StudentClassHistory | TeacherClassHistory;
 
-const getTabs = (isStudent: boolean): Array<{ value: ProfileTab; label: string }> => [
+const getTabs = (
+  isStudent: boolean,
+  isReadOnly?: boolean,
+): Array<{ value: ProfileTab; label: string }> => [
   { value: "overview", label: "Tổng quan" },
   { value: "classes", label: "Lớp hiện tại & lịch sử" },
   { value: "schedule", label: "Lịch cá nhân" },
@@ -48,7 +52,7 @@ const getTabs = (isStudent: boolean): Array<{ value: ProfileTab; label: string }
         { value: "academic", label: "Kết quả kiểm tra" },
       ] as const)
     : ([{ value: "workload", label: "Tải giảng dạy & Điểm danh" }] as const)),
-  { value: "audit", label: "Nhật ký tác vụ (Audit)" },
+  ...(!isReadOnly ? ([{ value: "audit", label: "Nhật ký tác vụ (Audit)" }] as const) : []),
 ];
 
 function isStudentSummary(summary: ProfileSummary): summary is StudentProfileSummary {
@@ -81,11 +85,24 @@ function metricCards(summary: ProfileSummary) {
   ] as const;
 }
 
-export function PersonProfilePage({ kind }: { kind: PersonKind }) {
+export function PersonProfilePage({
+  kind,
+  readOnly = false,
+}: {
+  kind: PersonKind;
+  readOnly?: boolean;
+}) {
   const { personId = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const auth = useOptionalAuth();
   const isStudent = kind === "student";
+  const isReadOnly = Boolean(
+    readOnly ||
+      (auth?.user &&
+        !auth.hasRole("ADMIN", "ACADEMIC_ADMIN") &&
+        auth.hasRole("SALE", "SALE_ADMIN")),
+  );
   const [tab, setTab] = useState<ProfileTab>("overview");
   const [weekStart, setWeekStart] = useState(currentWeekStart());
   const [calendarView, setCalendarView] = useState<CalendarView>("week");
@@ -193,24 +210,42 @@ export function PersonProfilePage({ kind }: { kind: PersonKind }) {
             title={profile.full_name}
             subtitle={`Theo dõi hồ sơ, lớp học và lịch ${isStudent ? "học" : "dạy"} trên một màn hình.`}
             actions={
-              <>
-                <Link
-                  to={isStudent ? "/admin/hoc-vien" : "/admin/giang-vien"}
-                  className="inline-flex h-10 items-center rounded-xl border border-gborder bg-white px-4 text-sm font-semibold text-navy hover:bg-gbg2"
-                >
-                  Quay lại danh sách
-                </Link>
-                <Button variant="ghost" onClick={() => setStatusModalOpen(true)}>
-                  Khóa / Mở tài khoản
-                </Button>
-                <Link
-                  to={`${isStudent ? "/admin/hoc-vien" : "/admin/giang-vien"}?edit=${profile.id}`}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-navy px-4 text-sm font-semibold text-white hover:bg-navy-soft"
-                >
-                  <Icon name="info" className="h-4 w-4" />
-                  Chỉnh sửa hồ sơ
-                </Link>
-              </>
+              isReadOnly ? (
+                <>
+                  <Link
+                    to="/sale/hoc-vien"
+                    className="inline-flex h-10 items-center rounded-xl border border-gborder bg-white px-4 text-sm font-semibold text-navy hover:bg-gbg2"
+                  >
+                    Quay lại danh sách
+                  </Link>
+                  <Link
+                    to={`/sale/phieu-dang-ky?student_id=${profile.id}`}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 shadow-xs"
+                  >
+                    <Icon name="shopping-bag" className="h-4 w-4" />
+                    Phiếu đăng ký
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to={isStudent ? "/admin/hoc-vien" : "/admin/giang-vien"}
+                    className="inline-flex h-10 items-center rounded-xl border border-gborder bg-white px-4 text-sm font-semibold text-navy hover:bg-gbg2"
+                  >
+                    Quay lại danh sách
+                  </Link>
+                  <Button variant="ghost" onClick={() => setStatusModalOpen(true)}>
+                    Khóa / Mở tài khoản
+                  </Button>
+                  <Link
+                    to={`${isStudent ? "/admin/hoc-vien" : "/admin/giang-vien"}?edit=${profile.id}`}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl bg-navy px-4 text-sm font-semibold text-white hover:bg-navy-soft"
+                  >
+                    <Icon name="info" className="h-4 w-4" />
+                    Chỉnh sửa hồ sơ
+                  </Link>
+                </>
+              )
             }
           />
 
@@ -251,7 +286,7 @@ export function PersonProfilePage({ kind }: { kind: PersonKind }) {
             role="tablist"
             className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-gborder bg-white p-1"
           >
-            {getTabs(isStudent).map((item) => (
+            {getTabs(isStudent, isReadOnly).map((item) => (
               <button
                 key={item.value}
                 type="button"
@@ -286,6 +321,7 @@ export function PersonProfilePage({ kind }: { kind: PersonKind }) {
                 weekStart={weekStart}
                 onWeekStartChange={setWeekStart}
                 onEventClick={(event) => {
+                  if (isReadOnly) return;
                   const session = scheduleQuery.data?.items.find((item) => item.id === event.id);
                   if (session) navigate(`/admin/lop-hoc/${session.class_id}`);
                 }}
@@ -300,9 +336,9 @@ export function PersonProfilePage({ kind }: { kind: PersonKind }) {
           ) : null}
           {tab === "academic" && isStudent ? <AcademicSummaryTab studentId={personId} /> : null}
           {tab === "workload" && !isStudent ? <WorkloadSummaryTab teacherId={personId} /> : null}
-          {tab === "audit" ? <AuditLogsTab kind={kind} personId={personId} /> : null}
+          {tab === "audit" && !isReadOnly ? <AuditLogsTab kind={kind} personId={personId} /> : null}
 
-          {statusModalOpen && (
+          {statusModalOpen && !isReadOnly && (
             <AccountStatusModal
               open={statusModalOpen}
               kind={kind}

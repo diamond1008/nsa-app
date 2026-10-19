@@ -44,6 +44,42 @@ func OwnsStudentProfile(ctx context.Context, q *db.Queries, claims *AccessClaims
 	return owns, nil
 }
 
+// CanAccessStudentProfile reports whether the authenticated user is permitted to view the student's profile.
+// Administrators and Sale Admins have full access.
+// Sale staff may only view students converted from their own leads.
+// Students may only access their own profile.
+func CanAccessStudentProfile(ctx context.Context, q *db.Queries, claims *AccessClaims, studentProfileID pgtype.UUID) (bool, error) {
+	if claims == nil {
+		return false, nil
+	}
+	if claims.HasAnyRole(RoleAdmin, RoleAcademicAdmin, RoleSaleAdmin) {
+		return true, nil
+	}
+	userID, err := parseUUID(claims.UserID)
+	if err != nil {
+		return false, nil
+	}
+	if claims.HasAnyRole(RoleSale) {
+		owns, err := q.CheckSaleAssignedToStudent(ctx, db.CheckSaleAssignedToStudentParams{
+			ConvertedStudentID: studentProfileID,
+			AssignedTo:         userID,
+		})
+		if err != nil {
+			return false, fmt.Errorf("check sale student access: %w", err)
+		}
+		if owns {
+			return true, nil
+		}
+	}
+	if claims.HasAnyRole(RoleStudent) {
+		return q.CheckStudentProfileOwnership(ctx, db.CheckStudentProfileOwnershipParams{
+			ID:     studentProfileID,
+			UserID: userID,
+		})
+	}
+	return false, nil
+}
+
 // IsAssignedTeacher reports whether the authenticated user is a teacher
 // assigned to the given class. Teachers may only act on assigned classes.
 func IsAssignedTeacher(ctx context.Context, q *db.Queries, claims *AccessClaims, classID pgtype.UUID) (bool, error) {

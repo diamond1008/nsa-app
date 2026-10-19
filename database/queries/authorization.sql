@@ -19,3 +19,12 @@ SELECT EXISTS(
       WHERE tap.assignment_id = ta.id AND tap.ended_at IS NULL
     )
 );
+
+-- name: CheckSaleAssignedToStudent :one
+-- True when the given user is the assigned sale or creator of the lead converted into the given student profile.
+SELECT EXISTS(
+  SELECT 1 FROM leads
+  WHERE converted_student_id = $1
+    AND (assigned_to = $2 OR created_by = $2)
+    AND deleted_at IS NULL
+);

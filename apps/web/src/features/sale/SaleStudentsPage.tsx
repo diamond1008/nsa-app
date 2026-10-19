@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { DataTable, Pagination, QueryState } from "../../components/data";
+import { DataTable, Pagination, QueryState, StatusBadge } from "../../components/data";
 import type { Column } from "../../components/data";
 import { FilterBar, useDebouncedValue } from "../../components/filters";
 import { Icon } from "../../components/icons";
@@ -70,14 +70,14 @@ export function SaleStudentsPage() {
           .join("")
           .toUpperCase();
 
-        return (
+        const content = (
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-xs">
               {initials || "HV"}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900 hover:text-[#0532e6] transition-colors">
+                <span className="font-semibold text-slate-900 group-hover:text-[#0532e6] transition-colors">
                   {lead.full_name}
                 </span>
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-50 text-blue-700 border border-blue-200/80">
@@ -101,6 +101,20 @@ export function SaleStudentsPage() {
             </div>
           </div>
         );
+
+        if (lead.converted_student_id) {
+          return (
+            <Link
+              to={`/sale/hoc-vien/${lead.converted_student_id}`}
+              className="group block"
+              title="Xem hồ sơ chi tiết học viên"
+            >
+              {content}
+            </Link>
+          );
+        }
+
+        return content;
       },
     },
     {
@@ -135,28 +149,41 @@ export function SaleStudentsPage() {
     },
     {
       header: "Trạng thái",
-      cell: () => (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Học viên chính thức
-        </span>
-      ),
+      cell: (lead: Lead) => {
+        const status =
+          lead.converted_student_status || (lead.converted_student_id ? "active" : "pending");
+        return <StatusBadge value={status} />;
+      },
     },
     {
       header: "Thao tác",
       className: "text-right",
       cell: (lead: Lead) => (
         <div className="flex items-center justify-end gap-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#0532e6] hover:bg-white/80 border border-slate-200/60 shadow-2xs"
-            onClick={() => setSelectedLead(lead)}
-            title="Xem hồ sơ học viên & lớp học"
-          >
-            <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
-            Chi tiết
-          </Button>
+          {lead.converted_student_id ? (
+            <Link to={`/sale/hoc-vien/${lead.converted_student_id}`}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#0532e6] hover:bg-white/80 border border-slate-200/60 shadow-2xs"
+                title="Xem hồ sơ chi tiết học viên"
+              >
+                <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
+                Chi tiết
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#0532e6] hover:bg-white/80 border border-slate-200/60 shadow-2xs"
+              onClick={() => setSelectedLead(lead)}
+              title="Xem hồ sơ học viên & lớp học"
+            >
+              <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
+              Chi tiết
+            </Button>
+          )}
           <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
             <Button
               type="button"
@@ -180,42 +207,6 @@ export function SaleStudentsPage() {
         eyebrow="Tuyển sinh & Chăm sóc"
         subtitle="Quản lý toàn bộ học viên do bạn tư vấn và chuyển đổi thành công. Theo dõi thông tin lớp học và quá trình đào tạo."
       />
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-white/60 bg-white/70 p-4 backdrop-blur-xl shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Tổng học viên đã chốt</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <Icon name="academic" className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">{total}</div>
-          <p className="mt-0.5 text-xs text-slate-500">Được tư vấn & chuyển đổi từ Lead</p>
-        </div>
-
-        <div className="rounded-2xl border border-white/60 bg-white/70 p-4 backdrop-blur-xl shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Trạng thái học tập</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <Icon name="check" className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600 tracking-tight">100%</div>
-          <p className="mt-0.5 text-xs text-slate-500">Đã kích hoạt hồ sơ học viên</p>
-        </div>
-
-        <div className="rounded-2xl border border-white/60 bg-white/70 p-4 backdrop-blur-xl shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Hỗ trợ & Chăm sóc</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-              <Icon name="phone" className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-indigo-600 tracking-tight">24/7</div>
-          <p className="mt-0.5 text-xs text-slate-500">Đồng hành trong suốt khóa học</p>
-        </div>
-      </div>
 
       {/* Filter Bar */}
       <FilterBar

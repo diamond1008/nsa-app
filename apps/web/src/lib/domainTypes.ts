@@ -624,6 +624,7 @@ export interface Lead {
   converted_student_id?: string | null;
   converted_student_code?: string | null;
   converted_student_name?: string | null;
+  converted_student_status?: string | null;
   converted_at?: string | null;
   converted_by?: string | null;
   created_by: string;

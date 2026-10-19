@@ -32,7 +32,7 @@ func TestAllAdminRoutesRequireAdmin(t *testing.T) {
 	router := chi.NewRouter()
 	router.Route("/api/v1", func(r chi.Router) {
 		mountAdminRoutes(
-			r, tokens,
+			r, tokens, nil, log,
 			students.NewHandler(nil, log),
 			teachers.NewHandler(nil, log),
 			courses.NewHandler(nil, log),

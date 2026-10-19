@@ -45,10 +45,11 @@ type View struct {
 	AssignedAt           *string `json:"assigned_at"`
 	AssignedBy           *string `json:"assigned_by"`
 	AssignedByEmail      *string `json:"assigned_by_email"`
-	ConvertedStudentID   *string `json:"converted_student_id"`
-	ConvertedStudentCode *string `json:"converted_student_code"`
-	ConvertedStudentName *string `json:"converted_student_name"`
-	ConvertedAt          *string `json:"converted_at"`
+	ConvertedStudentID     *string `json:"converted_student_id"`
+	ConvertedStudentCode   *string `json:"converted_student_code"`
+	ConvertedStudentName   *string `json:"converted_student_name"`
+	ConvertedStudentStatus *string `json:"converted_student_status,omitempty"`
+	ConvertedAt            *string `json:"converted_at"`
 	ConvertedBy          *string `json:"converted_by"`
 	CreatedBy            string  `json:"created_by"`
 	CreatedByEmail       *string `json:"created_by_email"`

@@ -29,11 +29,13 @@ import (
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/notifications"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/orders"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/config"
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/database"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/docs"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/health"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/logging"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/middleware"
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/response"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/storage"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/progress"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/reports"
@@ -88,7 +90,8 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("token service: %w", err)
 	}
-	authService, err := auth.NewService(db.New(pool), tokenService, cfg.RefreshTokenTTLDays, cfg.BcryptCost, log)
+	queries := db.New(pool)
+	authService, err := auth.NewService(queries, tokenService, cfg.RefreshTokenTTLDays, cfg.BcryptCost, log)
 	if err != nil {
 		return fmt.Errorf("auth service: %w", err)
 	}
@@ -178,7 +181,7 @@ func run() error {
 		})
 
 		mountAdminRoutes(
-			r, tokenService, studentHandler, teacherHandler, courseHandler,
+			r, tokenService, queries, log, studentHandler, teacherHandler, courseHandler,
 			classHandler, scheduleHandler, attendanceHandler, completionHandler, reportHandler,
 			testScoreHandler,
 		)
@@ -254,6 +257,8 @@ func run() error {
 func mountAdminRoutes(
 	r chi.Router,
 	tokenService *auth.TokenService,
+	queries *db.Queries,
+	log *slog.Logger,
 	studentHandler *students.Handler,
 	teacherHandler *teachers.Handler,
 	courseHandler *courses.Handler,
@@ -270,22 +275,54 @@ func mountAdminRoutes(
 		adminOnly := auth.RequireRole(auth.RoleAdmin, auth.RoleAcademicAdmin)
 		saleAndAdmin := auth.RequireRole(auth.RoleAdmin, auth.RoleAcademicAdmin, auth.RoleSaleAdmin, auth.RoleSale)
 
+		studentAccessMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				studentIDStr := chi.URLParam(r, "studentID")
+				studentID, err := data.UUID(studentIDStr)
+				if err != nil {
+					response.Fail(w, http.StatusNotFound, "STUDENT_NOT_FOUND", "Student not found")
+					return
+				}
+				if queries != nil {
+					claims, ok := auth.ClaimsFrom(r.Context())
+					if !ok {
+						response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+						return
+					}
+					allowed, err := auth.CanAccessStudentProfile(r.Context(), queries, claims, studentID)
+					if err != nil {
+						response.InternalError(w, log, auth.RequestIDFrom(r.Context()), err)
+						return
+					}
+					if !allowed {
+						response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Bạn chỉ được xem thông tin học viên thuộc quyền quản lý của mình")
+						return
+					}
+				}
+				next.ServeHTTP(w, r)
+			})
+		}
+
 		r.Route("/students", func(r chi.Router) {
 			r.With(adminOnly).Get("/", studentHandler.List)
 			r.With(adminOnly).Post("/", studentHandler.Create)
 			r.With(adminOnly).Get("/export", studentHandler.ExportCSV)
 			r.With(adminOnly).Post("/import", studentHandler.ImportCSV)
-			r.With(saleAndAdmin).Get("/{studentID}", studentHandler.Get)
-			r.With(adminOnly).Put("/{studentID}", studentHandler.Update)
-			r.With(saleAndAdmin).Get("/{studentID}/profile-summary", studentHandler.ProfileSummary)
-			r.With(saleAndAdmin).Get("/{studentID}/class-history", studentHandler.ClassHistory)
-			r.With(saleAndAdmin).Get("/{studentID}/schedule", scheduleHandler.AdminStudentSchedule)
-			r.With(saleAndAdmin).Get("/{studentID}/status-history", studentHandler.StatusHistory)
-			r.With(saleAndAdmin).Get("/{studentID}/attendance-breakdown", studentHandler.AttendanceBreakdown)
-			r.With(saleAndAdmin).Get("/{studentID}/classes/{classID}/attendance", studentHandler.ClassSessionAttendance)
-			r.With(saleAndAdmin).Get("/{studentID}/academic-summary", studentHandler.AcademicSummary)
-			r.With(adminOnly).Get("/{studentID}/audit-logs", studentHandler.AuditLogs)
-			r.With(adminOnly).Patch("/{studentID}/account-status", studentHandler.UpdateAccountStatus)
+
+			r.Route("/{studentID}", func(r chi.Router) {
+				r.Use(studentAccessMiddleware)
+				r.With(saleAndAdmin).Get("/", studentHandler.Get)
+				r.With(adminOnly).Put("/", studentHandler.Update)
+				r.With(saleAndAdmin).Get("/profile-summary", studentHandler.ProfileSummary)
+				r.With(saleAndAdmin).Get("/class-history", studentHandler.ClassHistory)
+				r.With(saleAndAdmin).Get("/schedule", scheduleHandler.AdminStudentSchedule)
+				r.With(saleAndAdmin).Get("/status-history", studentHandler.StatusHistory)
+				r.With(saleAndAdmin).Get("/attendance-breakdown", studentHandler.AttendanceBreakdown)
+				r.With(saleAndAdmin).Get("/classes/{classID}/attendance", studentHandler.ClassSessionAttendance)
+				r.With(saleAndAdmin).Get("/academic-summary", studentHandler.AcademicSummary)
+				r.With(adminOnly).Get("/audit-logs", studentHandler.AuditLogs)
+				r.With(adminOnly).Patch("/account-status", studentHandler.UpdateAccountStatus)
+			})
 		})
 
 		r.Route("/teachers", func(r chi.Router) {
