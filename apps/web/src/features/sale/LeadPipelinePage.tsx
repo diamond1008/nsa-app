@@ -413,25 +413,25 @@ export function LeadPipelinePage() {
                 type="button"
                 onClick={() => handleSetViewMode("table")}
                 className={clsx(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
                   viewMode === "table"
                     ? "bg-white text-navy shadow-xs"
                     : "text-slate-600 hover:text-navy",
                 )}
               >
-                <span>📋</span> Danh sách
+                Danh sách
               </button>
               <button
                 type="button"
                 onClick={() => handleSetViewMode("charts")}
                 className={clsx(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
                   viewMode === "charts"
                     ? "bg-white text-navy shadow-xs"
                     : "text-slate-600 hover:text-navy",
                 )}
               >
-                <span>📊</span> Biểu đồ lead
+                Biểu đồ lead
               </button>
             </div>
             {isAdmin && (

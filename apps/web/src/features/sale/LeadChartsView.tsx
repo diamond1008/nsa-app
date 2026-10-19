@@ -202,9 +202,7 @@ export function LeadChartsView({
 
   const conversionRate = totalLeads > 0 ? Math.round((convertedCount / totalLeads) * 100) : 0;
 
-  // Max count for scaling bars
-  const maxStatusCount = Math.max(1, ...Object.values(statusCounts));
-  const maxSourceCount = Math.max(1, ...Object.values(sourceCounts));
+  // Max count for scaling day bars
   const maxDayCount = Math.max(1, ...dailyIntake.map(([, cnt]) => cnt));
 
   return (
@@ -277,7 +275,9 @@ export function LeadChartsView({
                 const count = statusCounts[opt.value] || 0;
                 const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
                 const barWidth =
-                  maxStatusCount > 0 ? Math.max(4, Math.round((count / maxStatusCount) * 100)) : 4;
+                  count > 0 && totalLeads > 0
+                    ? Math.max(2, Math.min(100, Math.round((count / totalLeads) * 100)))
+                    : 0;
                 const style = STAGE_STYLES[opt.value] || {
                   label: opt.label,
                   dotColor: "bg-slate-400",
@@ -376,7 +376,9 @@ export function LeadChartsView({
                 const count = sourceCounts[src.value] || 0;
                 const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
                 const barWidth =
-                  maxSourceCount > 0 ? Math.max(4, Math.round((count / maxSourceCount) * 100)) : 4;
+                  count > 0 && totalLeads > 0
+                    ? Math.max(2, Math.min(100, Math.round((count / totalLeads) * 100)))
+                    : 0;
                 const color = SOURCE_COLORS[src.value] || "#64748B";
 
                 return (
@@ -550,7 +552,7 @@ export function LeadChartsView({
                           <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
-                              style={{ width: `${Math.max(4, rate)}%` }}
+                              style={{ width: `${rate > 0 ? Math.max(4, rate) : 0}%` }}
                             />
                           </div>
                         </div>
