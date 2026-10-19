@@ -434,27 +434,31 @@ export function LeadPipelinePage() {
                 <span>📊</span> Biểu đồ lead
               </button>
             </div>
-            <Button
-              variant="ghost"
-              onClick={handleExportLeads}
-              loading={isExporting}
-              title="Xuất danh sách Lead ra file Excel"
-            >
-              <Icon name="download" className="h-4 w-4 mr-1.5" />
-              Xuất Excel
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setImportError("");
-                setImportResult(null);
-                setImportFile(null);
-                setIsImportOpen(true);
-              }}
-            >
-              <Icon name="upload" className="h-4 w-4 mr-1.5" />
-              Nhập từ Excel/CSV
-            </Button>
+            {isAdmin && (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={handleExportLeads}
+                  loading={isExporting}
+                  title="Xuất danh sách Lead ra file Excel"
+                >
+                  <Icon name="download" className="h-4 w-4 mr-1.5" />
+                  Xuất Excel
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setImportError("");
+                    setImportResult(null);
+                    setImportFile(null);
+                    setIsImportOpen(true);
+                  }}
+                >
+                  <Icon name="upload" className="h-4 w-4 mr-1.5" />
+                  Nhập từ Excel/CSV
+                </Button>
+              </>
+            )}
             <Button
               variant="primary"
               onClick={() => {

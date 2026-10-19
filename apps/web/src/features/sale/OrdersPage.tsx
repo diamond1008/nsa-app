@@ -216,15 +216,17 @@ export function OrdersPage() {
         eyebrow="Tài chính Tuyển sinh"
         subtitle="Theo dõi toàn bộ đơn hàng học phí phát sinh từ quy trình tư vấn và chuyển đổi học viên."
         actions={
-          <Button
-            variant="ghost"
-            onClick={handleExportOrders}
-            loading={isExporting}
-            title="Xuất danh sách đơn hàng ra file Excel"
-          >
-            <Icon name="download" className="h-4 w-4 mr-1.5" />
-            Xuất Excel
-          </Button>
+          isAdmin ? (
+            <Button
+              variant="ghost"
+              onClick={handleExportOrders}
+              loading={isExporting}
+              title="Xuất danh sách đơn hàng ra file Excel"
+            >
+              <Icon name="download" className="h-4 w-4 mr-1.5" />
+              Xuất Excel
+            </Button>
+          ) : undefined
         }
       />
 

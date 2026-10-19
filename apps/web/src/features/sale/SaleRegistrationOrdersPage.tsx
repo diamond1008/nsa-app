@@ -232,15 +232,17 @@ export function SaleRegistrationOrdersPage() {
         subtitle="Lập phiếu đăng ký học và theo dõi toàn bộ học phí phát sinh từ học viên đã chốt."
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={handleExportOrders}
-              loading={isExporting}
-              title="Xuất danh sách phiếu đăng ký ra file Excel"
-            >
-              <Icon name="download" className="h-4 w-4 mr-1.5" />
-              Xuất Excel
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                onClick={handleExportOrders}
+                loading={isExporting}
+                title="Xuất danh sách phiếu đăng ký ra file Excel"
+              >
+                <Icon name="download" className="h-4 w-4 mr-1.5" />
+                Xuất Excel
+              </Button>
+            )}
             <Button type="button" variant="primary" onClick={() => setIsCreateOpen(true)}>
               <Icon name="plus" className="h-4 w-4 mr-1.5" />
               Tạo phiếu đăng ký

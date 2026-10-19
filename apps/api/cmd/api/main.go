@@ -433,27 +433,29 @@ func mountSaleRoutes(
 		r.Use(auth.Authenticate(tokenService))
 		r.Use(auth.RequireRole(auth.RoleSale, auth.RoleSaleAdmin, auth.RoleAdmin))
 
+		saleManagerOnly := auth.RequireRole(auth.RoleSaleAdmin, auth.RoleAdmin)
+
 		r.Get("/staff", leadHandler.ListStaff)
 		r.Get("/courses", courseHandler.List)
 		r.Get("/classes", classHandler.List)
 
 		r.Route("/dashboard", func(r chi.Router) {
 			r.Get("/my-stats", leadHandler.MyStats)
-			r.With(auth.RequireRole(auth.RoleSale, auth.RoleSaleAdmin, auth.RoleAdmin)).Get("/overview", leadHandler.Overview)
-			r.With(auth.RequireRole(auth.RoleSaleAdmin, auth.RoleAdmin)).Get("/revenue", orderHandler.Revenue)
+			r.With(saleManagerOnly).Get("/overview", leadHandler.Overview)
+			r.With(saleManagerOnly).Get("/revenue", orderHandler.Revenue)
 		})
 
 		r.Route("/leads", func(r chi.Router) {
 			r.Get("/", leadHandler.List)
 			r.Post("/", leadHandler.Create)
 			r.Get("/check-duplicate", leadHandler.CheckDuplicate)
-			r.Get("/export", leadHandler.ExportExcel)
-			r.Get("/template", leadHandler.Template)
-			r.Post("/import", leadHandler.Import)
+			r.With(saleManagerOnly).Get("/export", leadHandler.ExportExcel)
+			r.With(saleManagerOnly).Get("/template", leadHandler.Template)
+			r.With(saleManagerOnly).Post("/import", leadHandler.Import)
 			r.Get("/{leadID}", leadHandler.Get)
 			r.Put("/{leadID}", leadHandler.Update)
 			r.Patch("/{leadID}/status", leadHandler.UpdateStatus)
-			r.With(auth.RequireRole(auth.RoleSaleAdmin, auth.RoleAdmin)).Patch("/{leadID}/assign", leadHandler.Assign)
+			r.With(saleManagerOnly).Patch("/{leadID}/assign", leadHandler.Assign)
 			r.Post("/{leadID}/convert", leadHandler.Convert)
 
 			r.Get("/{leadID}/interactions", interactionHandler.List)
@@ -473,7 +475,7 @@ func mountSaleRoutes(
 		r.Route("/orders", func(r chi.Router) {
 			r.Get("/", orderHandler.List)
 			r.Post("/", orderHandler.Create)
-			r.Get("/export", orderHandler.ExportExcel)
+			r.With(saleManagerOnly).Get("/export", orderHandler.ExportExcel)
 			r.Get("/{orderID}", orderHandler.Get)
 			r.Patch("/{orderID}/status", orderHandler.UpdateStatus)
 		})

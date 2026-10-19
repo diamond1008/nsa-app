@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { Card } from "../../components/ui";
 import { StatCard } from "../../components/data";
 import { Icon } from "../../components/icons";
+import { useAuth } from "../auth/AuthContext";
 import type { Lead, LeadPipelineStatus, LeadSource } from "../../lib/domainTypes";
 import { saleApi } from "./saleApi";
 import { PIPELINE_STATUS_OPTIONS, SOURCE_OPTIONS } from "./saleShared";
@@ -101,16 +102,20 @@ export function LeadChartsView({
   onSelectSource,
   isFiltered,
 }: LeadChartsViewProps) {
-  // Query full overview for comparison
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("ADMIN", "SALE_ADMIN");
+
+  // Query full company overview only for managers/admins
   const overviewQuery = useQuery({
     queryKey: ["sale", "dashboard", "overview"],
     queryFn: () => saleApi.getOverview(),
+    enabled: isAdmin,
     retry: 1,
   });
 
   const overview = overviewQuery.data;
 
-  // Compute status metrics based on currently available leads
+  // Compute status metrics: regular sale staff strictly view their own assigned leads
   const {
     totalLeads,
     statusCounts,
@@ -121,16 +126,14 @@ export function LeadChartsView({
     unreachedCount,
     dailyIntake,
   } = useMemo(() => {
-    // If not filtered and overview is available, we can prioritize overview counts
-    const useOverviewCounts = !isFiltered && overview?.by_status;
-
     let total = 0;
     const sCounts: Record<string, number> = {};
     const srcCounts: Record<string, number> = {};
     const assignees: Record<string, { email: string; total: number; converted: number }> = {};
     const dayMap: Record<string, number> = {};
 
-    if (useOverviewCounts) {
+    // Only prioritize full company overview if user is admin/manager and no filter is active
+    if (isAdmin && !isFiltered && overview?.by_status) {
       Object.entries(overview.by_status).forEach(([st, cnt]) => {
         sCounts[st] = cnt;
         total += cnt;
@@ -195,7 +198,7 @@ export function LeadChartsView({
       unreachedCount: unreached,
       dailyIntake: sortedDays,
     };
-  }, [leads, isFiltered, overview]);
+  }, [leads, isFiltered, overview, isAdmin]);
 
   const conversionRate = totalLeads > 0 ? Math.round((convertedCount / totalLeads) * 100) : 0;
 
@@ -209,9 +212,15 @@ export function LeadChartsView({
       {/* KPI Top Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Tổng số Lead"
+          label={isAdmin ? "Tổng số Lead" : "Tổng số Lead của tôi"}
           value={new Intl.NumberFormat("vi-VN").format(totalLeads)}
-          hint={isFiltered ? "Theo bộ lọc hiện tại" : "Toàn bộ Lead trong hệ thống"}
+          hint={
+            isFiltered
+              ? "Theo bộ lọc hiện tại"
+              : isAdmin
+                ? "Toàn bộ Lead trong hệ thống"
+                : "Tổng số Lead được phân công cho bạn"
+          }
           icon="users"
           tone="neutral"
         />
@@ -422,8 +431,13 @@ export function LeadChartsView({
 
       {/* Row 2: Trend & Sale Staff Performance */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Xu hướng tiếp nhận Lead theo ngày (6 cols) */}
-        <Card className="lg:col-span-6 flex flex-col justify-between">
+        {/* Xu hướng tiếp nhận Lead theo ngày */}
+        <Card
+          className={clsx(
+            isAdmin ? "lg:col-span-6" : "lg:col-span-12",
+            "flex flex-col justify-between",
+          )}
+        >
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -432,7 +446,11 @@ export function LeadChartsView({
                   <h3 className="font-heading text-sm font-bold text-navy">
                     Xu Hướng Tiếp Nhận Lead
                   </h3>
-                  <p className="text-xs text-gtext">Số lượng Lead đổ về theo từng ngày gần đây</p>
+                  <p className="text-xs text-gtext">
+                    {isAdmin
+                      ? "Số lượng Lead đổ về theo từng ngày gần đây"
+                      : "Số lượng Lead bạn tiếp nhận theo từng ngày gần đây"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -478,73 +496,76 @@ export function LeadChartsView({
           </div>
         </Card>
 
-        {/* Hiệu suất tư vấn theo nhân viên (6 cols) */}
-        <Card className="lg:col-span-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <Icon name="award" className="h-5 w-5 text-slate-500 shrink-0" />
-                <div>
-                  <h3 className="font-heading text-sm font-bold text-navy">
-                    Hiệu Suất Tư Vấn Phụ Trách
-                  </h3>
-                  <p className="text-xs text-gtext">
-                    Phân bổ khối lượng và tỷ lệ chốt của từng Sale
-                  </p>
+        {/* Hiệu suất tư vấn theo nhân viên (Chỉ hiển thị cho Quản lý / Admin) */}
+        {isAdmin && (
+          <Card className="lg:col-span-6 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <Icon name="award" className="h-5 w-5 text-slate-500 shrink-0" />
+                  <div>
+                    <h3 className="font-heading text-sm font-bold text-navy">
+                      Hiệu Suất Tư Vấn Phụ Trách
+                    </h3>
+                    <p className="text-xs text-gtext">
+                      Phân bổ khối lượng và tỷ lệ chốt của từng Sale
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {assigneeCounts.length === 0 ? (
+                <div className="py-12 text-center text-xs text-gtext">
+                  Chưa có dữ liệu phân bổ nhân sự tư vấn.
+                </div>
+              ) : (
+                <div className="mt-4 divide-y divide-slate-100 space-y-2">
+                  {assigneeCounts
+                    .sort((a, b) => b.total - a.total)
+                    .map((asg) => {
+                      const rate =
+                        asg.total > 0 ? Math.round((asg.converted / asg.total) * 100) : 0;
+                      return (
+                        <div key={asg.email} className="pt-2.5 first:pt-0">
+                          <div className="flex items-center justify-between text-xs mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-navy uppercase">
+                                {asg.email[0]}
+                              </span>
+                              <span className="font-medium text-navy truncate" title={asg.email}>
+                                {asg.email}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-right shrink-0 font-calibri text-[12px]">
+                              <span>
+                                <strong className="text-navy">{asg.total}</strong> lead
+                              </span>
+                              <span className="font-semibold text-emerald-600">
+                                {asg.converted} chốt ({rate}%)
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                              style={{ width: `${Math.max(4, rate)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
-            {assigneeCounts.length === 0 ? (
-              <div className="py-12 text-center text-xs text-gtext">
-                Chưa có dữ liệu phân bổ nhân sự tư vấn.
-              </div>
-            ) : (
-              <div className="mt-4 divide-y divide-slate-100 space-y-2">
-                {assigneeCounts
-                  .sort((a, b) => b.total - a.total)
-                  .map((asg) => {
-                    const rate = asg.total > 0 ? Math.round((asg.converted / asg.total) * 100) : 0;
-                    return (
-                      <div key={asg.email} className="pt-2.5 first:pt-0">
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-navy uppercase">
-                              {asg.email[0]}
-                            </span>
-                            <span className="font-medium text-navy truncate" title={asg.email}>
-                              {asg.email}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 text-right shrink-0 font-calibri text-[12px]">
-                            <span>
-                              <strong className="text-navy">{asg.total}</strong> lead
-                            </span>
-                            <span className="font-semibold text-emerald-600">
-                              {asg.converted} chốt ({rate}%)
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
-                            style={{ width: `${Math.max(4, rate)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-gtext flex justify-between">
-            <span>👥 {assigneeCounts.length} nhân sự tư vấn</span>
-            <span className="font-semibold text-navy">Tổng chốt: {convertedCount} học viên</span>
-          </div>
-        </Card>
+            <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-gtext flex justify-between">
+              <span>👥 {assigneeCounts.length} nhân sự tư vấn</span>
+              <span className="font-semibold text-navy">Tổng chốt: {convertedCount} học viên</span>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
