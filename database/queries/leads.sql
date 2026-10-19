@@ -39,7 +39,7 @@ SELECT
   u_assigner.email AS assigned_by_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name,
-  sp.status::text AS converted_student_status,
+  sp.status AS converted_student_status,
   u_creator.email AS created_by_email
 FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
@@ -57,7 +57,7 @@ SELECT
   u_assignee.email AS assigned_to_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name,
-  sp.status::text AS converted_student_status
+  sp.status AS converted_student_status
 FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to

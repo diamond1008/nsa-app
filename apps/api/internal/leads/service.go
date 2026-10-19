@@ -615,7 +615,7 @@ func viewFromGet(row db.GetLeadRow) View {
 		ConvertedStudentID:     data.UUIDPointer(row.ConvertedStudentID),
 		ConvertedStudentCode:   data.TextPointer(row.ConvertedStudentCode),
 		ConvertedStudentName:   data.TextPointer(row.ConvertedStudentName),
-		ConvertedStudentStatus: stringPtr(row.ConvertedStudentStatus),
+		ConvertedStudentStatus: studentStatusPtr(row.ConvertedStudentStatus),
 		ConvertedAt:            timestamptzString(row.ConvertedAt),
 		ConvertedBy:            data.UUIDPointer(row.ConvertedBy),
 		CreatedBy:              data.UUIDString(row.CreatedBy),
@@ -653,7 +653,7 @@ func viewFromListRow(row db.ListLeadsRow) View {
 		ConvertedStudentID:     data.UUIDPointer(row.ConvertedStudentID),
 		ConvertedStudentCode:   data.TextPointer(row.ConvertedStudentCode),
 		ConvertedStudentName:   data.TextPointer(row.ConvertedStudentName),
-		ConvertedStudentStatus: stringPtr(row.ConvertedStudentStatus),
+		ConvertedStudentStatus: studentStatusPtr(row.ConvertedStudentStatus),
 		ConvertedAt:            timestamptzString(row.ConvertedAt),
 		ConvertedBy:          data.UUIDPointer(row.ConvertedBy),
 		CreatedBy:            data.UUIDString(row.CreatedBy),
@@ -668,6 +668,14 @@ func timestamptzString(t pgtype.Timestamptz) *string {
 	}
 	formatted := t.Time.UTC().Format(time.RFC3339)
 	return &formatted
+}
+
+func studentStatusPtr(s db.NullStudentStatus) *string {
+	if !s.Valid {
+		return nil
+	}
+	str := string(s.StudentStatus)
+	return &str
 }
 
 func stringPtr(s string) *string {
