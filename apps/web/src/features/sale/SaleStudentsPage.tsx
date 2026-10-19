@@ -111,7 +111,10 @@ export function SaleStudentsPage() {
             {lead.interested_course_name || "Chưa chọn khóa"}
           </span>
           {lead.address && (
-            <p className="text-xs text-slate-400 truncate max-w-[200px] mt-0.5" title={lead.address}>
+            <p
+              className="text-xs text-slate-400 truncate max-w-[200px] mt-0.5"
+              title={lead.address}
+            >
               <Icon name="location" className="inline h-3 w-3 mr-0.5 text-slate-400" />
               {lead.address}
             </p>
@@ -123,7 +126,9 @@ export function SaleStudentsPage() {
       header: "Ngày chốt",
       cell: (lead: Lead) => (
         <div className="text-xs text-slate-600">
-          <p className="font-medium">{lead.converted_at ? formatDate(lead.converted_at) : formatDate(lead.created_at)}</p>
+          <p className="font-medium">
+            {lead.converted_at ? formatDate(lead.converted_at) : formatDate(lead.created_at)}
+          </p>
           <p className="text-[11px] text-slate-400">Bởi: {lead.assigned_to_email || "Tôi"}</p>
         </div>
       ),
@@ -265,17 +270,10 @@ export function SaleStudentsPage() {
         emptyTitle="Chưa có học viên nào"
       >
         <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
-          <DataTable
-            items={items}
-            columns={columns}
-          />
+          <DataTable items={items} columns={columns} />
           {totalPages > 1 && (
             <div className="p-4 border-t border-white/60">
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                onPage={setPage}
-              />
+              <Pagination page={page} totalPages={totalPages} onPage={setPage} />
             </div>
           )}
         </div>
@@ -310,7 +308,10 @@ export function SaleStudentsPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Ngày chuyển đổi: {selectedLead.converted_at ? formatDate(selectedLead.converted_at) : formatDate(selectedLead.created_at)}
+                  Ngày chuyển đổi:{" "}
+                  {selectedLead.converted_at
+                    ? formatDate(selectedLead.converted_at)
+                    : formatDate(selectedLead.created_at)}
                 </p>
               </div>
             </div>
@@ -323,15 +324,21 @@ export function SaleStudentsPage() {
               </div>
               <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
                 <span className="text-slate-400 block mb-0.5">Email:</span>
-                <span className="font-semibold text-slate-800 truncate block">{selectedLead.email || "—"}</span>
+                <span className="font-semibold text-slate-800 truncate block">
+                  {selectedLead.email || "—"}
+                </span>
               </div>
               <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
                 <span className="text-slate-400 block mb-0.5">Khóa học đăng ký:</span>
-                <span className="font-semibold text-blue-600">{selectedLead.interested_course_name || "—"}</span>
+                <span className="font-semibold text-blue-600">
+                  {selectedLead.interested_course_name || "—"}
+                </span>
               </div>
               <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
                 <span className="text-slate-400 block mb-0.5">Địa chỉ:</span>
-                <span className="font-semibold text-slate-800 truncate block">{selectedLead.address || "—"}</span>
+                <span className="font-semibold text-slate-800 truncate block">
+                  {selectedLead.address || "—"}
+                </span>
               </div>
             </div>
 
@@ -341,7 +348,9 @@ export function SaleStudentsPage() {
                 Lớp học đang tham gia
               </h5>
               {studentClassesQuery.isLoading ? (
-                <div className="p-4 text-center text-xs text-slate-400">Đang tải thông tin lớp học...</div>
+                <div className="p-4 text-center text-xs text-slate-400">
+                  Đang tải thông tin lớp học...
+                </div>
               ) : (studentClassesQuery.data?.items ?? []).length > 0 ? (
                 <div className="space-y-2">
                   {studentClassesQuery.data?.items.map((c) => (

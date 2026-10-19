@@ -187,19 +187,19 @@ func (s *Service) List(ctx context.Context, claims *auth.AccessClaims, filter Li
 			lastLogin = &t
 		}
 		items = append(items, UserView{
-			ID:                 data.UUIDString(r.ID),
-			Email:              r.Email,
-			Status:             string(r.Status),
-			MustChangePassword: r.MustChangePassword,
-			LastLoginAt:        lastLogin,
-			CreatedAt:          r.CreatedAt.Time,
-			UpdatedAt:          r.UpdatedAt.Time,
-			FullName:           r.FullName,
-			Phone:              r.Phone,
-			Roles:              r.RoleCodes,
-			StudentCode:        r.StudentCode,
-			TeacherCode:        r.TeacherCode,
-			CreatedByEmail:     r.CreatedByEmail,
+			ID:                  data.UUIDString(r.ID),
+			Email:               r.Email,
+			Status:              string(r.Status),
+			MustChangePassword:  r.MustChangePassword,
+			LastLoginAt:         lastLogin,
+			CreatedAt:           r.CreatedAt.Time,
+			UpdatedAt:           r.UpdatedAt.Time,
+			FullName:            r.FullName,
+			Phone:               r.Phone,
+			Roles:               r.RoleCodes,
+			StudentCode:         r.StudentCode,
+			TeacherCode:         r.TeacherCode,
+			CreatedByEmail:      r.CreatedByEmail,
 			IsAcceptingLeads:    r.IsAcceptingLeads,
 			LeadAssignmentOrder: int(r.LeadAssignmentOrder),
 		})
@@ -234,19 +234,19 @@ func (s *Service) Get(ctx context.Context, claims *auth.AccessClaims, id string)
 	}
 
 	return UserView{
-		ID:                 data.UUIDString(row.ID),
-		Email:              row.Email,
-		Status:             string(row.Status),
-		MustChangePassword: row.MustChangePassword,
-		LastLoginAt:        lastLogin,
-		CreatedAt:          row.CreatedAt.Time,
-		UpdatedAt:          row.UpdatedAt.Time,
-		FullName:           row.FullName,
-		Phone:              row.Phone,
-		Roles:              row.RoleCodes,
-		StudentCode:        row.StudentCode,
-		TeacherCode:        row.TeacherCode,
-		CreatedByEmail:     row.CreatedByEmail,
+		ID:                  data.UUIDString(row.ID),
+		Email:               row.Email,
+		Status:              string(row.Status),
+		MustChangePassword:  row.MustChangePassword,
+		LastLoginAt:         lastLogin,
+		CreatedAt:           row.CreatedAt.Time,
+		UpdatedAt:           row.UpdatedAt.Time,
+		FullName:            row.FullName,
+		Phone:               row.Phone,
+		Roles:               row.RoleCodes,
+		StudentCode:         row.StudentCode,
+		TeacherCode:         row.TeacherCode,
+		CreatedByEmail:      row.CreatedByEmail,
 		IsAcceptingLeads:    row.IsAcceptingLeads,
 		LeadAssignmentOrder: int(row.LeadAssignmentOrder),
 	}, nil
@@ -399,18 +399,18 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 	}
 
 	return UserView{
-		ID:                 data.UUIDString(createdUser.ID),
-		Email:              createdUser.Email,
-		Status:             string(createdUser.Status),
-		MustChangePassword: createdUser.MustChangePassword,
-		CreatedAt:          createdUser.CreatedAt.Time,
-		UpdatedAt:          createdUser.UpdatedAt.Time,
-		FullName:           fullNameTrimmed,
-		Phone:              phoneTrimmed,
-		Roles:              []string{targetRole},
-		StudentCode:        studentCode,
-		TeacherCode:        teacherCode,
-		CreatedByEmail:     claims.Email,
+		ID:                  data.UUIDString(createdUser.ID),
+		Email:               createdUser.Email,
+		Status:              string(createdUser.Status),
+		MustChangePassword:  createdUser.MustChangePassword,
+		CreatedAt:           createdUser.CreatedAt.Time,
+		UpdatedAt:           createdUser.UpdatedAt.Time,
+		FullName:            fullNameTrimmed,
+		Phone:               phoneTrimmed,
+		Roles:               []string{targetRole},
+		StudentCode:         studentCode,
+		TeacherCode:         teacherCode,
+		CreatedByEmail:      claims.Email,
 		IsAcceptingLeads:    true,
 		LeadAssignmentOrder: 0,
 	}, nil
@@ -791,4 +791,3 @@ func (s *Service) ReorderLeadRouting(ctx context.Context, claims *auth.AccessCla
 
 	return nil
 }
-

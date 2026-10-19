@@ -319,9 +319,7 @@ export function LeadPipelinePage() {
       className: "min-w-[105px] whitespace-nowrap",
       sortKey: "created_at",
       cell: (lead) => (
-        <span className="font-calibri text-[13px] text-gtext">
-          {formatDate(lead.created_at)}
-        </span>
+        <span className="font-calibri text-[13px] text-gtext">{formatDate(lead.created_at)}</span>
       ),
     },
     {
@@ -385,10 +383,7 @@ export function LeadPipelinePage() {
       header: "Note",
       className: "min-w-[160px] max-w-[260px]",
       cell: (lead) => (
-        <span
-          className="text-xs text-gtext line-clamp-2 block"
-          title={lead.notes || "—"}
-        >
+        <span className="text-xs text-gtext line-clamp-2 block" title={lead.notes || "—"}>
           {lead.notes || "—"}
         </span>
       ),
@@ -419,7 +414,9 @@ export function LeadPipelinePage() {
                 onClick={() => handleSetViewMode("table")}
                 className={clsx(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                  viewMode === "table" ? "bg-white text-navy shadow-xs" : "text-slate-600 hover:text-navy",
+                  viewMode === "table"
+                    ? "bg-white text-navy shadow-xs"
+                    : "text-slate-600 hover:text-navy",
                 )}
               >
                 <span>📋</span> Danh sách
@@ -429,7 +426,9 @@ export function LeadPipelinePage() {
                 onClick={() => handleSetViewMode("charts")}
                 className={clsx(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                  viewMode === "charts" ? "bg-white text-navy shadow-xs" : "text-slate-600 hover:text-navy",
+                  viewMode === "charts"
+                    ? "bg-white text-navy shadow-xs"
+                    : "text-slate-600 hover:text-navy",
                 )}
               >
                 <span>📊</span> Biểu đồ lead
@@ -655,7 +654,8 @@ export function LeadPipelinePage() {
             <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-950 animate-in fade-in">
               <div className="flex items-center gap-1.5 font-bold text-amber-900">
                 <Icon name="alert" className="h-4 w-4 text-amber-600 shrink-0" />
-                Cảnh báo trùng lặp ({duplicateInfo.duplicate_field === "phone" ? "Số điện thoại" : "Email"})
+                Cảnh báo trùng lặp (
+                {duplicateInfo.duplicate_field === "phone" ? "Số điện thoại" : "Email"})
               </div>
               <p className="mt-1 text-amber-800 leading-relaxed">
                 Đã có Lead <strong>{duplicateInfo.existing_lead.full_name}</strong> (Trạng thái:{" "}
@@ -665,7 +665,8 @@ export function LeadPipelinePage() {
                 ).
               </p>
               <p className="mt-1 text-[11px] text-amber-700">
-                💡 Bạn vẫn có thể tiếp tục bấm <strong>"Tạo Lead"</strong> nếu đây là khách hàng hỏi lại hoặc đăng ký thêm khóa mới.
+                💡 Bạn vẫn có thể tiếp tục bấm <strong>"Tạo Lead"</strong> nếu đây là khách hàng hỏi
+                lại hoặc đăng ký thêm khóa mới.
               </p>
             </div>
           )}

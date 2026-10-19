@@ -8,4 +8,3 @@ export { SaleStudentsPage } from "./SaleStudentsPage";
 export { SaleRegistrationOrdersPage } from "./SaleRegistrationOrdersPage";
 export { SaleReceiptsPage } from "./SaleReceiptsPage";
 export { LeadDetailDrawer } from "./LeadDetailDrawer";
-

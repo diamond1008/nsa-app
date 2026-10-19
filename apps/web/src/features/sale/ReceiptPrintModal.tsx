@@ -7,7 +7,7 @@ import { formatVND } from "./saleShared";
 // Helper convert number to Vietnamese words
 function numberToVietnameseWords(num: number): string {
   if (num === 0) return "Không đồng";
-  
+
   const units = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
   const scales = ["", "nghìn", "triệu", "tỷ"];
 
@@ -71,7 +71,9 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
 
   const receiptCode = order.order_code.replace("DH", "PT");
   const studentName = order.student_name || order.lead_name || "Học viên";
-  const courseClassName = order.class_name ? `${order.course_name} (${order.class_code})` : order.course_name || "Khóa học đào tạo";
+  const courseClassName = order.class_name
+    ? `${order.course_name} (${order.class_code})`
+    : order.course_name || "Khóa học đào tạo";
   const amountWords = numberToVietnameseWords(order.final_amount);
   const paymentMethodLabel =
     order.payment_method === "transfer"
@@ -135,15 +137,21 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
                   NSA TRAINING PLATFORM
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Học viện Đào tạo & Khảo thí Kỹ thuật Quốc tế</p>
-              <p className="text-xs text-slate-400">Địa chỉ: Tòa nhà NSA, Khu Công Nghệ Cao, TP.HCM</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Học viện Đào tạo & Khảo thí Kỹ thuật Quốc tế
+              </p>
+              <p className="text-xs text-slate-400">
+                Địa chỉ: Tòa nhà NSA, Khu Công Nghệ Cao, TP.HCM
+              </p>
               <p className="text-xs text-slate-400">Hotline: 1900 8888 · Website: nsa.edu.vn</p>
             </div>
             <div className="text-right">
               <span className="inline-block px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-mono font-bold">
                 Mẫu số: 01-TT
               </span>
-              <p className="text-xs font-mono text-slate-500 mt-1">Số: <b className="text-slate-900">{receiptCode}</b></p>
+              <p className="text-xs font-mono text-slate-500 mt-1">
+                Số: <b className="text-slate-900">{receiptCode}</b>
+              </p>
               <p className="text-[11px] text-slate-400">Gốc: {order.order_code}</p>
             </div>
           </div>
@@ -178,7 +186,9 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
             </div>
 
             <div className="flex items-baseline">
-              <span className="w-36 shrink-0 font-medium text-slate-600">Hình thức thanh toán:</span>
+              <span className="w-36 shrink-0 font-medium text-slate-600">
+                Hình thức thanh toán:
+              </span>
               <span className="font-medium text-slate-800">{paymentMethodLabel}</span>
             </div>
 

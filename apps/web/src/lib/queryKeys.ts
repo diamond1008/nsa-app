@@ -12,7 +12,8 @@ export const saleKeys = {
   leads: {
     all: () => [...saleKeys.all, "leads"] as const,
     lists: () => [...saleKeys.leads.all(), "list"] as const,
-    list: (filters?: Record<string, unknown>) => [...saleKeys.leads.lists(), filters ?? {}] as const,
+    list: (filters?: Record<string, unknown>) =>
+      [...saleKeys.leads.lists(), filters ?? {}] as const,
     details: () => [...saleKeys.leads.all(), "detail"] as const,
     detail: (id: string) => [...saleKeys.leads.details(), id] as const,
     timeline: (id: string) => [...saleKeys.leads.detail(id), "timeline"] as const,
@@ -21,7 +22,8 @@ export const saleKeys = {
   orders: {
     all: () => [...saleKeys.all, "orders"] as const,
     lists: () => [...saleKeys.orders.all(), "list"] as const,
-    list: (filters?: Record<string, unknown>) => [...saleKeys.orders.lists(), filters ?? {}] as const,
+    list: (filters?: Record<string, unknown>) =>
+      [...saleKeys.orders.lists(), filters ?? {}] as const,
     details: () => [...saleKeys.orders.all(), "detail"] as const,
     detail: (id: string) => [...saleKeys.orders.details(), id] as const,
   },
@@ -29,13 +31,15 @@ export const saleKeys = {
   receipts: {
     all: () => [...saleKeys.all, "receipts"] as const,
     lists: () => [...saleKeys.receipts.all(), "list"] as const,
-    list: (filters?: Record<string, unknown>) => [...saleKeys.receipts.lists(), filters ?? {}] as const,
+    list: (filters?: Record<string, unknown>) =>
+      [...saleKeys.receipts.lists(), filters ?? {}] as const,
   },
 
   students: {
     all: () => [...saleKeys.all, "students"] as const,
     lists: () => [...saleKeys.students.all(), "list"] as const,
-    list: (filters?: Record<string, unknown>) => [...saleKeys.students.lists(), filters ?? {}] as const,
+    list: (filters?: Record<string, unknown>) =>
+      [...saleKeys.students.lists(), filters ?? {}] as const,
   },
 
   classes: {

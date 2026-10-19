@@ -53,11 +53,7 @@ export function CollectReceiptPaymentModal({
   if (!order) return null;
 
   return (
-    <Modal
-      open={Boolean(order)}
-      onClose={onClose}
-      title={`Ghi nhận thu tiền: ${order.order_code}`}
-    >
+    <Modal open={Boolean(order)} onClose={onClose} title={`Ghi nhận thu tiền: ${order.order_code}`}>
       <div className="space-y-4">
         {collectError && <ErrorBanner message={collectError} />}
 

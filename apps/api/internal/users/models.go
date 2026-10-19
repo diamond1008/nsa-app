@@ -6,19 +6,19 @@ import (
 
 // UserView is the public API representation of a system user.
 type UserView struct {
-	ID                 string     `json:"id"`
-	Email              string     `json:"email"`
-	Status             string     `json:"status"`
-	MustChangePassword bool       `json:"must_change_password"`
-	LastLoginAt        *time.Time `json:"last_login_at,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	FullName           string     `json:"full_name"`
-	Phone              string     `json:"phone"`
-	Roles              []string   `json:"roles"`
-	StudentCode        string     `json:"student_code,omitempty"`
-	TeacherCode        string     `json:"teacher_code,omitempty"`
-	CreatedByEmail     string     `json:"created_by_email,omitempty"`
+	ID                  string     `json:"id"`
+	Email               string     `json:"email"`
+	Status              string     `json:"status"`
+	MustChangePassword  bool       `json:"must_change_password"`
+	LastLoginAt         *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	FullName            string     `json:"full_name"`
+	Phone               string     `json:"phone"`
+	Roles               []string   `json:"roles"`
+	StudentCode         string     `json:"student_code,omitempty"`
+	TeacherCode         string     `json:"teacher_code,omitempty"`
+	CreatedByEmail      string     `json:"created_by_email,omitempty"`
 	IsAcceptingLeads    bool       `json:"is_accepting_leads"`
 	LeadAssignmentOrder int        `json:"lead_assignment_order"`
 }
@@ -83,4 +83,3 @@ type UpdateLeadRoutingInput struct {
 type ReorderLeadRoutingInput struct {
 	OrderedUserIDs []string `json:"ordered_user_ids"`
 }
-

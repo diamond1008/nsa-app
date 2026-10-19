@@ -3525,16 +3525,31 @@ export function ScheduleAdminPage({ readOnly = false }: { readOnly?: boolean } =
                 <span> · {formatDateTime(selectedSession.starts_at)}</span>
                 <p>{selectedSession.location_name || "Chưa xếp phòng"}</p>
               </div>
-              <Link to={readOnly ? `/sale/diem-danh?session=${selectedSession.id}` : `/admin/diem-danh?session=${selectedSession.id}`}>
+              <Link
+                to={
+                  readOnly
+                    ? `/sale/diem-danh?session=${selectedSession.id}`
+                    : `/admin/diem-danh?session=${selectedSession.id}`
+                }
+              >
                 <Button variant="soft">Xem điểm danh</Button>
               </Link>
             </div>
             {readOnly ? (
               <div className="rounded-xl border border-gborder p-4 text-xs text-slate-600 space-y-2 bg-slate-50">
-                <p><b>Giảng viên:</b> {selectedSession.teacher_name || "Chưa phân công"}</p>
-                <p><b>Phòng học:</b> {selectedSession.location_name || "Chưa xếp phòng"}</p>
-                <p><b>Thời gian:</b> {formatDateTime(selectedSession.starts_at)} - {formatDateTime(selectedSession.ends_at)}</p>
-                <p><b>Trạng thái:</b> {statusLabel(selectedSession.status)}</p>
+                <p>
+                  <b>Giảng viên:</b> {selectedSession.teacher_name || "Chưa phân công"}
+                </p>
+                <p>
+                  <b>Phòng học:</b> {selectedSession.location_name || "Chưa xếp phòng"}
+                </p>
+                <p>
+                  <b>Thời gian:</b> {formatDateTime(selectedSession.starts_at)} -{" "}
+                  {formatDateTime(selectedSession.ends_at)}
+                </p>
+                <p>
+                  <b>Trạng thái:</b> {statusLabel(selectedSession.status)}
+                </p>
               </div>
             ) : selectedSession.status === "locked" || selectedSession.attendance_locked_at ? (
               <div className="rounded-xl border border-gborder p-4 text-sm text-gtext">

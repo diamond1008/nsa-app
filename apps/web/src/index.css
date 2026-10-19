@@ -282,14 +282,18 @@ body:hover::-webkit-scrollbar-thumb {
 @keyframes rowDetachSlideUp {
   0% {
     transform: translateY(100%);
-    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.2), 0 4px 10px -3px rgba(0, 18, 88, 0.12);
+    box-shadow:
+      inset 0 0 0 1px rgba(5, 50, 230, 0.2),
+      0 4px 10px -3px rgba(0, 18, 88, 0.12);
     background-color: #ffffff;
     z-index: 20;
     position: relative;
   }
   50% {
     transform: translateY(-2px);
-    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.15), 0 2px 6px -2px rgba(5, 50, 230, 0.1);
+    box-shadow:
+      inset 0 0 0 1px rgba(5, 50, 230, 0.15),
+      0 2px 6px -2px rgba(5, 50, 230, 0.1);
     background-color: #f0f5ff;
   }
   100% {
@@ -304,14 +308,18 @@ body:hover::-webkit-scrollbar-thumb {
 @keyframes rowDetachSlideDown {
   0% {
     transform: translateY(-100%);
-    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.2), 0 4px 10px -3px rgba(0, 18, 88, 0.12);
+    box-shadow:
+      inset 0 0 0 1px rgba(5, 50, 230, 0.2),
+      0 4px 10px -3px rgba(0, 18, 88, 0.12);
     background-color: #ffffff;
     z-index: 20;
     position: relative;
   }
   50% {
     transform: translateY(2px);
-    box-shadow: inset 0 0 0 1px rgba(5, 50, 230, 0.15), 0 2px 6px -2px rgba(5, 50, 230, 0.1);
+    box-shadow:
+      inset 0 0 0 1px rgba(5, 50, 230, 0.15),
+      0 2px 6px -2px rgba(5, 50, 230, 0.1);
     background-color: #f0f5ff;
   }
   100% {
@@ -347,4 +355,3 @@ body:hover::-webkit-scrollbar-thumb {
 .animate-row-landing {
   animation: rowLandingGlow 0.8s ease-out forwards;
 }
-

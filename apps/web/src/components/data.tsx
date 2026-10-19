@@ -136,7 +136,9 @@ export function DataTable<T extends { id: string }>({
           </div>
         ))}
       </div>
-      <div className={clsx("hidden md:block", stickyHeader ? "overflow-visible" : "overflow-x-auto")}>
+      <div
+        className={clsx("hidden md:block", stickyHeader ? "overflow-visible" : "overflow-x-auto")}
+      >
         <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
           <thead
             className={clsx(
@@ -204,7 +206,9 @@ export function DataTable<T extends { id: string }>({
                 key={item.id}
                 onClick={(e) => {
                   if (!onRowClick) return;
-                  if ((e.target as HTMLElement).closest("button, a, input, select, textarea, label")) {
+                  if (
+                    (e.target as HTMLElement).closest("button, a, input, select, textarea, label")
+                  ) {
                     return;
                   }
                   onRowClick(item, rowIndex);

@@ -13,11 +13,7 @@ interface UpdateOrderStatusModalProps {
   onSuccess?: () => void;
 }
 
-export function UpdateOrderStatusModal({
-  order,
-  onClose,
-  onSuccess,
-}: UpdateOrderStatusModalProps) {
+export function UpdateOrderStatusModal({ order, onClose, onSuccess }: UpdateOrderStatusModalProps) {
   const queryClient = useQueryClient();
   const [newStatus, setNewStatus] = useState<OrderStatus>(order?.status ?? "paid");
   const [modalError, setModalError] = useState("");

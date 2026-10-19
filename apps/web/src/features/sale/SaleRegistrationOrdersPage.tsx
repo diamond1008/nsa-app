@@ -88,14 +88,13 @@ export function SaleRegistrationOrdersPage() {
     enabled: isCreateOpen,
   });
 
-  const convertedLeads = convertedLeadsQuery.data?.items ?? [];
   const selectableLeads = useMemo(() => {
-    const list = [...convertedLeads];
+    const list = [...(convertedLeadsQuery.data?.items ?? [])];
     if (targetLeadQuery.data && !list.some((l) => l.id === targetLeadQuery.data.id)) {
       list.unshift(targetLeadQuery.data);
     }
     return list;
-  }, [convertedLeads, targetLeadQuery.data]);
+  }, [convertedLeadsQuery.data?.items, targetLeadQuery.data]);
 
   const availableClasses = (classesQuery.data?.items ?? []).filter(
     (c) => c.status === "planning" || c.status === "open" || c.status === "in_progress",
@@ -129,9 +128,7 @@ export function SaleRegistrationOrdersPage() {
     {
       header: "Mã phiếu ĐK",
       cell: (order: Order) => (
-        <span className="font-mono text-xs font-semibold text-[#0532e6]">
-          {order.order_code}
-        </span>
+        <span className="font-mono text-xs font-semibold text-[#0532e6]">{order.order_code}</span>
       ),
     },
     {
@@ -244,11 +241,7 @@ export function SaleRegistrationOrdersPage() {
               <Icon name="download" className="h-4 w-4 mr-1.5" />
               Xuất Excel
             </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => setIsCreateOpen(true)}
-            >
+            <Button type="button" variant="primary" onClick={() => setIsCreateOpen(true)}>
               <Icon name="plus" className="h-4 w-4 mr-1.5" />
               Tạo phiếu đăng ký
             </Button>
@@ -327,17 +320,10 @@ export function SaleRegistrationOrdersPage() {
         emptyTitle="Chưa có phiếu đăng ký nào"
       >
         <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
-          <DataTable
-            items={ordersQuery.data?.items ?? []}
-            columns={columns}
-          />
+          <DataTable items={ordersQuery.data?.items ?? []} columns={columns} />
           {totalPages > 1 && (
             <div className="border-t border-slate-200/80 px-4 py-3 bg-white/40">
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                onPage={(p) => setPage(p)}
-              />
+              <Pagination page={page} totalPages={totalPages} onPage={(p) => setPage(p)} />
             </div>
           )}
         </div>
@@ -363,10 +349,7 @@ export function SaleRegistrationOrdersPage() {
 
       {/* Admin Change Status Modal */}
       {selectedOrder && (
-        <UpdateOrderStatusModal
-          order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-        />
+        <UpdateOrderStatusModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       )}
     </div>
   );

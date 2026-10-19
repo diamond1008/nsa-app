@@ -125,4 +125,3 @@ func TestService_LeadRoutingAuth(t *testing.T) {
 		t.Error("academic admin should not manage sale lead routing")
 	}
 }
-

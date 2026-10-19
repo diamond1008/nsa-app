@@ -558,8 +558,8 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 	f.SetSheetName("Sheet1", sheetName)
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Color: "#FFFFFF", Size: 11, Family: "Segoe UI"},
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"#0A2540"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true, Color: "#FFFFFF", Size: 11, Family: "Segoe UI"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#0A2540"}, Pattern: 1},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
 		Border: []excelize.Border{
 			{Type: "top", Color: "#CCCCCC", Style: 1},
@@ -570,7 +570,7 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 	})
 
 	dataStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Font:      &excelize.Font{Size: 10, Family: "Segoe UI"},
 		Alignment: &excelize.Alignment{Vertical: "center"},
 		Border: []excelize.Border{
 			{Type: "top", Color: "#E5E7EB", Style: 1},
@@ -581,7 +581,7 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 	})
 
 	centerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Font:      &excelize.Font{Size: 10, Family: "Segoe UI"},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 		Border: []excelize.Border{
 			{Type: "top", Color: "#E5E7EB", Style: 1},

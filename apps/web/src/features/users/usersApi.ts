@@ -102,4 +102,3 @@ export const usersApi = {
   listAuditLogs: (userID: string, page = 1, perPage = 20) =>
     api<Paginated<UserAuditLog>>(`/users/${userID}/audit-logs?page=${page}&per_page=${perPage}`),
 };
-

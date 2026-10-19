@@ -661,8 +661,10 @@ export default function AppLayout() {
                 </button>
 
                 {/* Collapsed Flyout on hover */}
-                {isHovered && collapsed && !mobile && (
-                  group.to ? (
+                {isHovered &&
+                  collapsed &&
+                  !mobile &&
+                  (group.to ? (
                     <div
                       className="absolute left-full top-0 z-50 flex items-center h-11 pl-2 drop-shadow-md animate-in fade-in zoom-in-95 duration-100"
                       onMouseEnter={() => handleMouseEnterFlyout(group.id)}
@@ -740,8 +742,7 @@ export default function AppLayout() {
                         })}
                       </div>
                     </div>
-                  )
-                )}
+                  ))}
 
                 {/* Expanded Subitems */}
                 {isOpen && (!collapsed || mobile) && (

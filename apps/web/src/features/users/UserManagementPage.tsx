@@ -45,7 +45,10 @@ const ROLE_LABELS: Record<
 const ROLE_DESCRIPTIONS: Record<Role, { desc: string; icon: IconName }> = {
   ADMIN: { desc: "Toàn quyền quản trị hệ thống, dữ liệu và phân quyền", icon: "lock" },
   ACADEMIC_ADMIN: { desc: "Quản lý khóa học, lớp học, giảng viên và học viên", icon: "academic" },
-  SALE_ADMIN: { desc: "Trưởng phòng Tuyển sinh - Quản lý leads, doanh thu, báo cáo và đội ngũ sale", icon: "user-check" },
+  SALE_ADMIN: {
+    desc: "Trưởng phòng Tuyển sinh - Quản lý leads, doanh thu, báo cáo và đội ngũ sale",
+    icon: "user-check",
+  },
   SALE: { desc: "Quản lý lead được phân công, tạo phiếu đăng ký và thu tiền", icon: "user" },
   TEACHER: { desc: "Quản lý lớp phụ trách, lịch dạy, điểm danh và đánh giá", icon: "teacher" },
   STUDENT: { desc: "Theo dõi lịch học, chuyên cần và tiến độ học tập", icon: "academic" },
@@ -90,7 +93,10 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
   address: "Địa chỉ",
 };
 
-const AUDIT_STATUS_LABELS: Record<string, { label: string; tone: "green" | "red" | "gray" | "gold" }> = {
+const AUDIT_STATUS_LABELS: Record<
+  string,
+  { label: string; tone: "green" | "red" | "gray" | "gold" }
+> = {
   active: { label: "Hoạt động", tone: "green" },
   suspended: { label: "Tạm khóa", tone: "red" },
   inactive: { label: "Ngừng hoạt động", tone: "gray" },
@@ -187,7 +193,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
   const [dragRowLeft, setDragRowLeft] = useState(0);
   const [editingOrderUserId, setEditingOrderUserId] = useState<string | null>(null);
   const [editingOrderValue, setEditingOrderValue] = useState<string>("");
-  const [animatedRow, setAnimatedRow] = useState<{ id: string; direction: "up" | "down" } | null>(null);
+  const [animatedRow, setAnimatedRow] = useState<{ id: string; direction: "up" | "down" } | null>(
+    null,
+  );
   const [landingRowId, setLandingRowId] = useState<string | null>(null);
 
   const queryParams: UserListParams = {
@@ -296,7 +304,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
     },
     onError: (err: unknown) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      setActionError(err instanceof Error ? err.message : "Không thể cập nhật trạng thái nhận lead");
+      setActionError(
+        err instanceof Error ? err.message : "Không thể cập nhật trạng thái nhận lead",
+      );
     },
   });
 
@@ -312,22 +322,26 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
     },
   });
 
+  const userItems = usersQuery.data?.items;
+
   const saleSortedUsers = useMemo(() => {
-    if (!usersQuery.data?.items) return [];
-    if (!isSaleMode) return usersQuery.data.items;
-    return [...usersQuery.data.items].sort((a, b) => {
+    if (!userItems) return [];
+    if (!isSaleMode) return userItems;
+    return [...userItems].sort((a, b) => {
       const orderA = a.lead_assignment_order || 0;
       const orderB = b.lead_assignment_order || 0;
       if (orderA !== orderB) return orderA - orderB;
       return a.email.localeCompare(b.email);
     });
-  }, [usersQuery.data?.items, isSaleMode]);
+  }, [userItems, isSaleMode]);
 
   const activeLeadTakersCount = useMemo(() => {
-    return usersQuery.data?.items.filter((u) => u.is_accepting_leads !== false && u.status === "active").length ?? 0;
-  }, [usersQuery.data?.items]);
+    return (
+      userItems?.filter((u) => u.is_accepting_leads !== false && u.status === "active").length ?? 0
+    );
+  }, [userItems]);
 
-  const totalSaleCount = usersQuery.data?.items.length ?? 0;
+  const totalSaleCount = userItems?.length ?? 0;
 
   const handleToggleAcceptingLeads = (u: ManagedUser) => {
     const nextVal = !(u.is_accepting_leads !== false);
@@ -481,7 +495,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
         const intensity = Math.min(1, (SCROLL_ZONE - currentClientY) / SCROLL_ZONE);
         window.scrollBy({ top: -MAX_SPEED * intensity, behavior: "auto" });
       } else if (currentClientY > viewportHeight - SCROLL_ZONE) {
-        const intensity = Math.min(1, (currentClientY - (viewportHeight - SCROLL_ZONE)) / SCROLL_ZONE);
+        const intensity = Math.min(
+          1,
+          (currentClientY - (viewportHeight - SCROLL_ZONE)) / SCROLL_ZONE,
+        );
         window.scrollBy({ top: MAX_SPEED * intensity, behavior: "auto" });
       }
       animFrameId = requestAnimationFrame(autoScrollLoop);
@@ -547,7 +564,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
         const el = document.elementFromPoint(upEv.clientX, upEv.clientY);
         const targetTr = el?.closest("[data-row-index]");
         const targetGap = el?.closest("[data-drop-gap-index]");
-        const targetIdx = targetTr?.getAttribute("data-row-index") || targetGap?.getAttribute("data-drop-gap-index");
+        const targetIdx =
+          targetTr?.getAttribute("data-row-index") ||
+          targetGap?.getAttribute("data-drop-gap-index");
 
         if (targetIdx !== null && targetIdx !== undefined && saleSortedUsers) {
           const parsedIdx = Number(targetIdx);
@@ -568,7 +587,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                 ...old,
                 items: old.items.map((item) => {
                   const newOrder = orderMap.get(item.id);
-                  return newOrder !== undefined ? { ...item, lead_assignment_order: newOrder } : item;
+                  return newOrder !== undefined
+                    ? { ...item, lead_assignment_order: newOrder }
+                    : item;
                 }),
               };
             });
@@ -587,7 +608,6 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("wheel", onWheel, { passive: true });
   };
-
 
   // Page title & subtitle based on mode
   let pageTitle = "Quản lý Tài khoản & Phân quyền";
@@ -725,7 +745,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                   Đang nhận
                 </span>
                 <span className="text-xs font-bold text-navy">
-                  <span className="text-[#0532e6] text-sm font-extrabold">{activeLeadTakersCount}</span>
+                  <span className="text-[#0532e6] text-sm font-extrabold">
+                    {activeLeadTakersCount}
+                  </span>
                   <span className="text-slate-500 font-normal"> / {totalSaleCount} Sale</span>
                 </span>
               </div>
@@ -733,7 +755,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
           )}
 
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-transparent select-none pointer-events-none" aria-hidden="true">
+            <label
+              className="block text-sm font-semibold text-transparent select-none pointer-events-none"
+              aria-hidden="true"
+            >
               &nbsp;
             </label>
             <Button
@@ -764,17 +789,41 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
             <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
               <thead className="sticky top-0 z-10 bg-white/75 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-md">
                 <tr>
-                  <th className="w-12 border-b border-white/70 px-3 py-3.5 text-center font-bold">STT</th>
-                  <th className="w-16 border-b border-white/70 px-3 py-3.5 text-center font-bold">Avatar</th>
+                  <th className="w-12 border-b border-white/70 px-3 py-3.5 text-center font-bold">
+                    STT
+                  </th>
+                  <th className="w-16 border-b border-white/70 px-3 py-3.5 text-center font-bold">
+                    Avatar
+                  </th>
                   <th className="border-b border-white/70 px-5 py-3.5 font-bold">Họ và tên</th>
-                  {isSaleMode && <th className="border-b border-white/70 px-4 py-3.5 font-bold">Thứ tự xoay vòng</th>}
-                  {isSaleMode && <th className="border-b border-white/70 px-4 py-3.5 font-bold">Nhận Lead tự động</th>}
-                  {!isSaleMode && <th className="border-b border-white/70 px-4 py-3.5 font-bold">Mã đối tượng</th>}
-                  {!isSaleMode && <th className="border-b border-white/70 px-4 py-3.5 font-bold">Vai trò</th>}
-                  <th className="border-b border-white/70 px-4 py-3.5 font-bold">Trạng thái tài khoản</th>
-                  {!isSaleMode && <th className="border-b border-white/70 px-4 py-3.5 font-bold">Người tạo</th>}
-                  {!isSaleMode && <th className="border-b border-white/70 px-4 py-3.5 font-bold">Ngày tạo</th>}
-                  <th className="border-b border-white/70 px-5 py-3.5 text-right font-bold">Chi tiết</th>
+                  {isSaleMode && (
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">
+                      Thứ tự xoay vòng
+                    </th>
+                  )}
+                  {isSaleMode && (
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">
+                      Nhận Lead tự động
+                    </th>
+                  )}
+                  {!isSaleMode && (
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Mã đối tượng</th>
+                  )}
+                  {!isSaleMode && (
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Vai trò</th>
+                  )}
+                  <th className="border-b border-white/70 px-4 py-3.5 font-bold">
+                    Trạng thái tài khoản
+                  </th>
+                  {!isSaleMode && (
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Người tạo</th>
+                  )}
+                  {!isSaleMode && (
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Ngày tạo</th>
+                  )}
+                  <th className="border-b border-white/70 px-5 py-3.5 text-right font-bold">
+                    Chi tiết
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white/40">
@@ -782,8 +831,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                   const initials = getInitials(u.full_name, u.email);
                   const isSelected = selectedUser?.id === u.id;
                   const isRowDragging = draggedIndex === index;
-                  const isRowAnimatedUp = animatedRow?.id === u.id && animatedRow.direction === "up";
-                  const isRowAnimatedDown = animatedRow?.id === u.id && animatedRow.direction === "down";
+                  const isRowAnimatedUp =
+                    animatedRow?.id === u.id && animatedRow.direction === "up";
+                  const isRowAnimatedDown =
+                    animatedRow?.id === u.id && animatedRow.direction === "down";
                   const isRowLanding = landingRowId === u.id;
 
                   const showGapBefore =
@@ -814,10 +865,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                         onClick={() => handleRowClick(u)}
                         className={clsx(
                           "group cursor-pointer transition-colors select-none",
-                          isSelected
-                            ? "bg-white/90 shadow-2xs"
-                            : "hover:bg-white/70",
-                          isRowDragging && "opacity-25 bg-blue-50/20 border-dashed border-2 border-blue-300",
+                          isSelected ? "bg-white/90 shadow-2xs" : "hover:bg-white/70",
+                          isRowDragging &&
+                            "opacity-25 bg-blue-50/20 border-dashed border-2 border-blue-300",
                           isRowAnimatedUp && "animate-row-up",
                           isRowAnimatedDown && "animate-row-down",
                           isRowLanding && "animate-row-landing",
@@ -848,9 +898,15 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
 
                         {/* Cột Thứ tự xoay vòng khi ở Sale Mode */}
                         {isSaleMode && (
-                          <td className="border-b border-white/60 px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <td
+                            className="border-b border-white/60 px-4 py-4"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {editingOrderUserId === u.id ? (
-                              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <div
+                                className="flex items-center gap-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <input
                                   type="number"
                                   min={1}
@@ -869,7 +925,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => handleApplyDirectOrder(u.id, Number(editingOrderValue))}
+                                  onClick={() =>
+                                    handleApplyDirectOrder(u.id, Number(editingOrderValue))
+                                  }
                                   className="h-8 px-2.5 rounded-lg bg-[#0532e6] text-white flex items-center justify-center text-xs font-bold hover:bg-blue-700 shadow-2xs active:scale-95"
                                   title="Lưu thứ tự mới"
                                 >
@@ -898,13 +956,18 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                                   type="button"
                                   onClick={() => {
                                     setEditingOrderUserId(u.id);
-                                    setEditingOrderValue(String(u.lead_assignment_order || index + 1));
+                                    setEditingOrderValue(
+                                      String(u.lead_assignment_order || index + 1),
+                                    );
                                   }}
                                   className="inline-flex h-7 min-w-8 items-center justify-center gap-1 rounded-lg bg-blue-50/90 border border-blue-200/90 px-2 text-xs font-bold text-[#0532e6] tabular-nums shadow-2xs hover:bg-blue-100 hover:border-[#0532e6] transition-all cursor-pointer group/badge"
                                   title="Bấm để nhập nhanh số thứ tự nhận lead"
                                 >
                                   #{u.lead_assignment_order || index + 1}
-                                  <Icon name="edit" className="h-2.5 w-2.5 opacity-40 group-hover/badge:opacity-100 transition-opacity" />
+                                  <Icon
+                                    name="edit"
+                                    className="h-2.5 w-2.5 opacity-40 group-hover/badge:opacity-100 transition-opacity"
+                                  />
                                 </button>
                                 <div className="inline-flex rounded-lg border border-white/80 bg-white/70 p-0.5 shadow-2xs backdrop-blur-xs">
                                   <button
@@ -923,7 +986,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                                     onClick={() => handleMoveDown(index)}
                                     className="flex h-6 w-6 items-center justify-center rounded-md text-slate-600 hover:bg-white hover:text-[#0532e6] hover:shadow-2xs active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
                                   >
-                                    <Icon name="chevron-down" className="h-3.5 w-3.5 stroke-[2.5]" />
+                                    <Icon
+                                      name="chevron-down"
+                                      className="h-3.5 w-3.5 stroke-[2.5]"
+                                    />
                                   </button>
                                 </div>
                               </div>
@@ -931,139 +997,147 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                           </td>
                         )}
 
-                      {/* Cột Công tắc nhận lead khi ở Sale Mode */}
-                      {isSaleMode && (
-                        <td className="border-b border-white/60 px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleAcceptingLeads(u)}
-                            disabled={updateLeadRoutingMutation.isPending}
-                            title="Bấm để bật/tắt nhận lead tự động cho nhân viên này"
-                            className={clsx(
-                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border transition-all duration-150 active:scale-95 shadow-2xs",
-                              u.is_accepting_leads !== false && u.status === "active"
-                                ? "bg-emerald-50/90 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-                                : "bg-slate-100/90 text-slate-600 border-slate-300 hover:bg-slate-200",
-                            )}
+                        {/* Cột Công tắc nhận lead khi ở Sale Mode */}
+                        {isSaleMode && (
+                          <td
+                            className="border-b border-white/60 px-4 py-4"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <span
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcceptingLeads(u)}
+                              disabled={updateLeadRoutingMutation.isPending}
+                              title="Bấm để bật/tắt nhận lead tự động cho nhân viên này"
                               className={clsx(
-                                "h-1.5 w-1.5 rounded-full",
+                                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border transition-all duration-150 active:scale-95 shadow-2xs",
                                 u.is_accepting_leads !== false && u.status === "active"
-                                  ? "bg-emerald-600 animate-pulse"
-                                  : "bg-slate-400",
+                                  ? "bg-emerald-50/90 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                  : "bg-slate-100/90 text-slate-600 border-slate-300 hover:bg-slate-200",
                               )}
-                            />
-                            {u.is_accepting_leads !== false && u.status === "active"
-                              ? "Đang nhận"
-                              : "Tạm dừng"}
-                          </button>
-                        </td>
-                      )}
+                            >
+                              <span
+                                className={clsx(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  u.is_accepting_leads !== false && u.status === "active"
+                                    ? "bg-emerald-600 animate-pulse"
+                                    : "bg-slate-400",
+                                )}
+                              />
+                              {u.is_accepting_leads !== false && u.status === "active"
+                                ? "Đang nhận"
+                                : "Tạm dừng"}
+                            </button>
+                          </td>
+                        )}
 
-                      {!isSaleMode && (
+                        {!isSaleMode && (
+                          <td className="border-b border-white/60 px-4 py-4">
+                            {u.student_code ? (
+                              <span className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs tabular-nums">
+                                HV: {u.student_code}
+                              </span>
+                            ) : u.teacher_code ? (
+                              <span className="font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-xs tabular-nums">
+                                GV: {u.teacher_code}
+                              </span>
+                            ) : (
+                              <span className="text-gtext">—</span>
+                            )}
+                          </td>
+                        )}
+
+                        {!isSaleMode && (
+                          <td className="border-b border-white/60 px-4 py-4">
+                            <div className="flex flex-wrap gap-1">
+                              {u.roles.map((r) => (
+                                <RoleBadge key={r} role={r} />
+                              ))}
+                            </div>
+                          </td>
+                        )}
+
                         <td className="border-b border-white/60 px-4 py-4">
-                          {u.student_code ? (
-                            <span className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs tabular-nums">
-                              HV: {u.student_code}
-                            </span>
-                          ) : u.teacher_code ? (
-                            <span className="font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-xs tabular-nums">
-                              GV: {u.teacher_code}
-                            </span>
-                          ) : (
-                            <span className="text-gtext">—</span>
-                          )}
+                          <StatusBadge status={u.status} />
                         </td>
-                      )}
-
-                      {!isSaleMode && (
-                        <td className="border-b border-white/60 px-4 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {u.roles.map((r) => (
-                              <RoleBadge key={r} role={r} />
-                            ))}
-                          </div>
-                        </td>
-                      )}
-
-                      <td className="border-b border-white/60 px-4 py-4">
-                        <StatusBadge status={u.status} />
-                      </td>
-                      {!isSaleMode && (
-                        <td className="border-b border-white/60 px-4 py-4 text-gtext">{u.created_by_email || "Hệ thống"}</td>
-                      )}
-                      {!isSaleMode && (
-                        <td className="border-b border-white/60 px-4 py-4 text-gtext tabular-nums">
-                          {formatDateTime(u.created_at)}
-                        </td>
-                      )}
-                      <td className="border-b border-white/60 px-5 py-4 text-right">
-                        <Button variant="soft" className="h-8 px-3 text-xs font-semibold rounded-xl">
-                          Chi tiết
-                        </Button>
-                      </td>
-                    </tr>
-
-                    {/* Khoảng trắng drop slot mở ra phía dưới khi kéo xuống */}
-                    {showGapAfter && (
-                      <tr data-drop-gap-index={index} className="transition-all duration-150">
-                        <td colSpan={isSaleMode ? 7 : 9} className="p-2.5 bg-blue-50/20">
-                          <div className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0532e6]/70 bg-white/80 text-xs font-bold text-[#0532e6] shadow-2xs backdrop-blur-md animate-pulse">
-                            <Icon name="chevron-down" className="h-4 w-4" />
-                            <span>Thả vào đây để xếp vị trí #{index + 1}</span>
-                          </div>
+                        {!isSaleMode && (
+                          <td className="border-b border-white/60 px-4 py-4 text-gtext">
+                            {u.created_by_email || "Hệ thống"}
+                          </td>
+                        )}
+                        {!isSaleMode && (
+                          <td className="border-b border-white/60 px-4 py-4 text-gtext tabular-nums">
+                            {formatDateTime(u.created_at)}
+                          </td>
+                        )}
+                        <td className="border-b border-white/60 px-5 py-4 text-right">
+                          <Button
+                            variant="soft"
+                            className="h-8 px-3 text-xs font-semibold rounded-xl"
+                          >
+                            Chi tiết
+                          </Button>
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
 
-        {/* Pagination */}
-        {usersQuery.data && usersQuery.data.meta.total_pages > 1 && (
-          <div className="flex items-center justify-between border-t border-white/70 px-5 py-3.5 bg-white/50 backdrop-blur-md">
-            <span className="text-xs text-gtext">
-              Trang {usersQuery.data.meta.page} / {usersQuery.data.meta.total_pages} (Tổng{" "}
-              {usersQuery.data.meta.total} tài khoản)
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                className="h-8 px-3 text-xs"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Trước
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-8 px-3 text-xs"
-                disabled={page >= usersQuery.data.meta.total_pages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Sau
-              </Button>
-            </div>
+                      {/* Khoảng trắng drop slot mở ra phía dưới khi kéo xuống */}
+                      {showGapAfter && (
+                        <tr data-drop-gap-index={index} className="transition-all duration-150">
+                          <td colSpan={isSaleMode ? 7 : 9} className="p-2.5 bg-blue-50/20">
+                            <div className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0532e6]/70 bg-white/80 text-xs font-bold text-[#0532e6] shadow-2xs backdrop-blur-md animate-pulse">
+                              <Icon name="chevron-down" className="h-4 w-4" />
+                              <span>Thả vào đây để xếp vị trí #{index + 1}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
-      </QueryState>
-    </Card>
 
-    {/* THẺ SALE NGUYÊN VẸN 100% SẮC NÉT BAY THEO CON TRỎ CHUỘT KHI KÉO - CHỈ KÉO DỌC, THẲNG ĐỨNG */}
-    {draggedUser && (
-      <div
-        className="fixed pointer-events-none z-50 select-none shadow-2xl transition-transform duration-75"
-        style={{
-          left: `${dragRowLeft}px`,
-          top: `${pointerPos.y - dragOffset.y}px`,
-          width: `${dragRowWidth}px`,
-          transform: "none",
-        }}
-      >
+          {/* Pagination */}
+          {usersQuery.data && usersQuery.data.meta.total_pages > 1 && (
+            <div className="flex items-center justify-between border-t border-white/70 px-5 py-3.5 bg-white/50 backdrop-blur-md">
+              <span className="text-xs text-gtext">
+                Trang {usersQuery.data.meta.page} / {usersQuery.data.meta.total_pages} (Tổng{" "}
+                {usersQuery.data.meta.total} tài khoản)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  className="h-8 px-3 text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Trước
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="h-8 px-3 text-xs"
+                  disabled={page >= usersQuery.data.meta.total_pages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          )}
+        </QueryState>
+      </Card>
+
+      {/* THẺ SALE NGUYÊN VẸN 100% SẮC NÉT BAY THEO CON TRỎ CHUỘT KHI KÉO - CHỈ KÉO DỌC, THẲNG ĐỨNG */}
+      {draggedUser && (
+        <div
+          className="fixed pointer-events-none z-50 select-none shadow-2xl transition-transform duration-75"
+          style={{
+            left: `${dragRowLeft}px`,
+            top: `${pointerPos.y - dragOffset.y}px`,
+            width: `${dragRowWidth}px`,
+            transform: "none",
+          }}
+        >
           <div className="flex items-center justify-between gap-4 rounded-xl border-2 border-[#0532e6] bg-white/95 backdrop-blur-md px-5 py-3.5 shadow-2xl ring-4 ring-[#0532e6]/20">
             <div className="flex items-center gap-3">
               <span className="text-[#0532e6] p-1">
@@ -1082,7 +1156,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
 
             <div className="flex items-center gap-3">
               <span className="inline-flex h-7 min-w-8 items-center justify-center rounded-lg bg-blue-100 border border-blue-300 px-2.5 text-xs font-bold text-[#0532e6] tabular-nums shadow-xs">
-                #{draggedUser.lead_assignment_order || (draggedIndex !== null ? draggedIndex + 1 : 1)}
+                #
+                {draggedUser.lead_assignment_order ||
+                  (draggedIndex !== null ? draggedIndex + 1 : 1)}
               </span>
 
               <span
@@ -1466,7 +1542,8 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                           disabled={updateLeadRoutingMutation.isPending}
                           className={clsx(
                             "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-all duration-200 shadow-2xs active:scale-95 cursor-pointer",
-                            selectedUser.is_accepting_leads !== false && selectedUser.status === "active"
+                            selectedUser.is_accepting_leads !== false &&
+                              selectedUser.status === "active"
                               ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
                               : "bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200",
                           )}
@@ -1474,21 +1551,26 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                           <span
                             className={clsx(
                               "h-2 w-2 rounded-full",
-                              selectedUser.is_accepting_leads !== false && selectedUser.status === "active"
+                              selectedUser.is_accepting_leads !== false &&
+                                selectedUser.status === "active"
                                 ? "bg-emerald-600 animate-pulse"
                                 : "bg-slate-400",
                             )}
                           />
-                          {selectedUser.is_accepting_leads !== false && selectedUser.status === "active"
+                          {selectedUser.is_accepting_leads !== false &&
+                          selectedUser.status === "active"
                             ? "Đang nhận lead"
                             : "Tạm dừng nhận lead"}
                         </button>
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
                         <div>
-                          <span className="text-gtext font-medium">Trạng thái trong vòng xoay:</span>
+                          <span className="text-gtext font-medium">
+                            Trạng thái trong vòng xoay:
+                          </span>
                           <p className="mt-1 font-semibold text-navy">
-                            {selectedUser.is_accepting_leads !== false && selectedUser.status === "active" ? (
+                            {selectedUser.is_accepting_leads !== false &&
+                            selectedUser.status === "active" ? (
                               <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md font-medium text-xs">
                                 Sẵn sàng nhận lead mới
                               </span>
@@ -1508,7 +1590,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                           </p>
                         </div>
                         <div className="sm:col-span-2 text-[11px] text-slate-500 bg-white/70 rounded-xl p-3 border border-blue-100/80 leading-relaxed">
-                          Khi có lead mới từ web form hoặc file import, thuật toán sẽ chia lần lượt cho các Sale đang ở trạng thái <strong>Sẵn sàng</strong> theo thứ tự số ưu tiên (#1 → #2 → #3...).
+                          Khi có lead mới từ web form hoặc file import, thuật toán sẽ chia lần lượt
+                          cho các Sale đang ở trạng thái <strong>Sẵn sàng</strong> theo thứ tự số ưu
+                          tiên (#1 → #2 → #3...).
                         </div>
                       </div>
                     </div>
@@ -1583,7 +1667,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                           actionTitle = "Đặt lại mật khẩu";
                           badgeBg = "bg-purple-50 text-purple-800 border-purple-200/80";
                           actionIcon = "lock";
-                        } else if (log.action === "user.update" || log.action === "user.update_profile") {
+                        } else if (
+                          log.action === "user.update" ||
+                          log.action === "user.update_profile"
+                        ) {
                           actionTitle = "Chỉnh sửa thông tin";
                           badgeBg = "bg-blue-50 text-blue-800 border-blue-200/80";
                           actionIcon = "edit";
@@ -1645,10 +1732,16 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                                 )}
 
                                 {/* Clean, human-readable change details (NO raw JSON) */}
-                                {Boolean(newVals && log.action === "user.update_status" && newVals.status) && (
+                                {Boolean(
+                                  newVals && log.action === "user.update_status" && newVals.status,
+                                ) && (
                                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                                    <span className="text-slate-500 font-medium text-xs">Trạng thái:</span>
-                                    {Boolean(oldVals?.status && typeof oldVals.status === "string") && (
+                                    <span className="text-slate-500 font-medium text-xs">
+                                      Trạng thái:
+                                    </span>
+                                    {Boolean(
+                                      oldVals?.status && typeof oldVals.status === "string",
+                                    ) && (
                                       <>
                                         <StatusBadge status={String(oldVals?.status)} />
                                         <span className="text-slate-400">→</span>
@@ -1661,17 +1754,23 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                                 {Boolean(newVals && log.action !== "user.update_status") && (
                                   <div className="flex flex-wrap gap-2 pt-1">
                                     {Object.entries(newVals || {}).map(([key, val]) => {
-                                      if (val === null || val === undefined || val === "") return null;
-                                      const label = AUDIT_FIELD_LABELS[key] || key.replace(/_/g, " ");
-                                      let displayVal = "";
+                                      if (val === null || val === undefined || val === "")
+                                        return null;
+                                      const label =
+                                        AUDIT_FIELD_LABELS[key] || key.replace(/_/g, " ");
+                                      let displayVal: string;
                                       if (key === "roles" && Array.isArray(val)) {
-                                        displayVal = val.map((r: Role) => ROLE_LABELS[r]?.label || r).join(", ");
+                                        displayVal = val
+                                          .map((r: Role) => ROLE_LABELS[r]?.label || r)
+                                          .join(", ");
                                       } else if (key === "role" && typeof val === "string") {
                                         displayVal = ROLE_LABELS[val as Role]?.label || val;
                                       } else if (key === "status" && typeof val === "string") {
                                         displayVal = AUDIT_STATUS_LABELS[val]?.label || val;
                                       } else if (typeof val === "object") {
-                                        displayVal = Object.values(val as Record<string, unknown>).filter(Boolean).join(", ");
+                                        displayVal = Object.values(val as Record<string, unknown>)
+                                          .filter(Boolean)
+                                          .join(", ");
                                       } else {
                                         displayVal = String(val);
                                       }
@@ -1681,8 +1780,12 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                                           key={key}
                                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1 text-xs text-slate-700"
                                         >
-                                          <span className="text-slate-500 font-medium">{label}:</span>
-                                          <span className="font-semibold text-slate-900">{displayVal}</span>
+                                          <span className="text-slate-500 font-medium">
+                                            {label}:
+                                          </span>
+                                          <span className="font-semibold text-slate-900">
+                                            {displayVal}
+                                          </span>
                                         </span>
                                       );
                                     })}

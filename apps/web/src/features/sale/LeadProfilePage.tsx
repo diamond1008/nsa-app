@@ -169,8 +169,7 @@ export function LeadProfilePage() {
   });
 
   const quickChotMutation = useMutation({
-    mutationFn: () =>
-      saleApi.updateLeadStatus(id!, "da_dang_ky", "Chốt học viên thành công"),
+    mutationFn: () => saleApi.updateLeadStatus(id!, "da_dang_ky", "Chốt học viên thành công"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sale", "lead", id] });
       queryClient.invalidateQueries({
@@ -440,7 +439,11 @@ export function LeadProfilePage() {
                 </Link>
                 {lead.converted_student_id && (
                   <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
-                    <Button type="button" variant="ghost" className="bg-white text-slate-700 border border-slate-200 hover:border-[#0532e6] shadow-2xs">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="bg-white text-slate-700 border border-slate-200 hover:border-[#0532e6] shadow-2xs"
+                    >
                       <Icon name="academic" className="h-4 w-4 mr-1 text-[#0532e6]" />
                       Hồ sơ Học viên →
                     </Button>

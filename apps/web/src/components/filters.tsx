@@ -74,7 +74,9 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
         className,
       )}
     >
-      <div className={clsx("flex items-center gap-3", compact ? "flex-nowrap" : "flex-wrap items-end")}>
+      <div
+        className={clsx("flex items-center gap-3", compact ? "flex-nowrap" : "flex-wrap items-end")}
+      >
         <div className="flex-1 min-w-0">
           <Input
             label="Tìm kiếm"
@@ -139,10 +141,7 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
       </div>
 
       {advancedFilters && advancedOpen ? (
-        <div
-          id={advancedId}
-          className="mt-3 border-t border-slate-200/80 pt-3"
-        >
+        <div id={advancedId} className="mt-3 border-t border-slate-200/80 pt-3">
           <div className="flex flex-wrap items-end gap-3">{advancedFilters}</div>
           {compact && onClearAll && (
             <div className="mt-3 flex justify-end border-t border-slate-100/80 pt-2">

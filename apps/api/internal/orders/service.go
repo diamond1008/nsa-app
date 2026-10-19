@@ -481,8 +481,8 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 	f.SetSheetName("Sheet1", sheetName)
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Color: "#FFFFFF", Size: 11, Family: "Segoe UI"},
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"#0A2540"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true, Color: "#FFFFFF", Size: 11, Family: "Segoe UI"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#0A2540"}, Pattern: 1},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
 		Border: []excelize.Border{
 			{Type: "top", Color: "#CCCCCC", Style: 1},
@@ -493,7 +493,7 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 	})
 
 	dataStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Font:      &excelize.Font{Size: 10, Family: "Segoe UI"},
 		Alignment: &excelize.Alignment{Vertical: "center"},
 		Border: []excelize.Border{
 			{Type: "top", Color: "#E5E7EB", Style: 1},
@@ -504,7 +504,7 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 	})
 
 	centerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Font:      &excelize.Font{Size: 10, Family: "Segoe UI"},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 		Border: []excelize.Border{
 			{Type: "top", Color: "#E5E7EB", Style: 1},
@@ -516,8 +516,8 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 
 	currencyFormat := "#,##0 ₫"
 	currencyStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Segoe UI"},
-		Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"},
+		Font:         &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment:    &excelize.Alignment{Horizontal: "right", Vertical: "center"},
 		CustomNumFmt: &currencyFormat,
 		Border: []excelize.Border{
 			{Type: "top", Color: "#E5E7EB", Style: 1},

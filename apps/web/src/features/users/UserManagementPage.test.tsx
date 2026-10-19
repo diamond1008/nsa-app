@@ -229,8 +229,9 @@ describe("UserManagementPage", () => {
     // Toggle lead receiving status
     fireEvent.click(screen.getByRole("button", { name: /Đang nhận/i }));
     await waitFor(() => {
-      expect(usersApi.updateLeadRouting).toHaveBeenCalledWith("sale-1", { is_accepting_leads: false });
+      expect(usersApi.updateLeadRouting).toHaveBeenCalledWith("sale-1", {
+        is_accepting_leads: false,
+      });
     });
   });
 });
-

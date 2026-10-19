@@ -52,8 +52,8 @@ export default {
       },
       fontFamily: {
         sans: ['"Be Vietnam Pro"', "system-ui", "sans-serif"],
-        calibri: ['Calibri', 'Carlito', '"Segoe UI"', 'sans-serif'],
-        number: ['Calibri', 'Carlito', '"Segoe UI"', 'sans-serif'],
+        calibri: ["Calibri", "Carlito", '"Segoe UI"', "sans-serif"],
+        number: ["Calibri", "Carlito", '"Segoe UI"', "sans-serif"],
       },
       boxShadow: {
         card: "0 4px 24px rgba(7, 20, 38, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.95)",

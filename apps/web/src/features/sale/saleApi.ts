@@ -127,8 +127,7 @@ export const saleApi = {
   checkDuplicate: (params: { phone?: string; email?: string; exclude_id?: string }) =>
     get<DuplicateCheckResponse>(`/sale/leads/check-duplicate${toQuery(params)}`),
 
-  exportLeads: (params: LeadListParams = {}) =>
-    apiDownload(`/sale/leads/export${toQuery(params)}`),
+  exportLeads: (params: LeadListParams = {}) => apiDownload(`/sale/leads/export${toQuery(params)}`),
 
   downloadLeadTemplate: (format: "xlsx" | "csv" = "xlsx") =>
     apiDownload(`/sale/leads/template${format === "csv" ? "?format=csv" : ""}`),

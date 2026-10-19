@@ -461,7 +461,11 @@ export function AdminAttendancePage({ readOnly = false }: { readOnly?: boolean }
         </QueryState>
       )}
 
-      <Modal open={!readOnly && Boolean(target)} title="Xác nhận hiệu chỉnh" onClose={closeCorrection}>
+      <Modal
+        open={!readOnly && Boolean(target)}
+        title="Xác nhận hiệu chỉnh"
+        onClose={closeCorrection}
+      >
         {target ? (
           <form
             className="space-y-4"

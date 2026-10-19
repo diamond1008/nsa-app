@@ -37,13 +37,16 @@ export function SaleReceiptsPage() {
     const action = searchParams.get("action");
 
     if (orderId) {
-      saleApi.getOrder(orderId).then((ord) => {
-        if (action === "print") {
-          setPrintOrder(ord);
-        } else if (action === "collect") {
-          setCollectOrder(ord);
-        }
-      }).catch(console.error);
+      saleApi
+        .getOrder(orderId)
+        .then((ord) => {
+          if (action === "print") {
+            setPrintOrder(ord);
+          } else if (action === "collect") {
+            setCollectOrder(ord);
+          }
+        })
+        .catch(console.error);
     }
   }, [searchParams]);
 
@@ -317,20 +320,14 @@ export function SaleReceiptsPage() {
           <DataTable items={items} columns={columns} />
           {totalPages > 1 && (
             <div className="border-t border-slate-200/80 px-4 py-3 bg-white/40">
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                onPage={(p) => setPage(p)}
-              />
+              <Pagination page={page} totalPages={totalPages} onPage={(p) => setPage(p)} />
             </div>
           )}
         </div>
       </QueryState>
 
       {/* Receipt Print Modal */}
-      {printOrder && (
-        <ReceiptPrintModal order={printOrder} onClose={() => setPrintOrder(null)} />
-      )}
+      {printOrder && <ReceiptPrintModal order={printOrder} onClose={() => setPrintOrder(null)} />}
 
       {/* Quick Collect Payment Modal */}
       {collectOrder && (

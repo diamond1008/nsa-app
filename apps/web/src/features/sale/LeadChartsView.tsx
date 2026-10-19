@@ -127,10 +127,7 @@ export function LeadChartsView({
     let total = 0;
     const sCounts: Record<string, number> = {};
     const srcCounts: Record<string, number> = {};
-    const assignees: Record<
-      string,
-      { email: string; total: number; converted: number }
-    > = {};
+    const assignees: Record<string, { email: string; total: number; converted: number }> = {};
     const dayMap: Record<string, number> = {};
 
     if (useOverviewCounts) {
@@ -180,9 +177,7 @@ export function LeadChartsView({
 
     const converted = (sCounts["da_dang_ky"] || 0) + (sCounts["dang_hoc"] || 0);
     const active =
-      (sCounts["data_moi"] || 0) +
-      (sCounts["follow"] || 0) +
-      (sCounts["goi_lai_sau"] || 0);
+      (sCounts["data_moi"] || 0) + (sCounts["follow"] || 0) + (sCounts["goi_lai_sau"] || 0);
     const unreached = sCounts["knm_thue_bao"] || 0;
 
     // Sort days chronologically (most recent last 10 days)
@@ -271,8 +266,7 @@ export function LeadChartsView({
             <div className="mt-5 space-y-3.5">
               {PIPELINE_STATUS_OPTIONS.map((opt) => {
                 const count = statusCounts[opt.value] || 0;
-                const percentage =
-                  totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
+                const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
                 const barWidth =
                   maxStatusCount > 0 ? Math.max(4, Math.round((count / maxStatusCount) * 100)) : 4;
                 const style = STAGE_STYLES[opt.value] || {
@@ -289,7 +283,8 @@ export function LeadChartsView({
                     onClick={() => onSelectStatus?.(opt.value)}
                     className={clsx(
                       "group rounded-xl border border-transparent p-2.5 transition-all",
-                      onSelectStatus && "cursor-pointer hover:border-slate-200 hover:bg-slate-50/70",
+                      onSelectStatus &&
+                        "cursor-pointer hover:border-slate-200 hover:bg-slate-50/70",
                     )}
                   >
                     <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
@@ -370,8 +365,7 @@ export function LeadChartsView({
             <div className="mt-5 space-y-3">
               {SOURCE_OPTIONS.map((src) => {
                 const count = sourceCounts[src.value] || 0;
-                const percentage =
-                  totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
+                const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
                 const barWidth =
                   maxSourceCount > 0 ? Math.max(4, Math.round((count / maxSourceCount) * 100)) : 4;
                 const color = SOURCE_COLORS[src.value] || "#64748B";
@@ -382,7 +376,8 @@ export function LeadChartsView({
                     onClick={() => onSelectSource?.(src.value)}
                     className={clsx(
                       "group rounded-xl border border-transparent p-2 transition-all",
-                      onSelectSource && "cursor-pointer hover:border-slate-200 hover:bg-slate-50/70",
+                      onSelectSource &&
+                        "cursor-pointer hover:border-slate-200 hover:bg-slate-50/70",
                     )}
                   >
                     <div className="flex items-center justify-between text-xs font-semibold mb-1">
@@ -474,7 +469,9 @@ export function LeadChartsView({
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-gtext mt-3">
                   <span>📅 10 ngày ghi nhận gần nhất</span>
-                  <span className="font-semibold text-navy">Đỉnh điểm: {maxDayCount} lead/ngày</span>
+                  <span className="font-semibold text-navy">
+                    Đỉnh điểm: {maxDayCount} lead/ngày
+                  </span>
                 </div>
               </div>
             )}
@@ -491,7 +488,9 @@ export function LeadChartsView({
                   <h3 className="font-heading text-sm font-bold text-navy">
                     Hiệu Suất Tư Vấn Phụ Trách
                   </h3>
-                  <p className="text-xs text-gtext">Phân bổ khối lượng và tỷ lệ chốt của từng Sale</p>
+                  <p className="text-xs text-gtext">
+                    Phân bổ khối lượng và tỷ lệ chốt của từng Sale
+                  </p>
                 </div>
               </div>
             </div>
@@ -505,8 +504,7 @@ export function LeadChartsView({
                 {assigneeCounts
                   .sort((a, b) => b.total - a.total)
                   .map((asg) => {
-                    const rate =
-                      asg.total > 0 ? Math.round((asg.converted / asg.total) * 100) : 0;
+                    const rate = asg.total > 0 ? Math.round((asg.converted / asg.total) * 100) : 0;
                     return (
                       <div key={asg.email} className="pt-2.5 first:pt-0">
                         <div className="flex items-center justify-between text-xs mb-1.5">
@@ -544,9 +542,7 @@ export function LeadChartsView({
 
           <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-gtext flex justify-between">
             <span>👥 {assigneeCounts.length} nhân sự tư vấn</span>
-            <span className="font-semibold text-navy">
-              Tổng chốt: {convertedCount} học viên
-            </span>
+            <span className="font-semibold text-navy">Tổng chốt: {convertedCount} học viên</span>
           </div>
         </Card>
       </div>

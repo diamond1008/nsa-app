@@ -38,7 +38,10 @@ const AdminOperationsPage = lazyLoad(
   "AdminOperationsPage",
 );
 const ClassDetailPage = lazyLoad(() => import("../features/admin/AdminPages"), "ClassDetailPage");
-const ClassesPage = lazyLoad<{ readOnly?: boolean }>(() => import("../features/admin/AdminPages"), "ClassesPage");
+const ClassesPage = lazyLoad<{ readOnly?: boolean }>(
+  () => import("../features/admin/AdminPages"),
+  "ClassesPage",
+);
 const CoursesPage = lazyLoad(() => import("../features/admin/AdminPages"), "CoursesPage");
 const ScheduleAdminPage = lazyLoad<{ readOnly?: boolean }>(
   () => import("../features/admin/AdminPages"),

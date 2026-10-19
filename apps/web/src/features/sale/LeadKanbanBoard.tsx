@@ -219,7 +219,9 @@ export function LeadKanbanBoard({
 
         const el = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
         const stageEl = el?.closest("[data-stage-status]");
-        const targetStatus = stageEl?.getAttribute("data-stage-status") as LeadPipelineStatus | null;
+        const targetStatus = stageEl?.getAttribute(
+          "data-stage-status",
+        ) as LeadPipelineStatus | null;
         if (targetStatus && targetStatus !== lead.pipeline_status) {
           setDragOverTarget(targetStatus);
         } else {
@@ -236,7 +238,9 @@ export function LeadKanbanBoard({
       if (hasMoved) {
         const el = document.elementFromPoint(upEv.clientX, upEv.clientY);
         const stageEl = el?.closest("[data-stage-status]");
-        const targetStatus = stageEl?.getAttribute("data-stage-status") as LeadPipelineStatus | null;
+        const targetStatus = stageEl?.getAttribute(
+          "data-stage-status",
+        ) as LeadPipelineStatus | null;
 
         if (targetStatus && targetStatus !== lead.pipeline_status) {
           onStatusChange(lead.id, targetStatus);
@@ -279,7 +283,6 @@ export function LeadKanbanBoard({
         </div>
       )}
 
-
       {/* Bố cục chia đôi: Trái (Cột chính) - Phải (Bảng chuyển trạng thái thon gọn chiều ngang, dính theo khi cuộn) */}
       <div className="flex flex-col gap-5 lg:flex-row">
         {/* VÙNG CHÍNH BÊN TRÁI: Danh sách Lead của trạng thái đang chọn */}
@@ -295,9 +298,7 @@ export function LeadKanbanBoard({
                       currentStageConfig.dotColor,
                     )}
                   />
-                  <h3 className="text-base font-bold text-navy">
-                    {currentStageConfig.title}
-                  </h3>
+                  <h3 className="text-base font-bold text-navy">{currentStageConfig.title}</h3>
                   <span
                     className={clsx(
                       "rounded-full px-2.5 py-0.5 text-xs font-bold",
@@ -389,137 +390,137 @@ export function LeadKanbanBoard({
                             isDragging
                               ? "border-2 border-dashed border-[#0532e6]/60 bg-[#0532e6]/5 opacity-40 scale-[0.98] ring-2 ring-[#0532e6]/20 cursor-grabbing"
                               : isOtherDimmed
-                              ? "opacity-25 scale-[0.98] blur-[0.6px] pointer-events-none select-none transition-all duration-300"
-                              : "border-slate-200/90 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 cursor-grab active:cursor-grabbing",
+                                ? "opacity-25 scale-[0.98] blur-[0.6px] pointer-events-none select-none transition-all duration-300"
+                                : "border-slate-200/90 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 cursor-grab active:cursor-grabbing",
                           )}
                         >
-                        {/* Drag Handle Bar Indicator */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            {onSelectLead ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelectLead(lead.id);
-                                }}
-                                className="font-bold text-sm text-navy hover:text-[#0532e6] hover:underline text-left cursor-pointer"
-                              >
-                                {lead.full_name}
-                              </button>
-                            ) : (
-                              <Link
-                                to={`/sale/leads/${lead.id}`}
-                                className="font-bold text-sm text-navy hover:text-[#0532e6] hover:underline"
-                              >
-                                {lead.full_name}
-                              </Link>
-                            )}
-                            <div className="mt-1 flex items-center gap-2">
-                              {lead.phone ? (
-                                <a
-                                  href={`tel:${lead.phone}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-navy/90 hover:text-[#0532e6]"
-                                >
-                                  <Icon name="phone" className="h-3 w-3 text-slate-400" />
-                                  {lead.phone}
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-400">Chưa có SĐT</span>
-                              )}
-                              {lead.source && (
-                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-                                  {getSourceLabel(lead.source)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <span className="shrink-0 rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-400">
-                            {formatDate(lead.created_at)}
-                          </span>
-                        </div>
-
-                        {/* Interested Course */}
-                        {lead.interested_course_name && (
-                          <div className="mt-2.5">
-                            <span className="inline-flex items-center gap-1.5 max-w-full truncate rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800">
-                              <Icon name="book" className="h-3 w-3 shrink-0 text-sky-600" />
-                              <span className="truncate">{lead.interested_course_name}</span>
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Notes snippet */}
-                        {lead.notes && (
-                          <p className="mt-2 line-clamp-2 rounded-lg border-l-2 border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 italic">
-                            "{lead.notes}"
-                          </p>
-                        )}
-
-                        {/* Card Footer: Assignee & Actions */}
-                        <div className="mt-3.5 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs">
-                          <div
-                            className="flex items-center gap-1.5 text-[11px] text-slate-500 truncate max-w-[140px]"
-                            title={lead.assigned_to_email || "Chưa phân bổ"}
-                          >
-                            <Icon name="user" className="h-3 w-3 shrink-0 text-slate-400" />
-                            <span className="truncate">
-                              {lead.assigned_to_email
-                                ? lead.assigned_to_email.split("@")[0]
-                                : "Tự động phân bổ"}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {onSelectLead ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelectLead(lead.id);
-                                }}
-                                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer"
-                              >
-                                Chi tiết
-                              </button>
-                            ) : (
-                              <Link to={`/sale/leads/${lead.id}`}>
+                          {/* Drag Handle Bar Indicator */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              {onSelectLead ? (
                                 <button
                                   type="button"
-                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectLead(lead.id);
+                                  }}
+                                  className="font-bold text-sm text-navy hover:text-[#0532e6] hover:underline text-left cursor-pointer"
+                                >
+                                  {lead.full_name}
+                                </button>
+                              ) : (
+                                <Link
+                                  to={`/sale/leads/${lead.id}`}
+                                  className="font-bold text-sm text-navy hover:text-[#0532e6] hover:underline"
+                                >
+                                  {lead.full_name}
+                                </Link>
+                              )}
+                              <div className="mt-1 flex items-center gap-2">
+                                {lead.phone ? (
+                                  <a
+                                    href={`tel:${lead.phone}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-navy/90 hover:text-[#0532e6]"
+                                  >
+                                    <Icon name="phone" className="h-3 w-3 text-slate-400" />
+                                    {lead.phone}
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-slate-400">Chưa có SĐT</span>
+                                )}
+                                {lead.source && (
+                                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                                    {getSourceLabel(lead.source)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <span className="shrink-0 rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                              {formatDate(lead.created_at)}
+                            </span>
+                          </div>
+
+                          {/* Interested Course */}
+                          {lead.interested_course_name && (
+                            <div className="mt-2.5">
+                              <span className="inline-flex items-center gap-1.5 max-w-full truncate rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800">
+                                <Icon name="book" className="h-3 w-3 shrink-0 text-sky-600" />
+                                <span className="truncate">{lead.interested_course_name}</span>
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Notes snippet */}
+                          {lead.notes && (
+                            <p className="mt-2 line-clamp-2 rounded-lg border-l-2 border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 italic">
+                              "{lead.notes}"
+                            </p>
+                          )}
+
+                          {/* Card Footer: Assignee & Actions */}
+                          <div className="mt-3.5 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs">
+                            <div
+                              className="flex items-center gap-1.5 text-[11px] text-slate-500 truncate max-w-[140px]"
+                              title={lead.assigned_to_email || "Chưa phân bổ"}
+                            >
+                              <Icon name="user" className="h-3 w-3 shrink-0 text-slate-400" />
+                              <span className="truncate">
+                                {lead.assigned_to_email
+                                  ? lead.assigned_to_email.split("@")[0]
+                                  : "Tự động phân bổ"}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {onSelectLead ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectLead(lead.id);
+                                  }}
+                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer"
                                 >
                                   Chi tiết
                                 </button>
+                              ) : (
+                                <Link to={`/sale/leads/${lead.id}`}>
+                                  <button
+                                    type="button"
+                                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
+                                  >
+                                    Chi tiết
+                                  </button>
+                                </Link>
+                              )}
+                              <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
+                                <button
+                                  type="button"
+                                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs"
+                                >
+                                  Phiếu ĐK
+                                </button>
                               </Link>
-                            )}
-                            <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
-                              <button
-                                type="button"
-                                className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs"
-                              >
-                                Phiếu ĐK
-                              </button>
-                            </Link>
+                            </div>
+                          </div>
+
+                          {/* Drag Hint Tag */}
+                          <div className="mt-2 text-right">
+                            <span className="text-[10px] text-slate-400 inline-flex items-center gap-1 font-medium select-none">
+                              Kéo thẻ sang ô bên phải để đổi trạng thái
+                            </span>
                           </div>
                         </div>
-
-                        {/* Drag Hint Tag */}
-                        <div className="mt-2 text-right">
-                          <span className="text-[10px] text-slate-400 inline-flex items-center gap-1 font-medium select-none">
-                            Kéo thẻ sang ô bên phải để đổi trạng thái
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
         {/* VÙNG BÊN PHẢI: Bảng Chuyển Trạng Thái (Thon gọn chiều ngang, dính theo khi cuộn chuột) */}
         <div className="w-full lg:w-72 xl:w-80 shrink-0">
@@ -528,9 +529,7 @@ export function LeadKanbanBoard({
               <h4 className="text-sm font-bold text-navy uppercase tracking-wider">
                 Giai đoạn xử lý Lead
               </h4>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Nhấp để xem • Kéo thẻ để chuyển bước
-              </p>
+              <p className="mt-0.5 text-xs text-slate-500">Nhấp để xem • Kéo thẻ để chuyển bước</p>
             </div>
 
             {/* Danh sách các ô trạng thái: Tone màu nhẹ liquid glass, chữ rõ nét */}
@@ -549,22 +548,27 @@ export function LeadKanbanBoard({
                     className={clsx(
                       "group relative flex flex-col justify-between rounded-xl border p-4 min-h-[96px] transition-all duration-300 select-none cursor-pointer",
                       isCurrent
-                        ? clsx("border-2 shadow-xs", stage.activeBorder, stage.activeBg, stage.activeRing)
-                        : isOver
                         ? clsx(
-                            "border-2 shadow-xl scale-[1.04] -translate-x-1 ring-4 ring-emerald-200",
-                            stage.dragOverBorder,
-                            stage.dragOverBg,
+                            "border-2 shadow-xs",
+                            stage.activeBorder,
+                            stage.activeBg,
+                            stage.activeRing,
                           )
-                        : isDraggingAny
-                        ? "border-2 border-dashed border-indigo-400 bg-indigo-50/50 shadow-md ring-2 ring-indigo-200/50 animate-pulse hover:bg-indigo-100/70"
-                        : clsx(
-                            stage.cardBg,
-                            stage.cardBorder,
-                            stage.cardHoverBg,
-                            stage.cardHoverBorder,
-                            "hover:shadow-xs",
-                          ),
+                        : isOver
+                          ? clsx(
+                              "border-2 shadow-xl scale-[1.04] -translate-x-1 ring-4 ring-emerald-200",
+                              stage.dragOverBorder,
+                              stage.dragOverBg,
+                            )
+                          : isDraggingAny
+                            ? "border-2 border-dashed border-indigo-400 bg-indigo-50/50 shadow-md ring-2 ring-indigo-200/50 animate-pulse hover:bg-indigo-100/70"
+                            : clsx(
+                                stage.cardBg,
+                                stage.cardBorder,
+                                stage.cardHoverBg,
+                                stage.cardHoverBorder,
+                                "hover:shadow-xs",
+                              ),
                     )}
                   >
                     {/* Hàng trên: Chấm màu + Tên trạng thái + Badge số lượng */}
@@ -583,8 +587,8 @@ export function LeadKanbanBoard({
                             isCurrent
                               ? stage.activeText
                               : isOver
-                              ? "text-emerald-900"
-                              : stage.titleColor,
+                                ? "text-emerald-900"
+                                : stage.titleColor,
                           )}
                         >
                           {stage.title}

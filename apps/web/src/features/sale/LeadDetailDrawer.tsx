@@ -204,8 +204,7 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
   });
 
   const quickChotMutation = useMutation({
-    mutationFn: () =>
-      saleApi.updateLeadStatus(leadId!, "da_dang_ky", "Chốt học viên thành công"),
+    mutationFn: () => saleApi.updateLeadStatus(leadId!, "da_dang_ky", "Chốt học viên thành công"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sale", "lead", leadId] });
       queryClient.invalidateQueries({ queryKey: ["sale", "lead", leadId, "pipeline-history"] });
@@ -496,7 +495,10 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                               variant="ghost"
                               className="h-8 px-2.5 text-xs text-slate-700 bg-white border border-slate-200/90 hover:border-emerald-600 hover:bg-emerald-50/50 shadow-2xs"
                             >
-                              <Icon name="shopping-bag" className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                              <Icon
+                                name="shopping-bag"
+                                className="h-3.5 w-3.5 mr-1 text-emerald-600"
+                              />
                               Tạo phiếu đăng ký
                             </Button>
                           </Link>
@@ -560,7 +562,8 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                     <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-600 font-medium">
                       {interactionsQuery.data?.length ?? 0}
                     </span>
-                    {(tasksQuery.data?.filter((t: LeadTask) => !t.completed_at).length ?? 0) > 0 && (
+                    {(tasksQuery.data?.filter((t: LeadTask) => !t.completed_at).length ?? 0) >
+                      0 && (
                       <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-[10px] font-semibold">
                         {tasksQuery.data?.filter((t: LeadTask) => !t.completed_at).length} việc
                       </span>
