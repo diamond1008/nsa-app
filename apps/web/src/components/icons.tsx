@@ -42,6 +42,8 @@ export type IconName =
   | "user"
   | "chevron-up"
   | "grip-vertical"
+  | "rotate-ccw"
+  | "trash"
   | "external-link";
 
 const paths: Record<IconName, JSX.Element> = {
@@ -270,6 +272,17 @@ const paths: Record<IconName, JSX.Element> = {
       <circle cx="15" cy="12" r="1.2" fill="currentColor" />
       <circle cx="15" cy="6" r="1.2" fill="currentColor" />
       <circle cx="15" cy="18" r="1.2" fill="currentColor" />
+    </>
+  ),
+  "rotate-ccw": (
+    <>
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     </>
   ),
 };

@@ -494,16 +494,14 @@ export function LeadKanbanBoard({
                                 </button>
                               </Link>
                             )}
-                            {!lead.converted_student_id && (
-                              <Link to={`/sale/leads/${lead.id}/convert`}>
-                                <button
-                                  type="button"
-                                  className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs"
-                                >
-                                  Chốt
-                                </button>
-                              </Link>
-                            )}
+                            <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
+                              <button
+                                type="button"
+                                className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs"
+                              >
+                                Phiếu ĐK
+                              </button>
+                            </Link>
                           </div>
                         </div>
 

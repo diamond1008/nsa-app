@@ -184,8 +184,11 @@ export const saleApi = {
 
   createOrder: (data: CreateOrderInput) => post<Order>("/sale/orders", data),
 
-  updateOrderStatus: (id: string, status: string) =>
-    patch<Order>(`/sale/orders/${id}/status`, { status }),
+  updateOrderStatus: (
+    id: string,
+    status: string,
+    extra: { payment_method?: string; notes?: string } = {},
+  ) => patch<Order>(`/sale/orders/${id}/status`, { status, ...extra }),
 
   // Courses & Classes (for lead interested course & convert dropdowns)
   listCourses: () =>

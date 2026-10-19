@@ -80,7 +80,9 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
         ? "Tiền mặt tại văn phòng"
         : order.payment_method === "pos"
           ? "Quẹt thẻ POS"
-          : "Khác";
+          : order.payment_method === "installment"
+            ? "Trả góp học phí"
+            : order.payment_method || "Chuyển khoản ngân hàng";
 
   const paymentDate = order.paid_at ? new Date(order.paid_at) : new Date(order.created_at);
   const day = paymentDate.getDate();

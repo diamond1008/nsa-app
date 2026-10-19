@@ -51,7 +51,7 @@ LEFT JOIN student_profiles sp ON sp.id = o.student_id
 LEFT JOIN courses c ON c.id = o.course_id
 LEFT JOIN classes cl ON cl.id = o.class_id
 LEFT JOIN users u ON u.id = o.created_by
-WHERE o.id = $1;
+WHERE o.id = $1 AND o.deleted_at IS NULL;
 
 -- name: ListOrders :many
 SELECT
@@ -70,7 +70,8 @@ LEFT JOIN student_profiles sp ON sp.id = o.student_id
 LEFT JOIN courses c ON c.id = o.course_id
 LEFT JOIN classes cl ON cl.id = o.class_id
 LEFT JOIN users u ON u.id = o.created_by
-WHERE (
+WHERE o.deleted_at IS NULL
+AND (
   sqlc.arg(search)::text = ''
   OR o.order_code ILIKE '%' || sqlc.arg(search) || '%'
   OR COALESCE(sp.student_code, '') ILIKE '%' || sqlc.arg(search) || '%'
@@ -107,7 +108,8 @@ SELECT COUNT(*)
 FROM orders o
 LEFT JOIN leads l ON l.id = o.lead_id
 LEFT JOIN student_profiles sp ON sp.id = o.student_id
-WHERE (
+WHERE o.deleted_at IS NULL
+AND (
   sqlc.arg(search)::text = ''
   OR o.order_code ILIKE '%' || sqlc.arg(search) || '%'
   OR COALESCE(sp.student_code, '') ILIKE '%' || sqlc.arg(search) || '%'
@@ -139,7 +141,9 @@ AND (
 UPDATE orders
 SET
   status = $2,
-  paid_at = sqlc.narg(paid_at)
+  paid_at = sqlc.narg(paid_at),
+  payment_method = COALESCE(sqlc.narg(payment_method), payment_method),
+  notes = COALESCE(sqlc.narg(notes), notes)
 WHERE id = $1
 RETURNING *;
 
@@ -150,6 +154,7 @@ SELECT
   COUNT(*) FILTER (WHERE status = 'paid')::bigint AS paid_orders,
   COALESCE(SUM(final_amount) FILTER (WHERE status = 'paid'), 0)::numeric AS total_revenue
 FROM orders
+WHERE deleted_at IS NULL
 GROUP BY DATE_TRUNC('month', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
 ORDER BY month DESC
 LIMIT 12;
@@ -161,6 +166,7 @@ SELECT
   COALESCE(SUM(o.final_amount) FILTER (WHERE o.status = 'paid'), 0)::numeric AS revenue
 FROM orders o
 JOIN leads l ON l.id = o.lead_id
+WHERE o.deleted_at IS NULL AND l.deleted_at IS NULL
 GROUP BY l.source
 ORDER BY revenue DESC;
 
@@ -178,7 +184,8 @@ SELECT
     WHERE status = 'paid'
       AND DATE_TRUNC('month', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE_TRUNC('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
   )::bigint AS month_paid_orders
-FROM orders;
+FROM orders
+WHERE deleted_at IS NULL;
 
 -- name: ListAllOrdersForExport :many
 SELECT
@@ -207,7 +214,8 @@ LEFT JOIN student_profiles sp ON sp.id = o.student_id
 LEFT JOIN courses c ON c.id = o.course_id
 LEFT JOIN classes cl ON cl.id = o.class_id
 LEFT JOIN users u ON u.id = o.created_by
-WHERE (
+WHERE o.deleted_at IS NULL
+AND (
   sqlc.arg(search)::text = ''
   OR o.order_code ILIKE '%' || sqlc.arg(search) || '%'
   OR COALESCE(sp.student_code, '') ILIKE '%' || sqlc.arg(search) || '%'
@@ -235,3 +243,9 @@ AND (
   OR o.created_at <= sqlc.narg(created_to)::timestamptz
 )
 ORDER BY o.created_at DESC;
+
+-- name: SoftDeleteOrder :exec
+UPDATE orders
+SET deleted_at = NOW()
+WHERE id = $1;
+

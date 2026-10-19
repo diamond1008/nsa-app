@@ -72,7 +72,8 @@ export function Button({
 }
 
 interface FieldProps {
-  label: string;
+  label?: string;
+  hideLabel?: boolean;
   error?: string;
 }
 const fieldClass =
@@ -80,18 +81,21 @@ const fieldClass =
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement>, FieldProps {}
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, id, className, ...rest },
+  { label, hideLabel, error, id, className, ...rest },
   ref,
 ) {
   const inputId = id ?? rest.name ?? label;
   return (
-    <div className="space-y-2">
-      <label htmlFor={inputId} className="block text-sm font-semibold text-navy-heading">
-        {label}
-      </label>
+    <div className={clsx(!hideLabel && label && "space-y-2")}>
+      {label && !hideLabel && (
+        <label htmlFor={inputId} className="block text-sm font-semibold text-navy-heading">
+          {label}
+        </label>
+      )}
       <input
         ref={ref}
         id={inputId}
+        aria-label={hideLabel && label ? label : undefined}
         aria-invalid={!!error}
         aria-describedby={error ? `${inputId}-error` : undefined}
         className={clsx(fieldClass, error ? "border-error" : "border-gborder", className)}
@@ -721,6 +725,10 @@ export function Drawer({
   children,
   className,
   width = "max-w-2xl",
+  hasBackdrop = true,
+  closeOnClickOutside = true,
+  disableBodyScroll = true,
+  trapFocus: shouldTrapFocus = true,
 }: {
   open: boolean;
   title?: string;
@@ -728,6 +736,10 @@ export function Drawer({
   children: ReactNode;
   className?: string;
   width?: string;
+  hasBackdrop?: boolean;
+  closeOnClickOutside?: boolean;
+  disableBodyScroll?: boolean;
+  trapFocus?: boolean;
 }) {
   const titleId = useId();
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -759,20 +771,31 @@ export function Drawer({
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    let previous = "";
+    if (disableBodyScroll) {
+      previous = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
     const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && onCloseRef.current();
     window.addEventListener("keydown", onKeyDown);
-    const focusable = drawerRef.current?.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    focusable?.focus();
+
+    if (shouldTrapFocus) {
+      const focusable = drawerRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      focusable?.focus();
+    }
+
     return () => {
-      document.body.style.overflow = previous;
+      if (disableBodyScroll) {
+        document.body.style.overflow = previous;
+      }
       window.removeEventListener("keydown", onKeyDown);
-      previousFocusRef.current?.focus();
+      if (shouldTrapFocus) {
+        previousFocusRef.current?.focus();
+      }
     };
-  }, [open]);
+  }, [open, disableBodyScroll, shouldTrapFocus]);
 
   if (!rendered) return null;
 
@@ -798,19 +821,31 @@ export function Drawer({
   const drawerElement = (
     <div
       className={clsx(
-        "fixed inset-0 z-[9990] flex justify-end bg-[#000e47]/40 backdrop-blur-md",
-        isClosing ? "animate-backdrop-navy-out pointer-events-none" : "animate-backdrop-navy",
+        "fixed inset-0 z-[9990] flex justify-end",
+        hasBackdrop
+          ? clsx(
+              "bg-[#000e47]/40 backdrop-blur-md",
+              isClosing ? "animate-backdrop-navy-out pointer-events-none" : "animate-backdrop-navy",
+            )
+          : "pointer-events-none",
       )}
       onMouseDown={(e) => {
+        if (!closeOnClickOutside) return;
         isMouseDownOnBackdrop.current = e.target === e.currentTarget;
       }}
       onMouseUp={(e) => {
+        if (!closeOnClickOutside) return;
         if (e.target !== e.currentTarget) {
           isMouseDownOnBackdrop.current = false;
         }
       }}
       onClick={(e) => {
-        if (!isClosing && e.target === e.currentTarget && isMouseDownOnBackdrop.current) {
+        if (
+          closeOnClickOutside &&
+          !isClosing &&
+          e.target === e.currentTarget &&
+          isMouseDownOnBackdrop.current
+        ) {
           onCloseRef.current();
         }
         isMouseDownOnBackdrop.current = false;
@@ -819,11 +854,11 @@ export function Drawer({
       <div
         ref={drawerRef}
         role="dialog"
-        aria-modal="true"
+        aria-modal={hasBackdrop ? "true" : "false"}
         aria-labelledby={title ? titleId : undefined}
-        onKeyDown={trapFocus}
+        onKeyDown={shouldTrapFocus ? trapFocus : undefined}
         className={clsx(
-          "relative h-full w-full flex flex-col border-l border-white/90 bg-white/95 backdrop-blur-3xl shadow-[-28px_0_90px_rgba(0,18,88,0.22),_-1px_0_1px_rgba(255,255,255,0.95)] motion-reduce:animate-none overflow-hidden",
+          "pointer-events-auto relative h-full w-full flex flex-col border-l border-white/90 bg-white/95 backdrop-blur-3xl shadow-[-28px_0_90px_rgba(0,18,88,0.22),_-1px_0_1px_rgba(255,255,255,0.95)] motion-reduce:animate-none overflow-hidden",
           isClosing ? "animate-drawer-right-out" : "animate-drawer-right",
           width,
           className,

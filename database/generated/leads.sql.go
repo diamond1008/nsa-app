@@ -18,7 +18,7 @@ SET
   assigned_at = $3,
   assigned_by = $4
 WHERE id = $1
-RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at
+RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at, deleted_at
 `
 
 type AssignLeadParams struct {
@@ -63,6 +63,7 @@ func (q *Queries) AssignLead(ctx context.Context, arg AssignLeadParams) (Lead, e
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -75,7 +76,7 @@ SET
   converted_by = $4,
   pipeline_status = 'da_dang_ky'
 WHERE id = $1
-RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at
+RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at, deleted_at
 `
 
 type ConvertLeadParams struct {
@@ -120,6 +121,7 @@ func (q *Queries) ConvertLead(ctx context.Context, arg ConvertLeadParams) (Lead,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -127,7 +129,8 @@ func (q *Queries) ConvertLead(ctx context.Context, arg ConvertLeadParams) (Lead,
 const countLeads = `-- name: CountLeads :one
 SELECT COUNT(*)
 FROM leads l
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   $1::text = ''
   OR l.full_name ILIKE '%' || $1 || '%'
   OR COALESCE(l.phone, '') ILIKE '%' || $1 || '%'
@@ -320,7 +323,7 @@ INSERT INTO leads (
   $14, $15, $16, $17, $18, $19,
   $20
 )
-RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at
+RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at, deleted_at
 `
 
 type CreateLeadParams struct {
@@ -398,6 +401,7 @@ func (q *Queries) CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, e
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -414,7 +418,8 @@ SELECT
   u.email AS assigned_to_email
 FROM leads l
 LEFT JOIN users u ON u.id = l.assigned_to
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   ($1::text IS NOT NULL AND $1::text <> '' AND l.phone = $1::text)
   OR
   ($2::citext IS NOT NULL AND $2::citext <> '' AND l.email = $2::citext)
@@ -462,7 +467,7 @@ func (q *Queries) FindDuplicateLead(ctx context.Context, arg FindDuplicateLeadPa
 
 const getLead = `-- name: GetLead :one
 SELECT
-  l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at,
+  l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at, l.deleted_at,
   c.code AS course_code,
   c.name AS course_name,
   u_assignee.email AS assigned_to_email,
@@ -476,7 +481,7 @@ LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
 LEFT JOIN users u_assigner ON u_assigner.id = l.assigned_by
 LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
 LEFT JOIN users u_creator ON u_creator.id = l.created_by
-WHERE l.id = $1
+WHERE l.id = $1 AND l.deleted_at IS NULL
 `
 
 type GetLeadRow struct {
@@ -506,6 +511,7 @@ type GetLeadRow struct {
 	CreatedBy            pgtype.UUID        `json:"created_by"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
 	CourseCode           pgtype.Text        `json:"course_code"`
 	CourseName           pgtype.Text        `json:"course_name"`
 	AssignedToEmail      pgtype.Text        `json:"assigned_to_email"`
@@ -545,6 +551,7 @@ func (q *Queries) GetLead(ctx context.Context, id pgtype.UUID) (GetLeadRow, erro
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 		&i.CourseCode,
 		&i.CourseName,
 		&i.AssignedToEmail,
@@ -615,7 +622,8 @@ FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
 LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   $1::text = ''
   OR l.full_name ILIKE '%' || $1 || '%'
   OR COALESCE(l.phone, '') ILIKE '%' || $1 || '%'
@@ -720,7 +728,7 @@ func (q *Queries) ListAllLeadsForExport(ctx context.Context, arg ListAllLeadsFor
 
 const listLeads = `-- name: ListLeads :many
 SELECT
-  l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at,
+  l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at, l.deleted_at,
   c.code AS course_code,
   c.name AS course_name,
   u_assignee.email AS assigned_to_email,
@@ -730,7 +738,8 @@ FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
 LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   $1::text = ''
   OR l.full_name ILIKE '%' || $1 || '%'
   OR COALESCE(l.phone, '') ILIKE '%' || $1 || '%'
@@ -806,6 +815,7 @@ type ListLeadsRow struct {
 	CreatedBy            pgtype.UUID        `json:"created_by"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
 	CourseCode           pgtype.Text        `json:"course_code"`
 	CourseName           pgtype.Text        `json:"course_name"`
 	AssignedToEmail      pgtype.Text        `json:"assigned_to_email"`
@@ -860,6 +870,7 @@ func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLea
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletedAt,
 			&i.CourseCode,
 			&i.CourseName,
 			&i.AssignedToEmail,
@@ -912,6 +923,17 @@ func (q *Queries) ListSaleStaff(ctx context.Context) ([]ListSaleStaffRow, error)
 	return items, nil
 }
 
+const softDeleteLead = `-- name: SoftDeleteLead :exec
+UPDATE leads
+SET deleted_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) SoftDeleteLead(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, softDeleteLead, id)
+	return err
+}
+
 const updateLead = `-- name: UpdateLead :one
 UPDATE leads
 SET
@@ -931,7 +953,7 @@ SET
   interested_course_id = $15,
   notes = $16
 WHERE id = $1
-RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at
+RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at, deleted_at
 `
 
 type UpdateLeadParams struct {
@@ -1000,6 +1022,7 @@ func (q *Queries) UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, e
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -1008,7 +1031,7 @@ const updateLeadPipelineStatus = `-- name: UpdateLeadPipelineStatus :one
 UPDATE leads
 SET pipeline_status = $2
 WHERE id = $1
-RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at
+RETURNING id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at, deleted_at
 `
 
 type UpdateLeadPipelineStatusParams struct {
@@ -1046,6 +1069,7 @@ func (q *Queries) UpdateLeadPipelineStatus(ctx context.Context, arg UpdateLeadPi
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

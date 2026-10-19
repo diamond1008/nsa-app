@@ -265,9 +265,11 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, orderIDValue
 	q := s.queries.WithTx(tx)
 
 	_, err = q.UpdateOrderStatus(ctx, db.UpdateOrderStatusParams{
-		ID:     orderID,
-		Status: targetStatus,
-		PaidAt: paidAt,
+		ID:            orderID,
+		Status:        targetStatus,
+		PaidAt:        paidAt,
+		PaymentMethod: data.Text(input.PaymentMethod),
+		Notes:         data.Text(input.Notes),
 	})
 	if err != nil {
 		return View{}, err
@@ -638,4 +640,25 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 	}
 
 	return f, nil
+}
+
+func (s *Service) Delete(ctx context.Context, actorID string, orderIDValue string) error {
+	orderID, err := data.UUID(orderIDValue)
+	if err != nil {
+		return errors.New("invalid order ID")
+	}
+	order, err := s.queries.GetOrder(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return errors.New("order not found")
+	}
+	if err != nil {
+		return fmt.Errorf("get order for delete: %w", err)
+	}
+
+	if err := s.queries.SoftDeleteOrder(ctx, orderID); err != nil {
+		return fmt.Errorf("soft delete order: %w", err)
+	}
+
+	_ = audit.Write(ctx, s.queries, actorID, "order.delete", "order", orderID, viewFromGetRow(order), nil)
+	return nil
 }

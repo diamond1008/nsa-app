@@ -6,7 +6,7 @@ import { DataTable, Pagination, QueryState } from "../../components/data";
 import type { Column } from "../../components/data";
 import { FilterBar, useDebouncedValue } from "../../components/filters";
 import { Icon } from "../../components/icons";
-import { Button, Modal, PageHeader } from "../../components/ui";
+import { Button, Input, Modal, PageHeader } from "../../components/ui";
 import { formatDate } from "../../lib/format";
 import type { Lead } from "../../lib/domainTypes";
 import { saleApi } from "./saleApi";
@@ -232,27 +232,27 @@ export function SaleStudentsPage() {
             : undefined
         }
       >
-        <div className="flex items-center gap-2">
-          <input
+        <div className="w-36 sm:w-40">
+          <Input
+            label="Từ ngày"
             type="date"
             value={fromDate}
             onChange={(e) => {
               setFromDate(e.target.value);
               setPage(1);
             }}
-            className="h-10 rounded-xl border border-slate-200/80 bg-white/80 px-3 text-xs text-slate-700 shadow-2xs focus:border-[#0532e6] focus:outline-none"
-            title="Từ ngày chốt"
           />
-          <span className="text-xs text-slate-400">đến</span>
-          <input
+        </div>
+
+        <div className="w-36 sm:w-40">
+          <Input
+            label="Đến ngày"
             type="date"
             value={toDate}
             onChange={(e) => {
               setToDate(e.target.value);
               setPage(1);
             }}
-            className="h-10 rounded-xl border border-slate-200/80 bg-white/80 px-3 text-xs text-slate-700 shadow-2xs focus:border-[#0532e6] focus:outline-none"
-            title="Đến ngày chốt"
           />
         </div>
       </FilterBar>

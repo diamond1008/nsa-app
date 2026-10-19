@@ -16,7 +16,8 @@ SELECT COUNT(*)
 FROM orders o
 LEFT JOIN leads l ON l.id = o.lead_id
 LEFT JOIN student_profiles sp ON sp.id = o.student_id
-WHERE (
+WHERE o.deleted_at IS NULL
+AND (
   $1::text = ''
   OR o.order_code ILIKE '%' || $1 || '%'
   OR COALESCE(sp.student_code, '') ILIKE '%' || $1 || '%'
@@ -101,7 +102,7 @@ INSERT INTO orders (
   $13,
   $14
 )
-RETURNING id, order_code, lead_id, student_id, course_id, class_id, amount, discount_amount, final_amount, discount_note, status, payment_method, paid_at, notes, created_by, created_at, updated_at
+RETURNING id, order_code, lead_id, student_id, course_id, class_id, amount, discount_amount, final_amount, discount_note, status, payment_method, paid_at, notes, created_by, created_at, updated_at, deleted_at
 `
 
 type CreateOrderParams struct {
@@ -158,13 +159,14 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getOrder = `-- name: GetOrder :one
 SELECT
-  o.id, o.order_code, o.lead_id, o.student_id, o.course_id, o.class_id, o.amount, o.discount_amount, o.final_amount, o.discount_note, o.status, o.payment_method, o.paid_at, o.notes, o.created_by, o.created_at, o.updated_at,
+  o.id, o.order_code, o.lead_id, o.student_id, o.course_id, o.class_id, o.amount, o.discount_amount, o.final_amount, o.discount_note, o.status, o.payment_method, o.paid_at, o.notes, o.created_by, o.created_at, o.updated_at, o.deleted_at,
   l.full_name AS lead_name,
   sp.student_code,
   sp.full_name AS student_name,
@@ -179,7 +181,7 @@ LEFT JOIN student_profiles sp ON sp.id = o.student_id
 LEFT JOIN courses c ON c.id = o.course_id
 LEFT JOIN classes cl ON cl.id = o.class_id
 LEFT JOIN users u ON u.id = o.created_by
-WHERE o.id = $1
+WHERE o.id = $1 AND o.deleted_at IS NULL
 `
 
 type GetOrderRow struct {
@@ -200,6 +202,7 @@ type GetOrderRow struct {
 	CreatedBy      pgtype.UUID        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 	LeadName       pgtype.Text        `json:"lead_name"`
 	StudentCode    pgtype.Text        `json:"student_code"`
 	StudentName    pgtype.Text        `json:"student_name"`
@@ -231,6 +234,7 @@ func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, er
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 		&i.LeadName,
 		&i.StudentCode,
 		&i.StudentName,
@@ -250,6 +254,7 @@ SELECT
   COUNT(*) FILTER (WHERE status = 'paid')::bigint AS paid_orders,
   COALESCE(SUM(final_amount) FILTER (WHERE status = 'paid'), 0)::numeric AS total_revenue
 FROM orders
+WHERE deleted_at IS NULL
 GROUP BY DATE_TRUNC('month', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
 ORDER BY month DESC
 LIMIT 12
@@ -294,6 +299,7 @@ SELECT
   COALESCE(SUM(o.final_amount) FILTER (WHERE o.status = 'paid'), 0)::numeric AS revenue
 FROM orders o
 JOIN leads l ON l.id = o.lead_id
+WHERE o.deleted_at IS NULL AND l.deleted_at IS NULL
 GROUP BY l.source
 ORDER BY revenue DESC
 `
@@ -339,6 +345,7 @@ SELECT
       AND DATE_TRUNC('month', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE_TRUNC('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
   )::bigint AS month_paid_orders
 FROM orders
+WHERE deleted_at IS NULL
 `
 
 type GetRevenueSummaryRow struct {
@@ -387,7 +394,8 @@ LEFT JOIN student_profiles sp ON sp.id = o.student_id
 LEFT JOIN courses c ON c.id = o.course_id
 LEFT JOIN classes cl ON cl.id = o.class_id
 LEFT JOIN users u ON u.id = o.created_by
-WHERE (
+WHERE o.deleted_at IS NULL
+AND (
   $1::text = ''
   OR o.order_code ILIKE '%' || $1 || '%'
   OR COALESCE(sp.student_code, '') ILIKE '%' || $1 || '%'
@@ -497,7 +505,7 @@ func (q *Queries) ListAllOrdersForExport(ctx context.Context, arg ListAllOrdersF
 
 const listOrders = `-- name: ListOrders :many
 SELECT
-  o.id, o.order_code, o.lead_id, o.student_id, o.course_id, o.class_id, o.amount, o.discount_amount, o.final_amount, o.discount_note, o.status, o.payment_method, o.paid_at, o.notes, o.created_by, o.created_at, o.updated_at,
+  o.id, o.order_code, o.lead_id, o.student_id, o.course_id, o.class_id, o.amount, o.discount_amount, o.final_amount, o.discount_note, o.status, o.payment_method, o.paid_at, o.notes, o.created_by, o.created_at, o.updated_at, o.deleted_at,
   l.full_name AS lead_name,
   sp.student_code,
   sp.full_name AS student_name,
@@ -512,7 +520,8 @@ LEFT JOIN student_profiles sp ON sp.id = o.student_id
 LEFT JOIN courses c ON c.id = o.course_id
 LEFT JOIN classes cl ON cl.id = o.class_id
 LEFT JOIN users u ON u.id = o.created_by
-WHERE (
+WHERE o.deleted_at IS NULL
+AND (
   $1::text = ''
   OR o.order_code ILIKE '%' || $1 || '%'
   OR COALESCE(sp.student_code, '') ILIKE '%' || $1 || '%'
@@ -574,6 +583,7 @@ type ListOrdersRow struct {
 	CreatedBy      pgtype.UUID        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 	LeadName       pgtype.Text        `json:"lead_name"`
 	StudentCode    pgtype.Text        `json:"student_code"`
 	StudentName    pgtype.Text        `json:"student_name"`
@@ -620,6 +630,7 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletedAt,
 			&i.LeadName,
 			&i.StudentCode,
 			&i.StudentName,
@@ -639,23 +650,44 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 	return items, nil
 }
 
+const softDeleteOrder = `-- name: SoftDeleteOrder :exec
+UPDATE orders
+SET deleted_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) SoftDeleteOrder(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, softDeleteOrder, id)
+	return err
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :one
 UPDATE orders
 SET
   status = $2,
-  paid_at = $3
+  paid_at = $3,
+  payment_method = COALESCE($4, payment_method),
+  notes = COALESCE($5, notes)
 WHERE id = $1
-RETURNING id, order_code, lead_id, student_id, course_id, class_id, amount, discount_amount, final_amount, discount_note, status, payment_method, paid_at, notes, created_by, created_at, updated_at
+RETURNING id, order_code, lead_id, student_id, course_id, class_id, amount, discount_amount, final_amount, discount_note, status, payment_method, paid_at, notes, created_by, created_at, updated_at, deleted_at
 `
 
 type UpdateOrderStatusParams struct {
-	ID     pgtype.UUID        `json:"id"`
-	Status OrderStatus        `json:"status"`
-	PaidAt pgtype.Timestamptz `json:"paid_at"`
+	ID            pgtype.UUID        `json:"id"`
+	Status        OrderStatus        `json:"status"`
+	PaidAt        pgtype.Timestamptz `json:"paid_at"`
+	PaymentMethod pgtype.Text        `json:"payment_method"`
+	Notes         pgtype.Text        `json:"notes"`
 }
 
 func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error) {
-	row := q.db.QueryRow(ctx, updateOrderStatus, arg.ID, arg.Status, arg.PaidAt)
+	row := q.db.QueryRow(ctx, updateOrderStatus,
+		arg.ID,
+		arg.Status,
+		arg.PaidAt,
+		arg.PaymentMethod,
+		arg.Notes,
+	)
 	var i Order
 	err := row.Scan(
 		&i.ID,
@@ -675,6 +707,7 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

@@ -36,7 +36,9 @@ type orderCreateRequest struct {
 }
 
 type orderStatusRequest struct {
-	Status string `json:"status"`
+	Status        string  `json:"status"`
+	PaymentMethod *string `json:"payment_method"`
+	Notes         *string `json:"notes"`
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +131,9 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view, err := h.service.UpdateStatus(r.Context(), actorID, orderID, UpdateStatusInput{
-		Status: body.Status,
+		Status:        body.Status,
+		PaymentMethod: body.PaymentMethod,
+		Notes:         body.Notes,
 	})
 	if err != nil {
 		h.handleError(w, r, err)

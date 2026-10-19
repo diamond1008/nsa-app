@@ -46,7 +46,7 @@ LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
 LEFT JOIN users u_assigner ON u_assigner.id = l.assigned_by
 LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
 LEFT JOIN users u_creator ON u_creator.id = l.created_by
-WHERE l.id = $1;
+WHERE l.id = $1 AND l.deleted_at IS NULL;
 
 -- name: ListLeads :many
 SELECT
@@ -60,7 +60,8 @@ FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
 LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   sqlc.arg(search)::text = ''
   OR l.full_name ILIKE '%' || sqlc.arg(search) || '%'
   OR COALESCE(l.phone, '') ILIKE '%' || sqlc.arg(search) || '%'
@@ -98,7 +99,8 @@ LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 -- name: CountLeads :one
 SELECT COUNT(*)
 FROM leads l
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   sqlc.arg(search)::text = ''
   OR l.full_name ILIKE '%' || sqlc.arg(search) || '%'
   OR COALESCE(l.phone, '') ILIKE '%' || sqlc.arg(search) || '%'
@@ -231,7 +233,8 @@ SELECT
   u.email AS assigned_to_email
 FROM leads l
 LEFT JOIN users u ON u.id = l.assigned_to
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   (sqlc.narg(phone)::text IS NOT NULL AND sqlc.narg(phone)::text <> '' AND l.phone = sqlc.narg(phone)::text)
   OR
   (sqlc.narg(email)::citext IS NOT NULL AND sqlc.narg(email)::citext <> '' AND l.email = sqlc.narg(email)::citext)
@@ -266,7 +269,8 @@ FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
 LEFT JOIN student_profiles sp ON sp.id = l.converted_student_id
-WHERE (
+WHERE l.deleted_at IS NULL
+AND (
   sqlc.arg(search)::text = ''
   OR l.full_name ILIKE '%' || sqlc.arg(search) || '%'
   OR COALESCE(l.phone, '') ILIKE '%' || sqlc.arg(search) || '%'
@@ -293,3 +297,9 @@ AND (
   OR l.created_at <= sqlc.narg(created_to)::timestamptz
 )
 ORDER BY l.created_at DESC;
+
+-- name: SoftDeleteLead :exec
+UPDATE leads
+SET deleted_at = NOW()
+WHERE id = $1;
+

@@ -168,6 +168,24 @@ export function LeadProfilePage() {
     },
   });
 
+  const quickChotMutation = useMutation({
+    mutationFn: () =>
+      saleApi.updateLeadStatus(id!, "da_dang_ky", "Chốt học viên thành công"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sale", "lead", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["sale", "lead", id, "pipeline-history"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
+      setSuccessMsg("Đã chốt học viên thành công! Bạn có thể tạo phiếu đăng ký cho học viên này.");
+      setTimeout(() => setSuccessMsg(""), 5000);
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(mutationMessage(err));
+    },
+  });
+
   const assignMutation = useMutation({
     mutationFn: () => saleApi.assignLead(id!, assignedSaleId),
     onSuccess: () => {
@@ -382,25 +400,48 @@ export function LeadProfilePage() {
               </Button>
             )}
 
-            {!isConverted ? (
-              <Link to={`/sale/leads/${lead.id}/convert`}>
-                <Button variant="accent">
-                  <Icon name="user-check" className="h-4 w-4" />
-                  Chốt thành Học viên
+            {/* Chốt học viên / Tạo phiếu đăng ký */}
+            {lead.pipeline_status !== "da_dang_ky" &&
+            lead.pipeline_status !== "dang_hoc" &&
+            !isConverted ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                  onClick={() => quickChotMutation.mutate()}
+                  loading={quickChotMutation.isPending}
+                >
+                  <Icon name="check" className="h-4 w-4 mr-1" />
+                  Chốt học viên
                 </Button>
-              </Link>
+                <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-slate-700 bg-white border border-slate-200/90 hover:border-emerald-600 hover:bg-emerald-50/50 shadow-2xs"
+                  >
+                    <Icon name="shopping-bag" className="h-4 w-4 mr-1 text-emerald-600" />
+                    Tạo phiếu đăng ký
+                  </Button>
+                </Link>
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
-                  <Button variant="ghost" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 shadow-2xs">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                  >
                     <Icon name="shopping-bag" className="h-4 w-4 mr-1" />
-                    Phiếu đăng ký
+                    Tạo phiếu đăng ký
                   </Button>
                 </Link>
                 {lead.converted_student_id && (
                   <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
-                    <Button variant="primary">
-                      <Icon name="academic" className="h-4 w-4" />
+                    <Button type="button" variant="ghost" className="bg-white text-slate-700 border border-slate-200 hover:border-[#0532e6] shadow-2xs">
+                      <Icon name="academic" className="h-4 w-4 mr-1 text-[#0532e6]" />
                       Hồ sơ Học viên →
                     </Button>
                   </Link>

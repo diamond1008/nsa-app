@@ -439,7 +439,7 @@ func mountSaleRoutes(
 
 		r.Route("/dashboard", func(r chi.Router) {
 			r.Get("/my-stats", leadHandler.MyStats)
-			r.With(auth.RequireRole(auth.RoleSaleAdmin, auth.RoleAdmin)).Get("/overview", leadHandler.Overview)
+			r.With(auth.RequireRole(auth.RoleSale, auth.RoleSaleAdmin, auth.RoleAdmin)).Get("/overview", leadHandler.Overview)
 			r.With(auth.RequireRole(auth.RoleSaleAdmin, auth.RoleAdmin)).Get("/revenue", orderHandler.Revenue)
 		})
 

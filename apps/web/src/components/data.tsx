@@ -82,17 +82,39 @@ export function DataTable<T extends { id: string }>({
   columns,
   sort,
   onSort,
+  rowClassName,
+  onRowClick,
+  stickyHeader = false,
+  stickyHeaderOffset = 0,
 }: {
   items: T[];
   columns: Column<T>[];
   sort?: { key: string; order: "asc" | "desc" };
   onSort?: (key: string, order: "asc" | "desc") => void;
+  rowClassName?: (item: T, rowIndex: number) => string | undefined;
+  onRowClick?: (item: T, rowIndex: number) => void;
+  stickyHeader?: boolean;
+  stickyHeaderOffset?: number;
 }) {
   return (
-    <Card className="overflow-hidden p-0">
+    <Card className={clsx(stickyHeader ? "overflow-visible" : "overflow-hidden", "p-0")}>
       <div className="divide-y divide-white/70 md:hidden">
         {items.map((item, rowIndex) => (
-          <div key={item.id} className="space-y-3 p-4">
+          <div
+            key={item.id}
+            onClick={(e) => {
+              if (!onRowClick) return;
+              if ((e.target as HTMLElement).closest("button, a, input, select, textarea, label")) {
+                return;
+              }
+              onRowClick(item, rowIndex);
+            }}
+            className={clsx(
+              "space-y-3 p-4 transition-colors",
+              onRowClick && "cursor-pointer",
+              rowClassName?.(item, rowIndex),
+            )}
+          >
             {columns.map((column) => (
               <div
                 key={column.header || "action"}
@@ -114,11 +136,18 @@ export function DataTable<T extends { id: string }>({
           </div>
         ))}
       </div>
-      <div className="hidden overflow-x-auto md:block">
+      <div className={clsx("hidden md:block", stickyHeader ? "overflow-visible" : "overflow-x-auto")}>
         <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
-          <thead className="sticky top-0 z-10 bg-white/75 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-md">
+          <thead
+            className={clsx(
+              stickyHeader
+                ? "sticky z-10"
+                : "sticky top-0 z-10 bg-white/75 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-md",
+            )}
+            style={stickyHeader ? { top: `${stickyHeaderOffset}px` } : undefined}
+          >
             <tr>
-              {columns.map((column) => (
+              {columns.map((column, colIdx) => (
                 <th
                   key={column.header}
                   aria-sort={
@@ -128,8 +157,20 @@ export function DataTable<T extends { id: string }>({
                         : "descending"
                       : undefined
                   }
+                  style={
+                    stickyHeader
+                      ? {
+                          position: "sticky",
+                          top: `${stickyHeaderOffset}px`,
+                          zIndex: 15,
+                        }
+                      : undefined
+                  }
                   className={clsx(
-                    "border-b border-white/70 px-5 py-3.5 font-bold",
+                    "border-b border-white/70 px-5 py-3.5 font-bold text-[11px] uppercase tracking-[0.08em] text-gtext",
+                    stickyHeader && "bg-white/95 backdrop-blur-xl shadow-xs",
+                    colIdx === 0 && "rounded-tl-2xl",
+                    colIdx === columns.length - 1 && "rounded-tr-2xl",
                     column.className,
                   )}
                 >
@@ -159,7 +200,21 @@ export function DataTable<T extends { id: string }>({
           </thead>
           <tbody className="bg-white/40">
             {items.map((item, rowIndex) => (
-              <tr key={item.id} className="group transition-colors hover:bg-white/70">
+              <tr
+                key={item.id}
+                onClick={(e) => {
+                  if (!onRowClick) return;
+                  if ((e.target as HTMLElement).closest("button, a, input, select, textarea, label")) {
+                    return;
+                  }
+                  onRowClick(item, rowIndex);
+                }}
+                className={clsx(
+                  "group transition-colors hover:bg-white/70",
+                  onRowClick && "cursor-pointer",
+                  rowClassName?.(item, rowIndex),
+                )}
+              >
                 {columns.map((column) => (
                   <td
                     key={column.header}
@@ -226,7 +281,8 @@ const statTone: Record<string, string> = {
   gold: "text-[#0532e6]",
   green: "text-success",
   blue: "text-[#0532e6]",
-  neutral: "text-navy/70",
+  neutral: "text-slate-400",
+  muted: "text-slate-400",
   brand: "text-[#0532e6]",
   warning: "text-warning",
   success: "text-success",

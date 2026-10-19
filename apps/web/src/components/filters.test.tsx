@@ -76,4 +76,39 @@ describe("operations filters", () => {
       "true",
     );
   });
+
+  it("renders total count badge next to advanced filter in compact mode", () => {
+    render(
+      <FilterBar
+        compact
+        search=""
+        onSearch={() => undefined}
+        resultCount={42}
+        resultCountLabel="lead"
+        advancedFilters={<div>Lọc thêm</div>}
+      />,
+    );
+
+    expect(screen.getByText("Tổng số lead:")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+  });
+
+  it("renders clear icon button to the left of advanced filter in compact mode when onClearAll is present", () => {
+    const onClear = vi.fn();
+    render(
+      <FilterBar
+        compact
+        search="lead moi"
+        onSearch={() => undefined}
+        onClearAll={onClear}
+        advancedFilters={<div>Lọc thêm</div>}
+      />,
+    );
+
+    const clearBtn = screen.getByRole("button", { name: "Xóa tất cả bộ lọc" });
+    expect(clearBtn).toBeInTheDocument();
+    expect(clearBtn).toHaveAttribute("title", "Xóa bộ lọc");
+    fireEvent.click(clearBtn);
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
 });

@@ -94,6 +94,22 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
   });
   const [isSubmittingActivity, setIsSubmittingActivity] = useState(false);
 
+  useEffect(() => {
+    setSuccessMsg("");
+    setErrorMsg("");
+    setInteractionForm({
+      channel: "phone_call",
+      summary: "",
+      outcome: "",
+    });
+    setCreateReminder(false);
+    setTaskForm({
+      title: "",
+      description: "",
+      due_at: "",
+    });
+  }, [leadId]);
+
   // Queries
   const leadQuery = useQuery({
     queryKey: ["sale", "lead", leadId],
@@ -181,6 +197,23 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
       setStatusReason("");
       setSuccessMsg("Chuyển trạng thái thành công!");
       setTimeout(() => setSuccessMsg(""), 4000);
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(mutationMessage(err));
+    },
+  });
+
+  const quickChotMutation = useMutation({
+    mutationFn: () =>
+      saleApi.updateLeadStatus(leadId!, "da_dang_ky", "Chốt học viên thành công"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sale", "lead", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "lead", leadId, "pipeline-history"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
+      onLeadUpdated?.();
+      setSuccessMsg("Đã chốt học viên thành công! Bạn có thể tạo phiếu đăng ký cho học viên này.");
+      setTimeout(() => setSuccessMsg(""), 5000);
     },
     onError: (err: unknown) => {
       setErrorMsg(mutationMessage(err));
@@ -306,6 +339,10 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
       open={Boolean(leadId)}
       onClose={onClose}
       width="max-w-3xl"
+      hasBackdrop={false}
+      closeOnClickOutside={false}
+      disableBodyScroll={false}
+      trapFocus={false}
     >
       <div className="flex h-full flex-col bg-slate-50/50">
         {/* Top Navigation Bar */}
@@ -381,7 +418,7 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                       {lead.phone ? (
                         <a
                           href={`tel:${lead.phone}`}
-                          className="inline-flex items-center gap-1.5 font-mono font-medium text-navy hover:text-[#0532e6]"
+                          className="inline-flex items-center gap-1.5 font-calibri text-sm font-semibold text-navy hover:text-[#0532e6]"
                         >
                           <Icon name="phone" className="h-3.5 w-3.5 text-gtext" />
                           {lead.phone}
@@ -438,34 +475,52 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                         </Button>
                       )}
 
-                      {!isConverted ? (
-                        <Link to={`/sale/leads/${lead.id}/convert`}>
+                      {/* Chốt học viên / Tạo phiếu đăng ký */}
+                      {lead.pipeline_status !== "da_dang_ky" &&
+                      lead.pipeline_status !== "dang_hoc" &&
+                      !isConverted ? (
+                        <>
                           <Button
+                            type="button"
                             variant="primary"
-                            className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 shadow-2xs"
+                            className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                            onClick={() => quickChotMutation.mutate()}
+                            loading={quickChotMutation.isPending}
                           >
-                            <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
-                            Chốt thành Học viên
+                            <Icon name="check" className="h-3.5 w-3.5 mr-1" />
+                            Chốt học viên
                           </Button>
-                        </Link>
+                          <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-8 px-2.5 text-xs text-slate-700 bg-white border border-slate-200/90 hover:border-emerald-600 hover:bg-emerald-50/50 shadow-2xs"
+                            >
+                              <Icon name="shopping-bag" className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                              Tạo phiếu đăng ký
+                            </Button>
+                          </Link>
+                        </>
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
                             <Button
-                              variant="ghost"
-                              className="h-8 px-2.5 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 shadow-2xs"
+                              type="button"
+                              variant="primary"
+                              className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
                             >
                               <Icon name="shopping-bag" className="h-3.5 w-3.5 mr-1" />
-                              Phiếu đăng ký
+                              Tạo phiếu đăng ký
                             </Button>
                           </Link>
                           {lead.converted_student_id && (
                             <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
                               <Button
-                                variant="primary"
-                                className="h-8 px-2.5 text-xs shadow-2xs"
+                                type="button"
+                                variant="ghost"
+                                className="h-8 px-2.5 text-xs bg-white text-slate-700 border border-slate-200 hover:border-[#0532e6] hover:bg-blue-50/50 shadow-2xs"
                               >
-                                <Icon name="academic" className="h-3.5 w-3.5 mr-1" />
+                                <Icon name="academic" className="h-3.5 w-3.5 mr-1 text-[#0532e6]" />
                                 Hồ sơ Học viên 360°
                               </Button>
                             </Link>

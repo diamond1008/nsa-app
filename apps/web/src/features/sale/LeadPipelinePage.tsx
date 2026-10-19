@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
 
 import { DataTable, Pagination, QueryState } from "../../components/data";
@@ -17,9 +16,9 @@ import {
   Textarea,
 } from "../../components/ui";
 import { useAuth } from "../auth/AuthContext";
-import type { Course, Lead, LeadPipelineStatus, SaleStaff } from "../../lib/domainTypes";
+import type { Course, Lead, SaleStaff } from "../../lib/domainTypes";
 import { formatDate, mutationMessage } from "../../lib/format";
-import { LeadKanbanBoard } from "./LeadKanbanBoard";
+import { LeadChartsView } from "./LeadChartsView";
 import { LeadDetailDrawer } from "./LeadDetailDrawer";
 import { saleApi } from "./saleApi";
 import type { CreateLeadInput, DuplicateCheckResponse, LeadImportResult } from "./saleApi";
@@ -50,12 +49,47 @@ export function LeadPipelinePage() {
   const [page, setPage] = useState(1);
   const perPage = 20;
 
-  // View Mode: Table vs Kanban
-  const [viewMode, setViewMode] = useState<"table" | "kanban">(() => {
-    return (localStorage.getItem("nsa_lead_view_mode") as "table" | "kanban") || "table";
+  // Sorting: default to newest leads first
+  const [sort, setSort] = useState<{ key: string; order: "asc" | "desc" }>({
+    key: "created_at",
+    order: "desc",
   });
 
-  const handleSetViewMode = (mode: "table" | "kanban") => {
+  // Measure sticky FilterBar height dynamically so table headers dock right below it
+  const filterBarRef = useRef<HTMLElement>(null);
+  const [filterBarHeight, setFilterBarHeight] = useState(58);
+
+  useEffect(() => {
+    const el = filterBarRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.height > 0) {
+        setFilterBarHeight(Math.round(rect.height));
+      }
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      updateHeight();
+    });
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // View Mode: Table vs Charts
+  const [viewMode, setViewMode] = useState<"table" | "charts">(() => {
+    const saved = localStorage.getItem("nsa_lead_view_mode");
+    if (saved === "table" || saved === "charts") return saved;
+    return "table";
+  });
+
+  const handleSetViewMode = (mode: "table" | "charts") => {
     setViewMode(mode);
     localStorage.setItem("nsa_lead_view_mode", mode);
   };
@@ -185,15 +219,6 @@ export function LeadPipelinePage() {
     },
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ leadId, newStatus }: { leadId: string; newStatus: LeadPipelineStatus }) =>
-      saleApi.updateLeadStatus(leadId, newStatus),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
-      queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
-    },
-  });
-
   // Queries
   const leadsQuery = useQuery({
     queryKey: [
@@ -201,27 +226,29 @@ export function LeadPipelinePage() {
       "leads",
       {
         page,
-        per_page: viewMode === "kanban" ? 100 : perPage,
+        per_page: viewMode === "charts" ? 100 : perPage,
         search: debouncedSearch,
         pipeline_status: statusFilter,
         source: sourceFilter,
         assigned_to: assignedFilter,
         created_from: fromDate,
         created_to: toDate,
+        sort_by: sort.key,
+        sort_order: sort.order,
       },
     ],
     queryFn: () =>
       saleApi.listLeads({
         page,
-        per_page: viewMode === "kanban" ? 100 : perPage,
+        per_page: viewMode === "charts" ? 100 : perPage,
         search: debouncedSearch || undefined,
         pipeline_status: statusFilter || undefined,
         source: sourceFilter || undefined,
         assigned_to: assignedFilter || undefined,
         created_from: fromDate ? `${fromDate}T00:00:00Z` : undefined,
         created_to: toDate ? `${toDate}T23:59:59Z` : undefined,
-        sort_by: "created_at",
-        sort_order: "desc",
+        sort_by: sort.key,
+        sort_order: sort.order,
       }),
   });
 
@@ -280,42 +307,61 @@ export function LeadPipelinePage() {
   const columns: Column<Lead>[] = [
     {
       header: "STT",
-      className: "w-12 text-center",
-      cell: (_, index) => (page - 1) * perPage + index + 1,
+      className: "w-12 text-center font-medium text-gtext",
+      cell: (_, index) => (
+        <span className="font-calibri text-[13px] font-medium text-gtext">
+          {(page - 1) * perPage + index + 1}
+        </span>
+      ),
     },
     {
-      header: "Họ và tên",
+      header: "Ngày tạo",
+      className: "min-w-[105px] whitespace-nowrap",
+      sortKey: "created_at",
+      cell: (lead) => (
+        <span className="font-calibri text-[13px] text-gtext">
+          {formatDate(lead.created_at)}
+        </span>
+      ),
+    },
+    {
+      header: "Tên",
       className: "min-w-[160px]",
+      sortKey: "full_name",
       cell: (lead) => (
         <div>
           <button
             type="button"
             onClick={() => setSelectedLeadId(lead.id)}
-            className="font-semibold text-navy hover:text-[#0532e6] hover:underline text-left cursor-pointer transition-colors"
+            className={clsx(
+              "font-semibold text-left cursor-pointer transition-colors hover:underline",
+              selectedLeadId === lead.id
+                ? "text-[#0532e6] font-bold"
+                : "text-navy hover:text-[#0532e6]",
+            )}
           >
             {lead.full_name}
           </button>
-          {lead.email && <div className="text-xs text-gtext">{lead.email}</div>}
+          {lead.email && (
+            <div className="text-xs text-gtext truncate max-w-[180px]">{lead.email}</div>
+          )}
         </div>
       ),
     },
     {
-      header: "Số điện thoại",
-      className: "min-w-[120px]",
-      cell: (lead) => <span className="font-mono text-sm text-navy">{lead.phone || "—"}</span>,
-    },
-    {
-      header: "Nguồn",
+      header: "SĐT",
       className: "min-w-[110px]",
       cell: (lead) => (
-        <span className="text-xs font-medium text-navy/80">{getSourceLabel(lead.source)}</span>
+        <span className="font-calibri text-[13.5px] font-medium text-navy tracking-wide">
+          {lead.phone || "—"}
+        </span>
       ),
     },
     {
-      header: "Khóa quan tâm",
-      className: "min-w-[150px]",
+      header: "Nguồn",
+      className: "min-w-[105px]",
       cell: (lead) => (
-        <span className="text-xs text-navy">{lead.interested_course_name || "—"}</span>
+        <span className="text-xs font-medium text-navy/80">{getSourceLabel(lead.source)}</span>
       ),
     },
     {
@@ -325,42 +371,26 @@ export function LeadPipelinePage() {
     },
     {
       header: "Phụ trách",
-      className: "min-w-[140px]",
+      className: "min-w-[130px]",
       cell: (lead) => (
-        <span className="text-xs text-navy/80 truncate block max-w-[160px]">
-          {lead.assigned_to_email || "Chưa gán"}
+        <span
+          className="text-xs text-navy/80 truncate block max-w-[150px]"
+          title={lead.assigned_to_email || "Chưa phân bổ"}
+        >
+          {lead.assigned_to_email || "Chưa phân bổ"}
         </span>
       ),
     },
     {
-      header: "Ngày tạo",
-      className: "min-w-[100px]",
-      cell: (lead) => <span className="text-xs text-gtext">{formatDate(lead.created_at)}</span>,
-    },
-    {
-      header: "Thao tác",
-      className: "w-28 text-right",
+      header: "Note",
+      className: "min-w-[160px] max-w-[260px]",
       cell: (lead) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            variant="soft"
-            className="h-8 px-2.5 text-xs"
-            onClick={() => setSelectedLeadId(lead.id)}
-          >
-            Chi tiết
-          </Button>
-          {!lead.converted_student_id && (
-            <Link to={`/sale/leads/${lead.id}/convert`}>
-              <Button
-                variant="accent"
-                className="h-8 px-2.5 text-xs"
-                title="Chuyển đổi thành Học viên"
-              >
-                Chốt
-              </Button>
-            </Link>
-          )}
-        </div>
+        <span
+          className="text-xs text-gtext line-clamp-2 block"
+          title={lead.notes || "—"}
+        >
+          {lead.notes || "—"}
+        </span>
       ),
     },
   ];
@@ -396,13 +426,13 @@ export function LeadPipelinePage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleSetViewMode("kanban")}
+                onClick={() => handleSetViewMode("charts")}
                 className={clsx(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                  viewMode === "kanban" ? "bg-white text-navy shadow-xs" : "text-slate-600 hover:text-navy",
+                  viewMode === "charts" ? "bg-white text-navy shadow-xs" : "text-slate-600 hover:text-navy",
                 )}
               >
-                <span>📊</span> Kanban
+                <span>📊</span> Biểu đồ lead
               </button>
             </div>
             <Button
@@ -445,13 +475,24 @@ export function LeadPipelinePage() {
 
       {/* Filter Bar */}
       <FilterBar
+        ref={filterBarRef}
+        sticky
+        compact
         search={search}
         onSearch={(val) => {
           setSearch(val);
           setPage(1);
         }}
         searchPlaceholder="Tìm theo họ tên, SĐT, email..."
+        advancedFilterCount={
+          (statusFilter ? 1 : 0) +
+          (sourceFilter ? 1 : 0) +
+          (assignedFilter ? 1 : 0) +
+          (fromDate ? 1 : 0) +
+          (toDate ? 1 : 0)
+        }
         resultCount={leadsQuery.data?.meta.total}
+        resultCountLabel="lead"
         onClearAll={
           hasFilterActive
             ? () => {
@@ -559,17 +600,36 @@ export function LeadPipelinePage() {
       >
         {viewMode === "table" ? (
           <>
-            <DataTable items={leadsQuery.data?.items ?? []} columns={columns} />
+            <DataTable
+              items={leadsQuery.data?.items ?? []}
+              columns={columns}
+              sort={sort}
+              onSort={(key, order) => setSort({ key, order })}
+              rowClassName={(lead) =>
+                selectedLeadId === lead.id
+                  ? "bg-blue-50/70 border-l-4 border-l-[#0532e6] font-medium"
+                  : ""
+              }
+              onRowClick={(lead) => setSelectedLeadId(lead.id)}
+              stickyHeader
+              stickyHeaderOffset={filterBarHeight}
+            />
             <Pagination page={page} totalPages={totalPages} onPage={setPage} />
           </>
         ) : (
-          <LeadKanbanBoard
+          <LeadChartsView
             leads={leadsQuery.data?.items ?? []}
-            onStatusChange={(leadId, newStatus) =>
-              updateStatusMutation.mutate({ leadId, newStatus })
-            }
-            isUpdating={updateStatusMutation.isPending}
-            onSelectLead={setSelectedLeadId}
+            isFiltered={hasFilterActive}
+            onSelectStatus={(status) => {
+              setStatusFilter(status);
+              setPage(1);
+              handleSetViewMode("table");
+            }}
+            onSelectSource={(source) => {
+              setSourceFilter(source);
+              setPage(1);
+              handleSetViewMode("table");
+            }}
           />
         )}
       </QueryState>

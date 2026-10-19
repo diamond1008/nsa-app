@@ -65,7 +65,9 @@ type ListFilter struct {
 type ListResult = pagination.Result[View]
 
 type UpdateStatusInput struct {
-	Status string `json:"status"`
+	Status        string  `json:"status"`
+	PaymentMethod *string `json:"payment_method,omitempty"`
+	Notes         *string `json:"notes,omitempty"`
 }
 
 type MonthlyRevenue struct {

@@ -54,6 +54,13 @@ body {
   color: #001258;
 }
 
+/* Numeric & table font requested by user - Calibri / Carlito with tabular alignment */
+.font-calibri,
+.font-number {
+  font-family: Calibri, Carlito, "Segoe UI", Candara, sans-serif !important;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 /* Remove all stepper arrow buttons from scrollbars in WebKit/Chromium */
 ::-webkit-scrollbar-button,
 *::-webkit-scrollbar-button,
