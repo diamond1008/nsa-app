@@ -100,7 +100,9 @@ export function formatOrderNotesWithInstallments(
       inst.status === "paid"
         ? `Đã thu (${inst.receipt_code || "PT"}, ${formatVND(inst.amount)})`
         : `Chưa thu (${formatVND(inst.amount)})`;
-    lines.push(`• Đợt ${inst.round} (${inst.percentage}%): ${formatVND(inst.amount)} - ${statusText}`);
+    lines.push(
+      `• Đợt ${inst.round} (${inst.percentage}%): ${formatVND(inst.amount)} - ${statusText}`,
+    );
   });
 
   if (userNotes.trim()) {

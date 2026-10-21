@@ -8,10 +8,7 @@ import { saleKeys } from "../../lib/queryKeys";
 import { saleApi } from "./saleApi";
 import type { CreateOrderInput } from "./saleApi";
 import { formatVND } from "./saleShared";
-import {
-  calculateInstallments,
-  formatOrderNotesWithInstallments,
-} from "./installmentUtils";
+import { calculateInstallments, formatOrderNotesWithInstallments } from "./installmentUtils";
 import {
   ClassSelectorDropdown,
   InstallmentPlanPicker,
@@ -94,7 +91,9 @@ export function CreateRegistrationOrderModal({
     }
 
     if (!selectedLead.converted_student_id) {
-      setFormError("Học viên này chưa được chốt (chưa có mã học viên). Vui lòng chốt học viên trước khi lập phiếu đăng ký.");
+      setFormError(
+        "Học viên này chưa được chốt (chưa có mã học viên). Vui lòng chốt học viên trước khi lập phiếu đăng ký.",
+      );
       return;
     }
 
@@ -167,7 +166,8 @@ export function CreateRegistrationOrderModal({
             <div className="text-xs text-slate-400 py-2">Đang tải danh sách học viên...</div>
           ) : selectableLeads.length === 0 ? (
             <div className="p-3 text-xs text-amber-800 bg-amber-50 rounded-xl border border-amber-200">
-              Hiện tại chưa có học viên nào đang chờ lập phiếu đăng ký. Tất cả học viên đã chốt trước đó đều đã có phiếu đăng ký trong hệ thống.
+              Hiện tại chưa có học viên nào đang chờ lập phiếu đăng ký. Tất cả học viên đã chốt
+              trước đó đều đã có phiếu đăng ký trong hệ thống.
             </div>
           ) : (
             <StudentSelectorDropdown
@@ -292,7 +292,8 @@ export function CreateRegistrationOrderModal({
               ))}
             </div>
             <p className="pt-1 text-[11px] text-slate-500 italic">
-              * Khi tạo xong phiếu đăng ký, chuyên viên Sale sẽ chủ động vào trang <b>Phiếu thu</b> để lập phiếu thu cho từng đợt theo thực tế.
+              * Khi tạo xong phiếu đăng ký, chuyên viên Sale sẽ chủ động vào trang <b>Phiếu thu</b>{" "}
+              để lập phiếu thu cho từng đợt theo thực tế.
             </p>
           </div>
         </div>

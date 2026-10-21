@@ -263,9 +263,7 @@ export function SaleRegistrationOrdersPage() {
               </Button>
             )}
 
-            {!hasAnyPaid && !isAdmin && (
-              <span className="text-slate-300 text-xs px-2">—</span>
-            )}
+            {!hasAnyPaid && !isAdmin && <span className="text-slate-300 text-xs px-2">—</span>}
           </div>
         );
       },
@@ -275,13 +273,13 @@ export function SaleRegistrationOrdersPage() {
   const items = useMemo(() => {
     const all = ordersQuery.data?.items ?? [];
     if (isAdmin) return all;
-    return all.filter(
-      (ord) => ord.created_by === user?.id || ord.created_by_email === user?.email,
-    );
+    return all.filter((ord) => ord.created_by === user?.id || ord.created_by_email === user?.email);
   }, [ordersQuery.data?.items, isAdmin, user]);
 
-  const total = isAdmin ? ordersQuery.data?.meta.total ?? 0 : items.length;
-  const totalPages = isAdmin ? ordersQuery.data?.meta.total_pages ?? 1 : Math.ceil(items.length / perPage) || 1;
+  const total = isAdmin ? (ordersQuery.data?.meta.total ?? 0) : items.length;
+  const totalPages = isAdmin
+    ? (ordersQuery.data?.meta.total_pages ?? 1)
+    : Math.ceil(items.length / perPage) || 1;
   const hasFilterActive =
     Boolean(search) || Boolean(statusFilter) || Boolean(fromDate) || Boolean(toDate);
 

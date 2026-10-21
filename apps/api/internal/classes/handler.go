@@ -148,7 +148,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		CourseID: r.URL.Query().Get("course_id"), TeacherID: r.URL.Query().Get("teacher_id"),
 		Capacity: capacity, FromDate: r.URL.Query().Get("from_date"), ToDate: r.URL.Query().Get("to_date"),
 		SaleUserID: saleUserID,
-		SortBy: sortBy, SortOrder: sortOrder, Page: page, PerPage: perPage,
+		SortBy:     sortBy, SortOrder: sortOrder, Page: page, PerPage: perPage,
 	})
 	if err != nil {
 		h.writeError(w, r, err)
@@ -211,7 +211,7 @@ func (h *Handler) ListSaleClasses(w http.ResponseWriter, r *http.Request) {
 		CourseID: r.URL.Query().Get("course_id"), TeacherID: r.URL.Query().Get("teacher_id"),
 		Capacity: capacity, FromDate: r.URL.Query().Get("from_date"), ToDate: r.URL.Query().Get("to_date"),
 		UpcomingOnly: upcomingOnly,
-		SortBy: sortBy, SortOrder: sortOrder, Page: page, PerPage: perPage,
+		SortBy:       sortBy, SortOrder: sortOrder, Page: page, PerPage: perPage,
 	})
 	if err != nil {
 		h.writeError(w, r, err)

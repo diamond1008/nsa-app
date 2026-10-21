@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
@@ -2678,22 +2678,25 @@ function ClassForm({
   }, [courses, form.course_id]);
 
   // Compute next batch number given course code and shift
-  const calculateNextBatch = (courseCode: string, targetShift: "2D" | "3D") => {
-    if (!courseCode) return 1;
-    const escaped = courseCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`^${escaped}-${targetShift}(\\d+)`, "i");
-    let max = 0;
-    for (const c of existingClassesQuery.data?.items ?? []) {
-      const match = c.class_code.match(regex);
-      if (match && match[1]) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && num > max) {
-          max = num;
+  const calculateNextBatch = useCallback(
+    (courseCode: string, targetShift: "2D" | "3D") => {
+      if (!courseCode) return 1;
+      const escaped = courseCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`^${escaped}-${targetShift}(\\d+)`, "i");
+      let max = 0;
+      for (const c of existingClassesQuery.data?.items ?? []) {
+        const match = c.class_code.match(regex);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > max) {
+            max = num;
+          }
         }
       }
-    }
-    return max + 1;
-  };
+      return max + 1;
+    },
+    [existingClassesQuery.data?.items],
+  );
 
   // Sync auto-generated code and name whenever course, shift, or existing classes change
   useEffect(() => {
@@ -2706,7 +2709,7 @@ function ClassForm({
       class_code: code,
       name: code,
     }));
-  }, [currentCourse, shift, existingClassesQuery.data, initial]);
+  }, [currentCourse, shift, initial, calculateNextBatch]);
 
   const handleCourseChange = (courseId: string) => {
     const course = courses.find((c) => c.id === courseId);
@@ -2747,7 +2750,11 @@ function ClassForm({
       let nextStart = form.start_date;
       let nextEnd = form.end_date;
       if (form.start_date) {
-        const dates = computeClassDates(form.start_date, newShift, currentCourse.total_sessions || 10);
+        const dates = computeClassDates(
+          form.start_date,
+          newShift,
+          currentCourse.total_sessions || 10,
+        );
         nextStart = dates.startDate;
         nextEnd = dates.endDate;
       }
@@ -2764,11 +2771,7 @@ function ClassForm({
 
   const handleStartDateChange = (newStartDate: string) => {
     if (!initial && currentCourse && newStartDate) {
-      const dates = computeClassDates(
-        newStartDate,
-        shift,
-        currentCourse.total_sessions || 10,
-      );
+      const dates = computeClassDates(newStartDate, shift, currentCourse.total_sessions || 10);
       setForm((prev) => ({
         ...prev,
         start_date: dates.startDate,
@@ -2890,9 +2893,7 @@ function ClassForm({
             Mã định danh lớp học (Cố định)
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-mono text-sm font-bold text-slate-800">
-              {form.class_code}
-            </span>
+            <span className="font-mono text-sm font-bold text-slate-800">{form.class_code}</span>
             <span className="text-xs text-slate-500">{form.name}</span>
           </div>
         </div>
@@ -2927,13 +2928,17 @@ function ClassForm({
             type="date"
             value={form.end_date}
             readOnly={!initial}
-            className={clsx(!initial && "bg-slate-50 cursor-not-allowed text-slate-800 font-semibold")}
+            className={clsx(
+              !initial && "bg-slate-50 cursor-not-allowed text-slate-800 font-semibold",
+            )}
             onChange={(e) => update("end_date", e.target.value)}
           />
           {form.end_date ? (
             <div className="text-[11px] text-emerald-700 mt-1 flex items-center gap-1 font-semibold">
               <Icon name="check" className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              Tự chốt {currentCourse?.total_sessions ?? 0} buổi ({shift === "2D" ? "Ca 2/4/6" : "Ca 3/5/7"}): Bế giảng {formatDateFullVi(form.end_date)}
+              Tự chốt {currentCourse?.total_sessions ?? 0} buổi (
+              {shift === "2D" ? "Ca 2/4/6" : "Ca 3/5/7"}): Bế giảng{" "}
+              {formatDateFullVi(form.end_date)}
             </div>
           ) : (
             <div className="text-[11px] text-slate-400 mt-1 italic">
@@ -2992,12 +2997,10 @@ export function ClassDetailPage({ readOnly = false }: { readOnly?: boolean } = {
     auth?.hasRole("SALE") &&
     !auth?.hasRole("SALE_ADMIN") &&
     !auth?.hasRole("ADMIN") &&
-    !auth?.hasRole("ACADEMIC_ADMIN")
+    !auth?.hasRole("ACADEMIC_ADMIN"),
   );
   const isSaleAdmin = Boolean(
-    auth?.hasRole("SALE_ADMIN") &&
-    !auth?.hasRole("ADMIN") &&
-    !auth?.hasRole("ACADEMIC_ADMIN")
+    auth?.hasRole("SALE_ADMIN") && !auth?.hasRole("ADMIN") && !auth?.hasRole("ACADEMIC_ADMIN"),
   );
   const effectiveReadOnly = readOnly || isSaleOnly || isSaleAdmin;
 
@@ -3129,9 +3132,7 @@ export function ClassDetailPage({ readOnly = false }: { readOnly?: boolean } = {
               {effectiveReadOnly ? "Danh sách học viên" : "Ghi danh học viên"}
             </h2>
             {isSaleOnly && (
-              <p className="text-xs text-gtext">
-                Hiển thị học viên do bạn phụ trách trong lớp này
-              </p>
+              <p className="text-xs text-gtext">Hiển thị học viên do bạn phụ trách trong lớp này</p>
             )}
           </div>
           {!effectiveReadOnly && (
@@ -3165,7 +3166,9 @@ export function ClassDetailPage({ readOnly = false }: { readOnly?: boolean } = {
             loading={enrollments.isLoading}
             error={enrollments.error}
             empty={!enrollments.data?.length}
-            emptyTitle={isSaleOnly ? "Chưa có học viên bạn phụ trách trong lớp này" : "Lớp chưa có học viên"}
+            emptyTitle={
+              isSaleOnly ? "Chưa có học viên bạn phụ trách trong lớp này" : "Lớp chưa có học viên"
+            }
           >
             <div className="space-y-2">
               {enrollments.data?.map((e) => (
@@ -3283,7 +3286,9 @@ export function ClassDetailPage({ readOnly = false }: { readOnly?: boolean } = {
               {history.data?.map((item) => (
                 <div key={item.id} className="grid gap-2 py-4 sm:grid-cols-[180px_1fr_auto]">
                   <div>
-                    <p className="font-semibold text-navy">{operationEventLabel(item.event_type)}</p>
+                    <p className="font-semibold text-navy">
+                      {operationEventLabel(item.event_type)}
+                    </p>
                     <p className="text-xs text-gtext">{formatDateTime(item.occurred_at)}</p>
                   </div>
                   <div className="text-sm text-gtext">

@@ -99,9 +99,7 @@ export function PersonProfilePage({
   const isStudent = kind === "student";
   const isReadOnly = Boolean(
     readOnly ||
-      (auth?.user &&
-        !auth.hasRole("ADMIN", "ACADEMIC_ADMIN") &&
-        auth.hasRole("SALE", "SALE_ADMIN")),
+    (auth?.user && !auth.hasRole("ADMIN", "ACADEMIC_ADMIN") && auth.hasRole("SALE", "SALE_ADMIN")),
   );
   const [tab, setTab] = useState<ProfileTab>("overview");
   const [weekStart, setWeekStart] = useState(currentWeekStart());
@@ -305,7 +303,12 @@ export function PersonProfilePage({
           </div>
 
           {tab === "overview" ? (
-            <OverviewTab kind={kind} summary={summary} currentClasses={currentClasses} readOnly={isReadOnly} />
+            <OverviewTab
+              kind={kind}
+              summary={summary}
+              currentClasses={currentClasses}
+              readOnly={isReadOnly}
+            />
           ) : null}
           {tab === "classes" ? (
             <ClassHistoryTab
@@ -323,7 +326,12 @@ export function PersonProfilePage({
                 onWeekStartChange={setWeekStart}
                 onEventClick={(event) => {
                   const session = scheduleQuery.data?.items.find((item) => item.id === event.id);
-                  if (session) navigate(isReadOnly ? `/sale/lop-hoc/${session.class_id}` : `/admin/lop-hoc/${session.class_id}`);
+                  if (session)
+                    navigate(
+                      isReadOnly
+                        ? `/sale/lop-hoc/${session.class_id}`
+                        : `/admin/lop-hoc/${session.class_id}`,
+                    );
                 }}
                 view={calendarView}
                 onViewChange={setCalendarView}
@@ -335,7 +343,9 @@ export function PersonProfilePage({
             <AttendanceBreakdownTab studentId={personId} readOnly={isReadOnly} />
           ) : null}
           {tab === "academic" && isStudent ? <AcademicSummaryTab studentId={personId} /> : null}
-          {tab === "workload" && !isStudent ? <WorkloadSummaryTab teacherId={personId} readOnly={isReadOnly} /> : null}
+          {tab === "workload" && !isStudent ? (
+            <WorkloadSummaryTab teacherId={personId} readOnly={isReadOnly} />
+          ) : null}
           {tab === "audit" && !isReadOnly ? <AuditLogsTab kind={kind} personId={personId} /> : null}
 
           {statusModalOpen && !isReadOnly && (
@@ -409,7 +419,9 @@ function OverviewTab({
         </div>
         <div className="mt-4 space-y-3">
           {currentClasses.length ? (
-            currentClasses.map((item) => <ClassSummaryCard key={item.class_id} item={item} readOnly={readOnly} />)
+            currentClasses.map((item) => (
+              <ClassSummaryCard key={item.class_id} item={item} readOnly={readOnly} />
+            ))
           ) : (
             <EmptyState
               title="Chưa có lớp hiện tại"
@@ -490,7 +502,11 @@ function ClassHistoryTab({
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
+                      to={
+                        readOnly
+                          ? `/sale/lop-hoc/${item.class_id}`
+                          : `/admin/lop-hoc/${item.class_id}`
+                      }
                       className="text-base font-bold text-navy-dark hover:text-[#0532e6]"
                     >
                       {item.class_code} · {item.class_name}
@@ -617,7 +633,13 @@ function AccountStatusModal({
   );
 }
 
-function AttendanceBreakdownTab({ studentId, readOnly }: { studentId: string; readOnly?: boolean }) {
+function AttendanceBreakdownTab({
+  studentId,
+  readOnly,
+}: {
+  studentId: string;
+  readOnly?: boolean;
+}) {
   const [selectedClass, setSelectedClass] = useState<{ id: string; name: string } | null>(null);
 
   const query = useQuery({
@@ -639,7 +661,11 @@ function AttendanceBreakdownTab({ studentId, readOnly }: { studentId: string; re
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <Link
-                    to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
+                    to={
+                      readOnly
+                        ? `/sale/lop-hoc/${item.class_id}`
+                        : `/admin/lop-hoc/${item.class_id}`
+                    }
                     className="font-bold text-navy-dark hover:text-[#0532e6]"
                   >
                     {item.class_code} · {item.class_name}
@@ -959,7 +985,9 @@ function WorkloadSummaryTab({ teacherId, readOnly }: { teacherId: string; readOn
             <div className="flex items-start justify-between gap-2">
               <div>
                 <Link
-                  to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
+                  to={
+                    readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`
+                  }
                   className="font-bold text-navy-dark hover:text-[#0532e6]"
                 >
                   {item.class_code} · {item.class_name}

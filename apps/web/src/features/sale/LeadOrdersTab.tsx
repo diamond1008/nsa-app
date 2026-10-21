@@ -16,11 +16,7 @@ export interface LeadOrdersTabProps {
   onCreateOrder?: () => void;
 }
 
-function renderOrderStatusBadge(
-  order: Order,
-  paidCount: number,
-  total: number,
-) {
+function renderOrderStatusBadge(order: Order, paidCount: number, total: number) {
   if (order.status === "cancelled") {
     return (
       <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
@@ -181,7 +177,9 @@ export function LeadOrdersTab({ leadId, studentId, onCreateOrder }: LeadOrdersTa
                   <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-200/80 text-xs space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
                       <span>Kế hoạch đóng {total} đợt:</span>
-                      <span className="text-[#0532e6]">Đã thu {paidCount}/{total} đợt</span>
+                      <span className="text-[#0532e6]">
+                        Đã thu {paidCount}/{total} đợt
+                      </span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-1">
                       {meta.installments.map((inst) => (
@@ -191,11 +189,13 @@ export function LeadOrdersTab({ leadId, studentId, onCreateOrder }: LeadOrdersTa
                             "p-2 rounded-lg border text-xs",
                             inst.status === "paid"
                               ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
-                              : "bg-white border-slate-200 text-slate-700"
+                              : "bg-white border-slate-200 text-slate-700",
                           )}
                         >
                           <div className="flex items-center justify-between font-semibold">
-                            <span>Đợt {inst.round} ({inst.percentage}%)</span>
+                            <span>
+                              Đợt {inst.round} ({inst.percentage}%)
+                            </span>
                             <span
                               className={
                                 inst.status === "paid"

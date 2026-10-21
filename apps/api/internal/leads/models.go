@@ -22,40 +22,40 @@ var (
 
 // View represents the full JSON view of a Lead.
 type View struct {
-	ID                   string  `json:"id"`
-	FullName             string  `json:"full_name"`
-	Phone                *string `json:"phone"`
-	Email                *string `json:"email"`
-	DateOfBirth          *string `json:"date_of_birth"`
-	Gender               *string `json:"gender"`
-	Address              *string `json:"address"`
-	Source               string  `json:"source"`
-	SourceDetail         *string `json:"source_detail"`
-	UTMSource            *string `json:"utm_source"`
-	UTMMedium            *string `json:"utm_medium"`
-	UTMCampaign          *string `json:"utm_campaign"`
-	UTMContent           *string `json:"utm_content"`
-	UTMTerm              *string `json:"utm_term"`
-	InterestedCourseID   *string `json:"interested_course_id"`
-	InterestedCourseCode *string `json:"interested_course_code"`
-	InterestedCourseName *string `json:"interested_course_name"`
-	Notes                *string `json:"notes"`
-	PipelineStatus       string  `json:"pipeline_status"`
-	AssignedTo           *string `json:"assigned_to"`
-	AssignedToEmail      *string `json:"assigned_to_email"`
-	AssignedAt           *string `json:"assigned_at"`
-	AssignedBy           *string `json:"assigned_by"`
-	AssignedByEmail      *string `json:"assigned_by_email"`
+	ID                     string  `json:"id"`
+	FullName               string  `json:"full_name"`
+	Phone                  *string `json:"phone"`
+	Email                  *string `json:"email"`
+	DateOfBirth            *string `json:"date_of_birth"`
+	Gender                 *string `json:"gender"`
+	Address                *string `json:"address"`
+	Source                 string  `json:"source"`
+	SourceDetail           *string `json:"source_detail"`
+	UTMSource              *string `json:"utm_source"`
+	UTMMedium              *string `json:"utm_medium"`
+	UTMCampaign            *string `json:"utm_campaign"`
+	UTMContent             *string `json:"utm_content"`
+	UTMTerm                *string `json:"utm_term"`
+	InterestedCourseID     *string `json:"interested_course_id"`
+	InterestedCourseCode   *string `json:"interested_course_code"`
+	InterestedCourseName   *string `json:"interested_course_name"`
+	Notes                  *string `json:"notes"`
+	PipelineStatus         string  `json:"pipeline_status"`
+	AssignedTo             *string `json:"assigned_to"`
+	AssignedToEmail        *string `json:"assigned_to_email"`
+	AssignedAt             *string `json:"assigned_at"`
+	AssignedBy             *string `json:"assigned_by"`
+	AssignedByEmail        *string `json:"assigned_by_email"`
 	ConvertedStudentID     *string `json:"converted_student_id"`
 	ConvertedStudentCode   *string `json:"converted_student_code"`
 	ConvertedStudentName   *string `json:"converted_student_name"`
 	ConvertedStudentStatus *string `json:"converted_student_status,omitempty"`
 	ConvertedAt            *string `json:"converted_at"`
-	ConvertedBy          *string `json:"converted_by"`
-	CreatedBy            string  `json:"created_by"`
-	CreatedByEmail       *string `json:"created_by_email"`
-	CreatedAt            string  `json:"created_at"`
-	UpdatedAt            string  `json:"updated_at"`
+	ConvertedBy            *string `json:"converted_by"`
+	CreatedBy              string  `json:"created_by"`
+	CreatedByEmail         *string `json:"created_by_email"`
+	CreatedAt              string  `json:"created_at"`
+	UpdatedAt              string  `json:"updated_at"`
 }
 
 // WriteInput holds data for creating or updating a Lead.
@@ -80,14 +80,14 @@ type WriteInput struct {
 
 // ListFilter provides query parameters for listing leads.
 type ListFilter struct {
-	Search         string
-	PipelineStatus string
-	Source         string
-	AssignedTo     string
-	CreatedFrom    string
-	CreatedTo      string
-	SortBy         string
-	SortOrder      string
+	Search           string
+	PipelineStatus   string
+	Source           string
+	AssignedTo       string
+	CreatedFrom      string
+	CreatedTo        string
+	SortBy           string
+	SortOrder        string
 	Page             int
 	PerPage          int
 	UnregisteredOnly bool

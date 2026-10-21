@@ -87,7 +87,7 @@ export function ReceiptPrintModal({ order, onClose, receiptInfo }: ReceiptPrintM
     ? `${order.course_name} (${order.class_code})`
     : order.course_name || "Khóa học đào tạo";
   const amountWords = numberToVietnameseWords(actualAmount);
-  
+
   const paymentMethodKey = receiptInfo?.paymentMethod || order.payment_method;
   const paymentMethodLabel =
     paymentMethodKey === "transfer"
@@ -204,7 +204,8 @@ export function ReceiptPrintModal({ order, onClose, receiptInfo }: ReceiptPrintM
             <div className="flex items-baseline">
               <span className="w-36 shrink-0 font-medium text-slate-600">Nội dung thu:</span>
               <span className="font-semibold text-slate-800">
-                Thu học phí ghi danh khóa học: {courseClassName}{stageText}
+                Thu học phí ghi danh khóa học: {courseClassName}
+                {stageText}
               </span>
             </div>
 

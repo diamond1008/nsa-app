@@ -569,8 +569,10 @@ export function LeadProfilePage() {
                 <div>
                   <span className="font-bold text-amber-950">Hồ sơ đã là Học viên chính thức</span>
                   <p className="mt-0.5 text-amber-800 leading-relaxed">
-                    Các thông tin định danh (Họ tên, SĐT, Email, Ngày sinh, Khóa học) đã được khóa để bảo vệ tài khoản đăng nhập và tính toàn vẹn dữ liệu đào tạo.
-                    Vui lòng liên hệ <strong>Phòng Đào tạo</strong> nếu cần điều chỉnh. Bạn chỉ có thể cập nhật ghi chú chăm sóc bên dưới.
+                    Các thông tin định danh (Họ tên, SĐT, Email, Ngày sinh, Khóa học) đã được khóa
+                    để bảo vệ tài khoản đăng nhập và tính toàn vẹn dữ liệu đào tạo. Vui lòng liên hệ{" "}
+                    <strong>Phòng Đào tạo</strong> nếu cần điều chỉnh. Bạn chỉ có thể cập nhật ghi
+                    chú chăm sóc bên dưới.
                   </p>
                 </div>
               </div>
@@ -584,7 +586,9 @@ export function LeadProfilePage() {
                     full_name: lead.full_name,
                     phone: lead.phone || undefined,
                     email: lead.email || undefined,
-                    date_of_birth: lead.date_of_birth ? lead.date_of_birth.substring(0, 10) : undefined,
+                    date_of_birth: lead.date_of_birth
+                      ? lead.date_of_birth.substring(0, 10)
+                      : undefined,
                     gender: lead.gender || undefined,
                     address: lead.address || undefined,
                     source: lead.source,

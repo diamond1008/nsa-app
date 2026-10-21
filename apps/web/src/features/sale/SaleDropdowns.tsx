@@ -775,10 +775,13 @@ export function OrderSelectorDropdown({
                 )}
               </div>
               <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                <span>Tổng: <b className="text-slate-800">{formatVND(selectedOrder.final_amount)}</b></span>
+                <span>
+                  Tổng: <b className="text-slate-800">{formatVND(selectedOrder.final_amount)}</b>
+                </span>
                 {selectedMeta && selectedMeta.total_installments > 1 && (
                   <span className="text-[#0532e6] font-medium">
-                    · Tiến độ: {selectedMeta.installments.filter((i) => i.status === "paid").length}/{selectedMeta.total_installments} đợt
+                    · Tiến độ: {selectedMeta.installments.filter((i) => i.status === "paid").length}
+                    /{selectedMeta.total_installments} đợt
                   </span>
                 )}
               </div>

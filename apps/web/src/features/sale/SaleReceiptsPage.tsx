@@ -136,24 +136,18 @@ export function SaleReceiptsPage() {
           orderCode: order.order_code,
           studentName: order.student_name || order.lead_name || "—",
           studentCode: order.student_code || undefined,
-          courseClassName: order.class_code
-            ? `Lớp: ${order.class_code}`
-            : order.course_name || "—",
+          courseClassName: order.class_code ? `Lớp: ${order.class_code}` : order.course_name || "—",
           amount: inst.amount,
           totalOrderAmount: order.final_amount,
           discountAmount: order.discount_amount,
           round: inst.round,
           totalRounds: meta.total_installments,
           percentage: inst.percentage,
-          paymentMethod:
-            inst.payment_method || order.payment_method || undefined,
+          paymentMethod: inst.payment_method || order.payment_method || undefined,
           status: "paid",
           paidAt: inst.paid_at || order.paid_at || order.created_at,
           createdAt: order.created_at,
-          collectorName:
-            inst.collected_by_name ||
-            order.created_by_email?.split("@")[0] ||
-            "Sale",
+          collectorName: inst.collected_by_name || order.created_by_email?.split("@")[0] || "Sale",
           isCreator,
         });
       });

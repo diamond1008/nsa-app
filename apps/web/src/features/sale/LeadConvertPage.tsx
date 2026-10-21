@@ -104,9 +104,7 @@ export function LeadConvertPage() {
       setFullName(lead.full_name || "");
       setEmail(lead.email || "");
       setPhone(lead.phone || "");
-      if (!password) {
-        setPassword(generateStudentPassword());
-      }
+      setPassword((prev) => prev || generateStudentPassword());
     }
   }, [lead]);
 
@@ -413,8 +411,9 @@ export function LeadConvertPage() {
                       Rà soát thông tin định danh & Cấp mật khẩu đăng nhập
                     </h4>
                     <p className="text-xs text-amber-800 mt-0.5">
-                      Email này sẽ trở thành Tên đăng nhập hệ thống của học viên. Sau khi chuyển đổi,
-                      thông tin định danh sẽ được khóa để đảm bảo an toàn tài khoản và dữ liệu đào tạo.
+                      Email này sẽ trở thành Tên đăng nhập hệ thống của học viên. Sau khi chuyển
+                      đổi, thông tin định danh sẽ được khóa để đảm bảo an toàn tài khoản và dữ liệu
+                      đào tạo.
                     </p>
                   </div>
                 </div>
@@ -507,7 +506,9 @@ export function LeadConvertPage() {
                       <option key={c.id} value={c.id}>
                         {isMatched ? "★ [Đúng khóa quan tâm] " : ""}
                         {c.course_code ? `[${c.course_code}] ` : ""}
-                        {c.name} ({c.class_code}) — {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn {remaining} chỗ ({enrolled}/{max})
+                        {c.name} ({c.class_code}) —{" "}
+                        {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn{" "}
+                        {remaining} chỗ ({enrolled}/{max})
                       </option>
                     );
                   })}

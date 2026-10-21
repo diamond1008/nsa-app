@@ -113,14 +113,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	page, perPage, _ := request.Page(r)
 	filter := ListFilter{
-		Search:         r.URL.Query().Get("search"),
-		PipelineStatus: r.URL.Query().Get("pipeline_status"),
-		Source:         r.URL.Query().Get("source"),
-		AssignedTo:     r.URL.Query().Get("assigned_to"),
-		CreatedFrom:    r.URL.Query().Get("created_from"),
-		CreatedTo:      r.URL.Query().Get("created_to"),
-		SortBy:         r.URL.Query().Get("sort_by"),
-		SortOrder:      r.URL.Query().Get("sort_order"),
+		Search:           r.URL.Query().Get("search"),
+		PipelineStatus:   r.URL.Query().Get("pipeline_status"),
+		Source:           r.URL.Query().Get("source"),
+		AssignedTo:       r.URL.Query().Get("assigned_to"),
+		CreatedFrom:      r.URL.Query().Get("created_from"),
+		CreatedTo:        r.URL.Query().Get("created_to"),
+		SortBy:           r.URL.Query().Get("sort_by"),
+		SortOrder:        r.URL.Query().Get("sort_order"),
 		Page:             page,
 		PerPage:          perPage,
 		UnregisteredOnly: r.URL.Query().Get("unregistered_only") == "true",

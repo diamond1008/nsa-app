@@ -644,7 +644,9 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                   <div className="rounded-2xl border border-white/80 bg-white/85 p-5 shadow-card backdrop-blur-md">
                     <div className="mb-4 flex items-center justify-between">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                        {isStudentLocked ? "Thông tin hồ sơ học viên" : "Chỉnh sửa thông tin liên hệ"}
+                        {isStudentLocked
+                          ? "Thông tin hồ sơ học viên"
+                          : "Chỉnh sửa thông tin liên hệ"}
                       </h3>
                       {isStudentLocked && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
@@ -658,10 +660,14 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                       <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/90 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
                         <Icon name="lock" className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-bold text-amber-950">Hồ sơ đã là Học viên chính thức</span>
+                          <span className="font-bold text-amber-950">
+                            Hồ sơ đã là Học viên chính thức
+                          </span>
                           <p className="mt-0.5 text-amber-800 leading-relaxed">
-                            Các thông tin định danh (Họ tên, SĐT, Email, Ngày sinh, Khóa học) đã được khóa để bảo vệ tài khoản đăng nhập và tính toàn vẹn dữ liệu đào tạo.
-                            Vui lòng liên hệ <strong>Phòng Đào tạo</strong> nếu cần điều chỉnh. Bạn chỉ có thể cập nhật ghi chú chăm sóc bên dưới.
+                            Các thông tin định danh (Họ tên, SĐT, Email, Ngày sinh, Khóa học) đã
+                            được khóa để bảo vệ tài khoản đăng nhập và tính toàn vẹn dữ liệu đào
+                            tạo. Vui lòng liên hệ <strong>Phòng Đào tạo</strong> nếu cần điều chỉnh.
+                            Bạn chỉ có thể cập nhật ghi chú chăm sóc bên dưới.
                           </p>
                         </div>
                       </div>
@@ -675,7 +681,9 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                             full_name: lead.full_name,
                             phone: lead.phone || undefined,
                             email: lead.email || undefined,
-                            date_of_birth: lead.date_of_birth ? lead.date_of_birth.substring(0, 10) : undefined,
+                            date_of_birth: lead.date_of_birth
+                              ? lead.date_of_birth.substring(0, 10)
+                              : undefined,
                             gender: lead.gender || undefined,
                             address: lead.address || undefined,
                             source: lead.source,

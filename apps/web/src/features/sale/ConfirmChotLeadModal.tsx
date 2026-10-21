@@ -46,12 +46,8 @@ export function ConfirmChotLeadModal({
   }, [open, lead]);
 
   const convertMutation = useMutation({
-    mutationFn: (data: {
-      password?: string;
-      email?: string;
-      full_name?: string;
-      phone?: string;
-    }) => saleApi.convertLead(lead!.id, data),
+    mutationFn: (data: { password?: string; email?: string; full_name?: string; phone?: string }) =>
+      saleApi.convertLead(lead!.id, data),
     onSuccess: (result) => {
       setSuccessResult(result);
     },
@@ -186,8 +182,9 @@ export function ConfirmChotLeadModal({
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 flex items-start gap-2">
             <Icon name="info" className="h-4 w-4 text-[#0532e6] shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Bước tiếp theo:</strong> Để ghi danh vào lớp học, thu học phí hoặc áp dụng ưu đãi, bạn có thể vào mục{" "}
-              <strong className="text-navy">Phiếu đăng ký</strong> (/sale/phieu-dang-ky) để tạo phiếu đăng ký cho học viên này bất kỳ lúc nào.
+              <strong>Bước tiếp theo:</strong> Để ghi danh vào lớp học, thu học phí hoặc áp dụng ưu
+              đãi, bạn có thể vào mục <strong className="text-navy">Phiếu đăng ký</strong>{" "}
+              (/sale/phieu-dang-ky) để tạo phiếu đăng ký cho học viên này bất kỳ lúc nào.
             </p>
           </div>
 
@@ -318,7 +315,8 @@ export function ConfirmChotLeadModal({
             </div>
 
             <span className="text-[11px] text-slate-500 mt-1 block">
-              * Mật khẩu khởi tạo sẽ cấp cho học viên; học viên có thể tự đổi mật khẩu sau khi đăng nhập.
+              * Mật khẩu khởi tạo sẽ cấp cho học viên; học viên có thể tự đổi mật khẩu sau khi đăng
+              nhập.
             </span>
           </div>
         </div>

@@ -48,19 +48,19 @@ var (
 )
 
 type ListFilter struct {
-	Search    string
-	Status    string
-	CourseID  string
-	TeacherID string
-	Capacity  string
-	FromDate   string
-	ToDate     string
+	Search       string
+	Status       string
+	CourseID     string
+	TeacherID    string
+	Capacity     string
+	FromDate     string
+	ToDate       string
 	SaleUserID   string
 	UpcomingOnly bool
 	SortBy       string
-	SortOrder  string
-	Page       int
-	PerPage    int
+	SortOrder    string
+	Page         int
+	PerPage      int
 }
 
 type View struct {
@@ -269,8 +269,8 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (pagination.Resul
 		Search: strings.TrimSpace(filter.Search), Status: filter.Status, CourseID: courseID,
 		TeacherID: teacherID, Capacity: filter.Capacity, FromDate: fromDate, ToDate: toDate,
 		UpcomingOnly: pgtype.Bool{Bool: filter.UpcomingOnly, Valid: filter.UpcomingOnly},
-		SaleUserID: saleUserID,
-		SortBy: filter.SortBy, SortOrder: filter.SortOrder,
+		SaleUserID:   saleUserID,
+		SortBy:       filter.SortBy, SortOrder: filter.SortOrder,
 		PageOffset: int32((filter.Page - 1) * filter.PerPage), PageLimit: int32(filter.PerPage),
 	}
 	rows, err := s.queries.ListAdminClasses(ctx, params)
@@ -281,7 +281,7 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (pagination.Resul
 		Search: params.Search, Status: params.Status, CourseID: courseID, TeacherID: teacherID,
 		Capacity: params.Capacity, FromDate: fromDate, ToDate: toDate,
 		UpcomingOnly: pgtype.Bool{Bool: filter.UpcomingOnly, Valid: filter.UpcomingOnly},
-		SaleUserID: saleUserID,
+		SaleUserID:   saleUserID,
 	})
 	if err != nil {
 		return pagination.Result[View]{}, fmt.Errorf("count classes: %w", err)
