@@ -137,10 +137,80 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
+	var saleUserID string
+	if claims, ok := auth.ClaimsFrom(r.Context()); ok {
+		if claims.HasAnyRole(auth.RoleSale) && !claims.HasAnyRole(auth.RoleAdmin, auth.RoleAcademicAdmin, auth.RoleSaleAdmin) {
+			saleUserID = claims.UserID
+		}
+	}
 	result, err := h.service.List(r.Context(), ListFilter{
 		Search: r.URL.Query().Get("search"), Status: status,
 		CourseID: r.URL.Query().Get("course_id"), TeacherID: r.URL.Query().Get("teacher_id"),
 		Capacity: capacity, FromDate: r.URL.Query().Get("from_date"), ToDate: r.URL.Query().Get("to_date"),
+		SaleUserID: saleUserID,
+		SortBy: sortBy, SortOrder: sortOrder, Page: page, PerPage: perPage,
+	})
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	response.OK(w, result)
+}
+
+// ListSaleClasses lists classes for sale operations (such as lead conversion and registration orders)
+// without restricting by SaleUserID, ensuring sales staff can enroll students into any available class.
+func (h *Handler) ListSaleClasses(w http.ResponseWriter, r *http.Request) {
+	page, perPage, err := request.Page(r)
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	if status != "" && !validClassStatus(status) {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid class status")
+		return
+	}
+	for _, name := range []string{"course_id", "teacher_id"} {
+		if value := strings.TrimSpace(r.URL.Query().Get(name)); value != "" {
+			if _, err := data.UUID(value); err != nil {
+				response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", name+" must be a valid UUID")
+				return
+			}
+		}
+	}
+	capacity := strings.TrimSpace(r.URL.Query().Get("capacity"))
+	if capacity != "" && capacity != "available" && capacity != "full" {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "capacity must be available or full")
+		return
+	}
+	for _, name := range []string{"from_date", "to_date"} {
+		if value := strings.TrimSpace(r.URL.Query().Get(name)); value != "" {
+			if _, err := time.Parse("2006-01-02", value); err != nil {
+				response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", name+" must use YYYY-MM-DD")
+				return
+			}
+		}
+	}
+	fromDate, toDate := strings.TrimSpace(r.URL.Query().Get("from_date")), strings.TrimSpace(r.URL.Query().Get("to_date"))
+	if fromDate != "" && toDate != "" {
+		from, _ := time.Parse("2006-01-02", fromDate)
+		to, _ := time.Parse("2006-01-02", toDate)
+		if to.Before(from) {
+			response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "to_date must be on or after from_date")
+			return
+		}
+	}
+	sortBy, sortOrder, err := request.Sort(r, "created_at", "created_at", "class_code", "start_date")
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	upcomingOnly := r.URL.Query().Get("include_started") != "true"
+	result, err := h.service.List(r.Context(), ListFilter{
+		Search: r.URL.Query().Get("search"), Status: status,
+		CourseID: r.URL.Query().Get("course_id"), TeacherID: r.URL.Query().Get("teacher_id"),
+		Capacity: capacity, FromDate: r.URL.Query().Get("from_date"), ToDate: r.URL.Query().Get("to_date"),
+		UpcomingOnly: upcomingOnly,
 		SortBy: sortBy, SortOrder: sortOrder, Page: page, PerPage: perPage,
 	})
 	if err != nil {
@@ -200,7 +270,13 @@ func (h *Handler) Enroll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListEnrollments(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.ListEnrollments(r.Context(), chi.URLParam(r, "classID"))
+	var saleUserID string
+	if claims, ok := auth.ClaimsFrom(r.Context()); ok {
+		if claims.HasAnyRole(auth.RoleSale) && !claims.HasAnyRole(auth.RoleAdmin, auth.RoleAcademicAdmin, auth.RoleSaleAdmin) {
+			saleUserID = claims.UserID
+		}
+	}
+	items, err := h.service.ListEnrollments(r.Context(), chi.URLParam(r, "classID"), saleUserID)
 	if err != nil {
 		h.writeError(w, r, err)
 		return

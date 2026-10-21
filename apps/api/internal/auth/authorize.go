@@ -102,3 +102,30 @@ func IsAssignedTeacher(ctx context.Context, q *db.Queries, claims *AccessClaims,
 	}
 	return assigned, nil
 }
+
+// CanAccessClass reports whether the authenticated user is permitted to view the class.
+// Administrators and Sale Admins have full access.
+// Sale staff may only view classes containing students converted from their own leads.
+func CanAccessClass(ctx context.Context, q *db.Queries, claims *AccessClaims, classID pgtype.UUID) (bool, error) {
+	if claims == nil {
+		return false, nil
+	}
+	if claims.HasAnyRole(RoleAdmin, RoleAcademicAdmin, RoleSaleAdmin) {
+		return true, nil
+	}
+	userID, err := parseUUID(claims.UserID)
+	if err != nil {
+		return false, nil
+	}
+	if claims.HasAnyRole(RoleSale) {
+		assigned, err := q.CheckSaleAssignedToClass(ctx, db.CheckSaleAssignedToClassParams{
+			ClassID:    classID,
+			AssignedTo: userID,
+		})
+		if err != nil {
+			return false, fmt.Errorf("check sale class access: %w", err)
+		}
+		return assigned, nil
+	}
+	return false, nil
+}

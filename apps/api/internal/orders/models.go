@@ -7,8 +7,12 @@ import (
 )
 
 var (
-	ErrOrderNotFound = errors.New("order not found")
-	ErrInvalidStatus = errors.New("invalid order status")
+	ErrOrderNotFound        = errors.New("order not found")
+	ErrInvalidStatus        = errors.New("invalid order status")
+	ErrForbiddenOrderAccess = errors.New("forbidden: regular sale can only update their own orders")
+	ErrClassAlreadyStarted  = errors.New("lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới")
+	ErrLeadAlreadyHasOrder  = errors.New("học viên này đã có phiếu đăng ký trong hệ thống, không thể lập thêm phiếu trùng lặp")
+	ErrLeadNotConverted     = errors.New("chỉ học viên đã được chốt (đã cấp mã học viên) mới được phép lập phiếu đăng ký")
 )
 
 type View struct {
@@ -55,6 +59,7 @@ type ListFilter struct {
 	Status      string
 	StudentID   string
 	LeadID      string
+	CreatedBy   string
 	Search      string
 	CreatedFrom string
 	CreatedTo   string

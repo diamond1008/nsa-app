@@ -99,23 +99,40 @@ AND (
 )
 AND ($5::date IS NULL OR c.end_date >= $5::date)
 AND ($6::date IS NULL OR c.start_date <= $6::date)
+AND (
+  $7::boolean IS NULL
+  OR $7::boolean = FALSE
+  OR c.start_date > CURRENT_DATE
+)
+AND (
+  $8::uuid IS NULL
+  OR EXISTS (
+    SELECT 1 FROM class_enrollments ce2
+    JOIN leads l ON l.converted_student_id = ce2.student_id
+    WHERE ce2.class_id = c.id
+      AND (l.assigned_to = $8::uuid OR l.created_by = $8::uuid)
+      AND l.deleted_at IS NULL
+  )
+)
 GROUP BY c.id
 HAVING (
-  $7::text = ''
-  OR ($7::text = 'available' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') < c.maximum_students)
-  OR ($7::text = 'full' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') >= c.maximum_students)
+  $9::text = ''
+  OR ($9::text = 'available' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') < c.maximum_students)
+  OR ($9::text = 'full' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') >= c.maximum_students)
 )
 ) filtered_classes
 `
 
 type CountAdminClassesParams struct {
-	Search    string      `json:"search"`
-	Status    string      `json:"status"`
-	CourseID  pgtype.UUID `json:"course_id"`
-	TeacherID pgtype.UUID `json:"teacher_id"`
-	FromDate  pgtype.Date `json:"from_date"`
-	ToDate    pgtype.Date `json:"to_date"`
-	Capacity  string      `json:"capacity"`
+	Search       string      `json:"search"`
+	Status       string      `json:"status"`
+	CourseID     pgtype.UUID `json:"course_id"`
+	TeacherID    pgtype.UUID `json:"teacher_id"`
+	FromDate     pgtype.Date `json:"from_date"`
+	ToDate       pgtype.Date `json:"to_date"`
+	UpcomingOnly pgtype.Bool `json:"upcoming_only"`
+	SaleUserID   pgtype.UUID `json:"sale_user_id"`
+	Capacity     string      `json:"capacity"`
 }
 
 func (q *Queries) CountAdminClasses(ctx context.Context, arg CountAdminClassesParams) (int64, error) {
@@ -126,6 +143,8 @@ func (q *Queries) CountAdminClasses(ctx context.Context, arg CountAdminClassesPa
 		arg.TeacherID,
 		arg.FromDate,
 		arg.ToDate,
+		arg.UpcomingOnly,
+		arg.SaleUserID,
 		arg.Capacity,
 	)
 	var count int64
@@ -790,35 +809,52 @@ AND (
 )
 AND ($5::date IS NULL OR c.end_date >= $5::date)
 AND ($6::date IS NULL OR c.start_date <= $6::date)
+AND (
+  $7::boolean IS NULL
+  OR $7::boolean = FALSE
+  OR c.start_date > CURRENT_DATE
+)
+AND (
+  $8::uuid IS NULL
+  OR EXISTS (
+    SELECT 1 FROM class_enrollments ce2
+    JOIN leads l ON l.converted_student_id = ce2.student_id
+    WHERE ce2.class_id = c.id
+      AND (l.assigned_to = $8::uuid OR l.created_by = $8::uuid)
+      AND l.deleted_at IS NULL
+  )
+)
 GROUP BY c.id, co.code, co.name
 HAVING (
-  $7::text = ''
-  OR ($7::text = 'available' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') < c.maximum_students)
-  OR ($7::text = 'full' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') >= c.maximum_students)
+  $9::text = ''
+  OR ($9::text = 'available' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') < c.maximum_students)
+  OR ($9::text = 'full' AND COUNT(ce.id) FILTER (WHERE ce.status = 'enrolled') >= c.maximum_students)
 )
 ORDER BY
-  CASE WHEN $8::text = 'class_code' AND $9::text = 'asc' THEN c.class_code END ASC,
-  CASE WHEN $8::text = 'class_code' AND $9::text = 'desc' THEN c.class_code END DESC,
-  CASE WHEN $8::text = 'start_date' AND $9::text = 'asc' THEN c.start_date END ASC,
-  CASE WHEN $8::text = 'start_date' AND $9::text = 'desc' THEN c.start_date END DESC,
-  CASE WHEN $8::text = 'created_at' AND $9::text = 'asc' THEN c.created_at END ASC,
-  CASE WHEN $8::text = 'created_at' AND $9::text = 'desc' THEN c.created_at END DESC,
+  CASE WHEN $10::text = 'class_code' AND $11::text = 'asc' THEN c.class_code END ASC,
+  CASE WHEN $10::text = 'class_code' AND $11::text = 'desc' THEN c.class_code END DESC,
+  CASE WHEN $10::text = 'start_date' AND $11::text = 'asc' THEN c.start_date END ASC,
+  CASE WHEN $10::text = 'start_date' AND $11::text = 'desc' THEN c.start_date END DESC,
+  CASE WHEN $10::text = 'created_at' AND $11::text = 'asc' THEN c.created_at END ASC,
+  CASE WHEN $10::text = 'created_at' AND $11::text = 'desc' THEN c.created_at END DESC,
   c.id
-LIMIT $11 OFFSET $10
+LIMIT $13 OFFSET $12
 `
 
 type ListAdminClassesParams struct {
-	Search     string      `json:"search"`
-	Status     string      `json:"status"`
-	CourseID   pgtype.UUID `json:"course_id"`
-	TeacherID  pgtype.UUID `json:"teacher_id"`
-	FromDate   pgtype.Date `json:"from_date"`
-	ToDate     pgtype.Date `json:"to_date"`
-	Capacity   string      `json:"capacity"`
-	SortBy     string      `json:"sort_by"`
-	SortOrder  string      `json:"sort_order"`
-	PageOffset int32       `json:"page_offset"`
-	PageLimit  int32       `json:"page_limit"`
+	Search       string      `json:"search"`
+	Status       string      `json:"status"`
+	CourseID     pgtype.UUID `json:"course_id"`
+	TeacherID    pgtype.UUID `json:"teacher_id"`
+	FromDate     pgtype.Date `json:"from_date"`
+	ToDate       pgtype.Date `json:"to_date"`
+	UpcomingOnly pgtype.Bool `json:"upcoming_only"`
+	SaleUserID   pgtype.UUID `json:"sale_user_id"`
+	Capacity     string      `json:"capacity"`
+	SortBy       string      `json:"sort_by"`
+	SortOrder    string      `json:"sort_order"`
+	PageOffset   int32       `json:"page_offset"`
+	PageLimit    int32       `json:"page_limit"`
 }
 
 type ListAdminClassesRow struct {
@@ -845,6 +881,8 @@ func (q *Queries) ListAdminClasses(ctx context.Context, arg ListAdminClassesPara
 		arg.TeacherID,
 		arg.FromDate,
 		arg.ToDate,
+		arg.UpcomingOnly,
+		arg.SaleUserID,
 		arg.Capacity,
 		arg.SortBy,
 		arg.SortOrder,
@@ -891,8 +929,22 @@ SELECT
 FROM class_enrollments ce
 JOIN student_profiles sp ON sp.id = ce.student_id
 WHERE ce.class_id = $1
+AND (
+  $2::uuid IS NULL
+  OR EXISTS (
+    SELECT 1 FROM leads l
+    WHERE l.converted_student_id = ce.student_id
+      AND (l.assigned_to = $2::uuid OR l.created_by = $2::uuid)
+      AND l.deleted_at IS NULL
+  )
+)
 ORDER BY ce.enrolled_at DESC, ce.id
 `
+
+type ListClassEnrollmentsParams struct {
+	ClassID    pgtype.UUID `json:"class_id"`
+	SaleUserID pgtype.UUID `json:"sale_user_id"`
+}
 
 type ListClassEnrollmentsRow struct {
 	ID          pgtype.UUID        `json:"id"`
@@ -908,8 +960,8 @@ type ListClassEnrollmentsRow struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) ListClassEnrollments(ctx context.Context, classID pgtype.UUID) ([]ListClassEnrollmentsRow, error) {
-	rows, err := q.db.Query(ctx, listClassEnrollments, classID)
+func (q *Queries) ListClassEnrollments(ctx context.Context, arg ListClassEnrollmentsParams) ([]ListClassEnrollmentsRow, error) {
+	rows, err := q.db.Query(ctx, listClassEnrollments, arg.ClassID, arg.SaleUserID)
 	if err != nil {
 		return nil, err
 	}

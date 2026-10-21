@@ -305,13 +305,14 @@ export function PersonProfilePage({
           </div>
 
           {tab === "overview" ? (
-            <OverviewTab kind={kind} summary={summary} currentClasses={currentClasses} />
+            <OverviewTab kind={kind} summary={summary} currentClasses={currentClasses} readOnly={isReadOnly} />
           ) : null}
           {tab === "classes" ? (
             <ClassHistoryTab
               items={history}
               loading={historyQuery.isLoading}
               error={historyQuery.error}
+              readOnly={isReadOnly}
             />
           ) : null}
           {tab === "schedule" ? (
@@ -321,9 +322,8 @@ export function PersonProfilePage({
                 weekStart={weekStart}
                 onWeekStartChange={setWeekStart}
                 onEventClick={(event) => {
-                  if (isReadOnly) return;
                   const session = scheduleQuery.data?.items.find((item) => item.id === event.id);
-                  if (session) navigate(`/admin/lop-hoc/${session.class_id}`);
+                  if (session) navigate(isReadOnly ? `/sale/lop-hoc/${session.class_id}` : `/admin/lop-hoc/${session.class_id}`);
                 }}
                 view={calendarView}
                 onViewChange={setCalendarView}
@@ -332,10 +332,10 @@ export function PersonProfilePage({
             </QueryState>
           ) : null}
           {tab === "attendance" && isStudent ? (
-            <AttendanceBreakdownTab studentId={personId} />
+            <AttendanceBreakdownTab studentId={personId} readOnly={isReadOnly} />
           ) : null}
           {tab === "academic" && isStudent ? <AcademicSummaryTab studentId={personId} /> : null}
-          {tab === "workload" && !isStudent ? <WorkloadSummaryTab teacherId={personId} /> : null}
+          {tab === "workload" && !isStudent ? <WorkloadSummaryTab teacherId={personId} readOnly={isReadOnly} /> : null}
           {tab === "audit" && !isReadOnly ? <AuditLogsTab kind={kind} personId={personId} /> : null}
 
           {statusModalOpen && !isReadOnly && (
@@ -360,10 +360,12 @@ function OverviewTab({
   kind,
   summary,
   currentClasses,
+  readOnly,
 }: {
   kind: PersonKind;
   summary: ProfileSummary;
   currentClasses: ClassHistory[];
+  readOnly?: boolean;
 }) {
   const profile = summary.profile;
   const isStudent = kind === "student";
@@ -407,7 +409,7 @@ function OverviewTab({
         </div>
         <div className="mt-4 space-y-3">
           {currentClasses.length ? (
-            currentClasses.map((item) => <ClassSummaryCard key={item.class_id} item={item} />)
+            currentClasses.map((item) => <ClassSummaryCard key={item.class_id} item={item} readOnly={readOnly} />)
           ) : (
             <EmptyState
               title="Chưa có lớp hiện tại"
@@ -442,10 +444,10 @@ function genderLabel(value?: string | null) {
   );
 }
 
-function ClassSummaryCard({ item }: { item: ClassHistory }) {
+function ClassSummaryCard({ item, readOnly }: { item: ClassHistory; readOnly?: boolean }) {
   return (
     <Link
-      to={`/admin/lop-hoc/${item.class_id}`}
+      to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
       className="block rounded-xl border border-gborder p-4 transition hover:border-[#0532e6]/50 hover:bg-[#0532e6]/5"
     >
       <div className="flex items-start justify-between gap-3">
@@ -463,10 +465,12 @@ function ClassHistoryTab({
   items,
   loading,
   error,
+  readOnly,
 }: {
   items: ClassHistory[];
   loading: boolean;
   error: unknown;
+  readOnly?: boolean;
 }) {
   return (
     <QueryState
@@ -486,7 +490,7 @@ function ClassHistoryTab({
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/admin/lop-hoc/${item.class_id}`}
+                      to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
                       className="text-base font-bold text-navy-dark hover:text-[#0532e6]"
                     >
                       {item.class_code} · {item.class_name}
@@ -613,7 +617,7 @@ function AccountStatusModal({
   );
 }
 
-function AttendanceBreakdownTab({ studentId }: { studentId: string }) {
+function AttendanceBreakdownTab({ studentId, readOnly }: { studentId: string; readOnly?: boolean }) {
   const [selectedClass, setSelectedClass] = useState<{ id: string; name: string } | null>(null);
 
   const query = useQuery({
@@ -635,7 +639,7 @@ function AttendanceBreakdownTab({ studentId }: { studentId: string }) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <Link
-                    to={`/admin/lop-hoc/${item.class_id}`}
+                    to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
                     className="font-bold text-navy-dark hover:text-[#0532e6]"
                   >
                     {item.class_code} · {item.class_name}
@@ -719,42 +723,72 @@ function ClassAttendanceDetailModal({
         <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
           {query.data?.map((session) => {
             const status = session.attendance_status;
-            let tone: "green" | "gold" | "navy" | "red" | "gray" = "gray";
+
             let label = "Chưa điểm danh";
+            let cardBg = "border border-gborder bg-gbg2 text-slate-700";
+            let badgeClass = "bg-white/80 text-gtext border-slate-200";
+            let titleClass = "text-navy-dark";
+            let textClass = "text-gtext";
+            let remarksClass = "text-navy-dark";
+
             if (status === "present") {
-              tone = "green";
               label = "Có mặt";
+              cardBg = "border-2 border-blue-400 bg-blue-100/90 shadow-xs";
+              badgeClass = "bg-[#0532e6] text-white border-transparent font-bold shadow-xs";
+              titleClass = "text-blue-950 font-bold";
+              textClass = "text-blue-800 font-medium";
+              remarksClass = "text-blue-950 font-medium";
             } else if (status === "late") {
-              tone = "gold";
               label = "Đến trễ";
+              cardBg = "border-2 border-blue-400 bg-blue-100/90 shadow-xs";
+              badgeClass = "bg-[#1e45ee] text-white border-transparent font-bold shadow-xs";
+              titleClass = "text-blue-950 font-bold";
+              textClass = "text-blue-800 font-medium";
+              remarksClass = "text-blue-950 font-medium";
             } else if (status === "excused") {
-              tone = "navy";
               label = "Vắng có phép";
+              cardBg = "border-2 border-red-400 bg-red-100/90 shadow-xs";
+              badgeClass = "bg-red-600 text-white border-transparent font-bold shadow-xs";
+              titleClass = "text-red-950 font-bold";
+              textClass = "text-red-800 font-medium";
+              remarksClass = "text-red-950 font-medium";
             } else if (status === "absent") {
-              tone = "red";
               label = "Vắng không phép";
+              cardBg = "border-2 border-red-400 bg-red-100/90 shadow-xs";
+              badgeClass = "bg-red-600 text-white border-transparent font-bold shadow-xs";
+              titleClass = "text-red-950 font-bold";
+              textClass = "text-red-800 font-medium";
+              remarksClass = "text-red-950 font-medium";
             }
 
             return (
               <div
                 key={session.session_id}
-                className="rounded-xl border border-gborder bg-gbg2 p-3 text-sm"
+                className={`rounded-xl p-3.5 text-sm transition-all ${cardBg}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-bold text-navy-dark">{session.session_title}</p>
-                    <p className="mt-0.5 text-xs text-gtext">
+                    <p className={`text-base ${titleClass}`}>{session.session_title}</p>
+                    <p className={`mt-0.5 text-xs ${textClass}`}>
                       {formatDateTime(session.starts_at)} ·{" "}
                       {session.location_name || "Chưa xếp phòng"}
                     </p>
                   </div>
-                  <Badge tone={tone}>{label}</Badge>
+                  <span
+                    className={`inline-flex items-center whitespace-nowrap rounded-full border px-3 py-1 text-xs leading-none shadow-2xs ${badgeClass}`}
+                  >
+                    {label}
+                  </span>
                 </div>
                 {session.teacher_name && (
-                  <p className="mt-2 text-xs text-gtext">Giảng viên: {session.teacher_name}</p>
+                  <p className={`mt-2 text-xs ${textClass}`}>
+                    Giảng viên: <span className="font-semibold">{session.teacher_name}</span>
+                  </p>
                 )}
                 {session.remarks && (
-                  <p className="mt-1 text-xs italic text-navy-dark">Ghi chú: {session.remarks}</p>
+                  <p className={`mt-1 text-xs italic ${remarksClass}`}>
+                    Ghi chú: {session.remarks}
+                  </p>
                 )}
               </div>
             );
@@ -906,7 +940,7 @@ function AcademicSummaryTab({ studentId }: { studentId: string }) {
   );
 }
 
-function WorkloadSummaryTab({ teacherId }: { teacherId: string }) {
+function WorkloadSummaryTab({ teacherId, readOnly }: { teacherId: string; readOnly?: boolean }) {
   const query = useQuery({
     queryKey: ["admin", "teacher", teacherId, "workload-summary"],
     queryFn: () => adminApi.teacherWorkloadSummary(teacherId),
@@ -925,7 +959,7 @@ function WorkloadSummaryTab({ teacherId }: { teacherId: string }) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <Link
-                  to={`/admin/lop-hoc/${item.class_id}`}
+                  to={readOnly ? `/sale/lop-hoc/${item.class_id}` : `/admin/lop-hoc/${item.class_id}`}
                   className="font-bold text-navy-dark hover:text-[#0532e6]"
                 >
                   {item.class_code} · {item.class_name}

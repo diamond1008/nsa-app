@@ -27,6 +27,8 @@ export interface LeadListParams {
   sort_order?: "asc" | "desc";
   page?: number;
   per_page?: number;
+  unregistered_only?: boolean;
+  converted_only?: boolean;
 }
 
 export interface CreateLeadInput {
@@ -49,12 +51,16 @@ export interface CreateLeadInput {
 }
 
 export interface ConvertLeadInput {
-  class_id: string;
-  amount: number;
-  discount_amount: number;
+  class_id?: string;
+  amount?: number;
+  discount_amount?: number;
   discount_note?: string;
   payment_method?: string;
   notes?: string;
+  password?: string;
+  email?: string;
+  full_name?: string;
+  phone?: string;
 }
 
 export interface LeadImportResult {

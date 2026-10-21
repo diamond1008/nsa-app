@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -16,8 +16,8 @@ import {
 import { formatDate, mutationMessage } from "../../lib/format";
 import { saleApi } from "./saleApi";
 import type { ConvertLeadInput } from "./saleApi";
-import type { ConvertResult } from "../../lib/domainTypes";
-import { formatVND, getSourceLabel } from "./saleShared";
+import type { ConvertResult, TrainingClass } from "../../lib/domainTypes";
+import { formatVND, generateStudentPassword, getSourceLabel } from "./saleShared";
 
 export function LeadConvertPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +26,15 @@ export function LeadConvertPage() {
 
   const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [preCopied, setPreCopied] = useState(false);
   const [convertResult, setConvertResult] = useState<ConvertResult | null>(null);
+
+  // Identity & Credentials Verification
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [classId, setClassId] = useState("");
   const [amount, setAmount] = useState<number>(15000000);
@@ -65,9 +73,16 @@ export function LeadConvertPage() {
   });
 
   const lead = leadQuery.data;
-  const availableClasses = (classesQuery.data?.items ?? []).filter(
-    (c) => c.status === "planning" || c.status === "open" || c.status === "in_progress",
-  );
+  const availableClasses = useMemo<TrainingClass[]>(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return ((classesQuery.data?.items ?? []) as TrainingClass[]).filter((c) => {
+      // Lớp nào tới ngày khai giảng rồi ko đc chọn ghi danh
+      if (c.start_date && c.start_date <= todayStr) {
+        return false;
+      }
+      return c.status === "planning" || c.status === "open";
+    });
+  }, [classesQuery.data?.items]);
 
   // Auto-select class matching interested course if available
   useEffect(() => {
@@ -84,14 +99,53 @@ export function LeadConvertPage() {
     }
   }, [classId, lead?.interested_course_id, availableClasses]);
 
+  useEffect(() => {
+    if (lead) {
+      setFullName(lead.full_name || "");
+      setEmail(lead.email || "");
+      setPhone(lead.phone || "");
+      if (!password) {
+        setPassword(generateStudentPassword());
+      }
+    }
+  }, [lead]);
+
   const finalAmount = Math.max(0, amount - discountAmount);
+
+  const handleCopyPreInfo = () => {
+    const text = `Thông tin tài khoản Học viện NSA:
+- Họ và tên: ${fullName}
+- Tên đăng nhập (Email): ${email}
+- Mật khẩu: ${password}
+- Link đăng nhập: ${window.location.origin}/login`;
+    navigator.clipboard.writeText(text);
+    setPreCopied(true);
+    setTimeout(() => setPreCopied(false), 3000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
+    if (!fullName.trim()) {
+      setFormError("Vui lòng nhập họ và tên học viên.");
+      return;
+    }
+
+    if (!email.trim() || !email.includes("@") || !email.includes(".")) {
+      setFormError(
+        "Vui lòng nhập địa chỉ Email hợp lệ. Email là tên đăng nhập bắt buộc của học viên.",
+      );
+      return;
+    }
+
     if (!classId) {
       setFormError("Vui lòng chọn lớp học để ghi danh.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setFormError("Vui lòng nhập hoặc bấm tạo mật khẩu khởi tạo cho học viên.");
       return;
     }
 
@@ -102,6 +156,10 @@ export function LeadConvertPage() {
       discount_note: discountNote.trim() || undefined,
       payment_method: paymentMethod || undefined,
       notes: notes.trim() || undefined,
+      password: password.trim(),
+      email: email.trim(),
+      full_name: fullName.trim(),
+      phone: phone.trim() || undefined,
     });
   };
 
@@ -156,7 +214,7 @@ export function LeadConvertPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
+              <Link to={`/sale/hoc-vien/${lead.converted_student_id}`}>
                 <Button variant="primary">Xem hồ sơ Đào tạo →</Button>
               </Link>
               <Link to="/sale/orders">
@@ -266,7 +324,7 @@ export function LeadConvertPage() {
               <Link to="/sale/orders">
                 <Button variant="soft">Xem danh sách đơn hàng</Button>
               </Link>
-              <Link to={`/admin/hoc-vien/${convertResult.student_id}`}>
+              <Link to={`/sale/hoc-vien/${convertResult.student_id}`}>
                 <Button variant="primary">Xem hồ sơ Đào tạo (360°) →</Button>
               </Link>
             </div>
@@ -346,6 +404,89 @@ export function LeadConvertPage() {
         <div className="space-y-4 lg:col-span-8">
           <Card className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Verification & Credentials Block */}
+              <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 space-y-3.5">
+                <div className="flex items-start gap-2.5">
+                  <Icon name="lock" className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                      Rà soát thông tin định danh & Cấp mật khẩu đăng nhập
+                    </h4>
+                    <p className="text-xs text-amber-800 mt-0.5">
+                      Email này sẽ trở thành Tên đăng nhập hệ thống của học viên. Sau khi chuyển đổi,
+                      thông tin định danh sẽ được khóa để đảm bảo an toàn tài khoản và dữ liệu đào tạo.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Input
+                    label="Họ và tên học viên *"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                  <Input
+                    label="Email đăng nhập (Tài khoản) *"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <Input
+                    label="Số điện thoại"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+
+                {/* Password generator row */}
+                <div className="pt-2 border-t border-amber-200/80">
+                  <label className="mb-1 block text-xs font-semibold text-amber-950">
+                    Mật khẩu khởi tạo cho học viên *
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative w-64">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-mono text-xs text-navy focus:border-[#0532e6] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title={showPassword ? "Ẩn" : "Hiện"}
+                      >
+                        <Icon name={showPassword ? "close" : "edit"} className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 px-2.5 text-xs text-[#0532e6] bg-white border border-blue-200 hover:bg-blue-50"
+                      onClick={() => setPassword(generateStudentPassword())}
+                    >
+                      <Icon name="rotate-ccw" className="h-3 w-3 mr-1" />
+                      Tạo ngẫu nhiên
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 px-2.5 text-xs text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50"
+                      onClick={handleCopyPreInfo}
+                    >
+                      <Icon name="check" className="h-3 w-3 mr-1" />
+                      {preCopied ? "Đã sao chép!" : "Sao chép tài khoản"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               {/* Class Selection */}
               <div>
                 <label className="mb-1 block text-sm font-bold text-navy-heading">
@@ -366,7 +507,7 @@ export function LeadConvertPage() {
                       <option key={c.id} value={c.id}>
                         {isMatched ? "★ [Đúng khóa quan tâm] " : ""}
                         {c.course_code ? `[${c.course_code}] ` : ""}
-                        {c.name} ({c.class_code}) — Còn {remaining} chỗ ({enrolled}/{max})
+                        {c.name} ({c.class_code}) — {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn {remaining} chỗ ({enrolled}/{max})
                       </option>
                     );
                   })}

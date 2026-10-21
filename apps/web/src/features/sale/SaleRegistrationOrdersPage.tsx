@@ -11,12 +11,13 @@ import type { Order } from "../../lib/domainTypes";
 import { formatDate } from "../../lib/format";
 import { saleKeys } from "../../lib/queryKeys";
 import { saleApi } from "./saleApi";
-import { formatVND, OrderStatusBadge } from "./saleShared";
+import { formatVND } from "./saleShared";
 import { CreateRegistrationOrderModal } from "./CreateRegistrationOrderModal";
 import { UpdateOrderStatusModal } from "./UpdateOrderStatusModal";
+import { parseOrderInstallmentPlan } from "./installmentUtils";
 
 export function SaleRegistrationOrdersPage() {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const isAdmin = hasRole("ADMIN", "SALE_ADMIN");
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -63,22 +64,20 @@ export function SaleRegistrationOrdersPage() {
       }),
   });
 
-  // Query converted leads for creation modal
+  // Query converted leads that do not yet have an active registration order
   const convertedLeadsQuery = useQuery({
-    queryKey: saleKeys.leads.list({ pipeline_status: "da_dang_ky", per_page: 100 }),
+    queryKey: saleKeys.leads.list({
+      converted_only: true,
+      unregistered_only: true,
+      per_page: 100,
+    }),
     queryFn: () =>
       saleApi.listLeads({
-        pipeline_status: "da_dang_ky",
+        converted_only: true,
+        unregistered_only: true,
         per_page: 100,
       }),
     enabled: isCreateOpen,
-  });
-
-  // Query target lead if passed via URL param
-  const targetLeadQuery = useQuery({
-    queryKey: saleKeys.leads.detail(paramLeadId || ""),
-    queryFn: () => saleApi.getLead(paramLeadId!),
-    enabled: Boolean(paramLeadId) && isCreateOpen,
   });
 
   // Query available classes for enrollment
@@ -89,16 +88,19 @@ export function SaleRegistrationOrdersPage() {
   });
 
   const selectableLeads = useMemo(() => {
-    const list = [...(convertedLeadsQuery.data?.items ?? [])];
-    if (targetLeadQuery.data && !list.some((l) => l.id === targetLeadQuery.data.id)) {
-      list.unshift(targetLeadQuery.data);
-    }
-    return list;
-  }, [convertedLeadsQuery.data?.items, targetLeadQuery.data]);
+    return convertedLeadsQuery.data?.items ?? [];
+  }, [convertedLeadsQuery.data?.items]);
 
-  const availableClasses = (classesQuery.data?.items ?? []).filter(
-    (c) => c.status === "planning" || c.status === "open" || c.status === "in_progress",
-  );
+  const availableClasses = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return (classesQuery.data?.items ?? []).filter((c) => {
+      // Lớp nào tới ngày khai giảng rồi ko đc chọn tạo phiếu đk
+      if (c.start_date && c.start_date <= todayStr) {
+        return false;
+      }
+      return c.status === "planning" || c.status === "open";
+    });
+  }, [classesQuery.data?.items]);
 
   const handleExportOrders = async () => {
     setIsExporting(true);
@@ -151,20 +153,72 @@ export function SaleRegistrationOrdersPage() {
     },
     {
       header: "Học phí",
-      cell: (order: Order) => (
-        <div className="text-xs">
-          <p className="font-bold text-slate-900 text-sm">{formatVND(order.final_amount)}</p>
-          {order.discount_amount > 0 && (
-            <p className="text-[11px] text-emerald-600 font-medium">
-              Ưu đãi: -{formatVND(order.discount_amount)}
-            </p>
-          )}
-        </div>
-      ),
+      cell: (order: Order) => {
+        const meta = parseOrderInstallmentPlan(order);
+        const paidCount = meta.installments.filter((i) => i.status === "paid").length;
+
+        return (
+          <div className="text-xs">
+            <p className="text-sm font-bold text-slate-900">{formatVND(order.final_amount)}</p>
+            {meta.total_installments > 1 && (
+              <span className="mt-0.5 block text-[10px] font-semibold text-blue-700">
+                Đóng {meta.total_installments} đợt (Đã thu {paidCount}/{meta.total_installments})
+              </span>
+            )}
+            {order.discount_amount > 0 && (
+              <p className="text-[11px] font-medium text-emerald-600">
+                Ưu đãi: -{formatVND(order.discount_amount)}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Trạng thái",
-      cell: (order: Order) => <OrderStatusBadge status={order.status} />,
+      cell: (order: Order) => {
+        const meta = parseOrderInstallmentPlan(order);
+        const paidCount = meta.installments.filter((i) => i.status === "paid").length;
+        const total = meta.total_installments;
+
+        if (order.status === "cancelled") {
+          return (
+            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+              Đã hủy
+            </span>
+          );
+        }
+
+        if (order.status === "refunded") {
+          return (
+            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-700">
+              Đã hoàn tiền
+            </span>
+          );
+        }
+
+        if (order.status === "paid" || (total > 0 && paidCount === total)) {
+          return (
+            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+              Đã thanh toán tất cả
+            </span>
+          );
+        }
+
+        if (paidCount > 0) {
+          return (
+            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+              Đã thanh toán {paidCount}/{total} đợt
+            </span>
+          );
+        }
+
+        return (
+          <span className="inline-flex items-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+            Chưa thanh toán
+          </span>
+        );
+      },
     },
     {
       header: "Ngày lập",
@@ -178,49 +232,56 @@ export function SaleRegistrationOrdersPage() {
     {
       header: "Thao tác",
       className: "text-right",
-      cell: (order: Order) => (
-        <div className="flex items-center justify-end gap-1.5">
-          {order.status === "pending" ? (
-            <Link to={`/sale/phieu-thu?order_id=${order.id}&action=collect`}>
-              <Button
-                variant="ghost"
-                className="h-8 px-2.5 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 shadow-2xs"
-                title="Ghi nhận thu tiền cho phiếu đăng ký này"
-              >
-                <Icon name="check" className="mr-1 h-3.5 w-3.5" />
-                Thu tiền
-              </Button>
-            </Link>
-          ) : (
-            <Link to={`/sale/phieu-thu?order_id=${order.id}&action=print`}>
-              <Button
-                variant="ghost"
-                className="h-8 px-2.5 text-xs text-blue-700 hover:bg-blue-50 border border-blue-200/80 shadow-2xs"
-                title="Xem biên lai thu tiền"
-              >
-                <Icon name="download" className="mr-1 h-3.5 w-3.5" />
-                Biên lai
-              </Button>
-            </Link>
-          )}
+      cell: (order: Order) => {
+        const meta = parseOrderInstallmentPlan(order);
+        const hasAnyPaid =
+          order.status === "paid" || meta.installments.some((i) => i.status === "paid");
 
-          {isAdmin && (
-            <Button
-              variant="ghost"
-              className="h-8 px-2 text-xs text-slate-600 hover:text-navy hover:bg-white/80 border border-slate-200/60 shadow-2xs"
-              onClick={() => setSelectedOrder(order)}
-              title="Đổi trạng thái"
-            >
-              <Icon name="edit" className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      ),
+        return (
+          <div className="flex items-center justify-end gap-1.5">
+            {hasAnyPaid && (
+              <Link to={`/sale/phieu-thu?order_id=${order.id}&action=print`}>
+                <Button
+                  variant="ghost"
+                  className="h-8 px-2.5 text-xs text-blue-700 hover:bg-blue-50 border border-blue-200/80 shadow-2xs"
+                  title="Xem biên lai phiếu thu"
+                >
+                  <Icon name="download" className="mr-1 h-3.5 w-3.5" />
+                  Biên lai
+                </Button>
+              </Link>
+            )}
+
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                className="h-8 px-2 text-xs text-slate-600 hover:text-navy hover:bg-white/80 border border-slate-200/60 shadow-2xs"
+                onClick={() => setSelectedOrder(order)}
+                title="Đổi trạng thái"
+              >
+                <Icon name="edit" className="h-3.5 w-3.5" />
+              </Button>
+            )}
+
+            {!hasAnyPaid && !isAdmin && (
+              <span className="text-slate-300 text-xs px-2">—</span>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
-  const total = ordersQuery.data?.meta.total ?? 0;
-  const totalPages = ordersQuery.data?.meta.total_pages ?? 1;
+  const items = useMemo(() => {
+    const all = ordersQuery.data?.items ?? [];
+    if (isAdmin) return all;
+    return all.filter(
+      (ord) => ord.created_by === user?.id || ord.created_by_email === user?.email,
+    );
+  }, [ordersQuery.data?.items, isAdmin, user]);
+
+  const total = isAdmin ? ordersQuery.data?.meta.total ?? 0 : items.length;
+  const totalPages = isAdmin ? ordersQuery.data?.meta.total_pages ?? 1 : Math.ceil(items.length / perPage) || 1;
   const hasFilterActive =
     Boolean(search) || Boolean(statusFilter) || Boolean(fromDate) || Boolean(toDate);
 
@@ -318,11 +379,11 @@ export function SaleRegistrationOrdersPage() {
       <QueryState
         loading={ordersQuery.isLoading}
         error={ordersQuery.error}
-        empty={!ordersQuery.isLoading && (ordersQuery.data?.items ?? []).length === 0}
+        empty={!ordersQuery.isLoading && items.length === 0}
         emptyTitle="Chưa có phiếu đăng ký nào"
       >
         <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
-          <DataTable items={ordersQuery.data?.items ?? []} columns={columns} />
+          <DataTable items={items} columns={columns} />
           {totalPages > 1 && (
             <div className="border-t border-slate-200/80 px-4 py-3 bg-white/40">
               <Pagination page={page} totalPages={totalPages} onPage={(p) => setPage(p)} />

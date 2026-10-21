@@ -34,9 +34,15 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 	if err != nil {
 		return ConvertResult{}, ErrNotFound
 	}
-	classID, err := data.UUID(input.ClassID)
-	if err != nil {
-		return ConvertResult{}, ErrClassNotFound
+	var classID pgtype.UUID
+	var classRow db.GetAdminClassRow
+	hasClass := strings.TrimSpace(input.ClassID) != ""
+	if hasClass {
+		parsedClassID, err := data.UUID(input.ClassID)
+		if err != nil {
+			return ConvertResult{}, ErrClassNotFound
+		}
+		classID = parsedClassID
 	}
 	actorUUID, _ := data.UUID(actorID)
 
@@ -62,26 +68,30 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		return ConvertResult{}, ErrUnauthorizedAccess
 	}
 
-	// 2. Validate class
-	classRow, err := q.GetAdminClass(ctx, classID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ConvertResult{}, ErrClassNotFound
-	}
-	if err != nil {
-		return ConvertResult{}, fmt.Errorf("get target class: %w", err)
-	}
-	if classRow.Status != db.ClassStatusPlanning && classRow.Status != db.ClassStatusOpen && classRow.Status != db.ClassStatusInProgress {
-		return ConvertResult{}, ErrClassNotFound
+	// 2. Validate class (if provided)
+	if hasClass {
+		classRow, err = q.GetAdminClass(ctx, classID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ConvertResult{}, ErrClassNotFound
+		}
+		if err != nil {
+			return ConvertResult{}, fmt.Errorf("get target class: %w", err)
+		}
+		if classRow.Status != db.ClassStatusPlanning && classRow.Status != db.ClassStatusOpen && classRow.Status != db.ClassStatusInProgress {
+			return ConvertResult{}, ErrClassNotFound
+		}
+
+		// Check class capacity
+		if classRow.EnrolledStudents >= classRow.MaximumStudents {
+			return ConvertResult{}, ErrClassFull
+		}
 	}
 
-	// Check class capacity
-	if classRow.EnrolledStudents >= classRow.MaximumStudents {
-		return ConvertResult{}, ErrClassFull
-	}
-
-	// 3. Resolve user email & generate random password
+	// 3. Resolve user email & initial password
 	var studentEmail string
-	if lead.Email.Valid && strings.TrimSpace(lead.Email.String) != "" {
+	if strings.TrimSpace(input.Email) != "" {
+		studentEmail = strings.TrimSpace(input.Email)
+	} else if lead.Email.Valid && strings.TrimSpace(lead.Email.String) != "" {
 		studentEmail = strings.TrimSpace(lead.Email.String)
 	} else if lead.Phone.Valid && strings.TrimSpace(lead.Phone.String) != "" {
 		cleanPhone := regexp.MustCompile(`\D`).ReplaceAllString(lead.Phone.String, "")
@@ -98,9 +108,13 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		studentEmail = fmt.Sprintf("hv_%s@nsa.internal", leadUUIDStr)
 	}
 
-	initialPassword, err := generateRandomPassword(10)
-	if err != nil {
-		return ConvertResult{}, fmt.Errorf("generate initial password: %w", err)
+	initialPassword := strings.TrimSpace(input.Password)
+	if initialPassword == "" {
+		var err error
+		initialPassword, err = generateRandomPassword(8)
+		if err != nil {
+			return ConvertResult{}, fmt.Errorf("generate initial password: %w", err)
+		}
 	}
 
 	passwordHash, err := auth.HashPassword(initialPassword, s.bcryptCost)
@@ -126,9 +140,17 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 	}
 
 	// 4. Create student profile
-	fullName := strings.TrimSpace(lead.FullName)
+	fullName := strings.TrimSpace(input.FullName)
+	if fullName == "" {
+		fullName = strings.TrimSpace(lead.FullName)
+	}
 	if len(fullName) > 160 {
 		fullName = fullName[:160]
+	}
+
+	phone := lead.Phone
+	if strings.TrimSpace(input.Phone) != "" {
+		phone = data.Text(stringPtr(strings.TrimSpace(input.Phone)))
 	}
 
 	address := lead.Address
@@ -141,7 +163,7 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		StudentCode: "", // Trigger auto-sequence generation
 		FullName:    fullName,
 		AvatarUrl:   data.Text(nil),
-		Phone:       lead.Phone,
+		Phone:       phone,
 		DateOfBirth: lead.DateOfBirth,
 		Gender:      normalizeStudentGender(lead.Gender),
 		Address:     address,
@@ -161,24 +183,57 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		return ConvertResult{}, fmt.Errorf("record student status history: %w", err)
 	}
 
-	// 5. Enroll student in class
-	enrollment, err := q.CreateClassEnrollment(ctx, db.CreateClassEnrollmentParams{
-		ClassID:   classID,
-		StudentID: profile.ID,
-		CreatedBy: actorUUID,
-	})
-	if err != nil {
-		return ConvertResult{}, mapWriteError(err)
-	}
+	// 5. Enroll student in class (if class provided)
+	if hasClass {
+		enrollment, err := q.CreateClassEnrollment(ctx, db.CreateClassEnrollmentParams{
+			ClassID:   classID,
+			StudentID: profile.ID,
+			CreatedBy: actorUUID,
+		})
+		if err != nil {
+			return ConvertResult{}, mapWriteError(err)
+		}
 
-	if err := classhistory.Write(ctx, q, actorID, classID, "student_enrolled", "class_enrollment", enrollment.ID, "1-Click Chuyển đổi từ Lead CRM", map[string]any{
-		"student_id":   data.UUIDString(profile.ID),
-		"student_code": profile.StudentCode,
-	}); err != nil {
-		return ConvertResult{}, err
+		if err := classhistory.Write(ctx, q, actorID, classID, "student_enrolled", "class_enrollment", enrollment.ID, "1-Click Chuyển đổi từ Lead CRM", map[string]any{
+			"student_id":   data.UUIDString(profile.ID),
+			"student_code": profile.StudentCode,
+		}); err != nil {
+			return ConvertResult{}, err
+		}
 	}
 
 	// 6. Update Lead status and converted info
+	leadFullName := lead.FullName
+	if strings.TrimSpace(input.FullName) != "" {
+		leadFullName = strings.TrimSpace(input.FullName)
+	}
+	leadEmail := lead.Email
+	if strings.TrimSpace(input.Email) != "" {
+		leadEmail = data.Text(stringPtr(strings.TrimSpace(input.Email)))
+	}
+	leadPhone := lead.Phone
+	if strings.TrimSpace(input.Phone) != "" {
+		leadPhone = data.Text(stringPtr(strings.TrimSpace(input.Phone)))
+	}
+	_, _ = q.UpdateLead(ctx, db.UpdateLeadParams{
+		ID:                 leadID,
+		FullName:           leadFullName,
+		Phone:              leadPhone,
+		Email:              leadEmail,
+		DateOfBirth:        lead.DateOfBirth,
+		Gender:             lead.Gender,
+		Address:            lead.Address,
+		Source:             lead.Source,
+		SourceDetail:       lead.SourceDetail,
+		UtmSource:          lead.UtmSource,
+		UtmMedium:          lead.UtmMedium,
+		UtmCampaign:        lead.UtmCampaign,
+		UtmContent:         lead.UtmContent,
+		UtmTerm:            lead.UtmTerm,
+		InterestedCourseID: lead.InterestedCourseID,
+		Notes:              lead.Notes,
+	})
+
 	now := time.Now().UTC()
 	_, err = q.ConvertLead(ctx, db.ConvertLeadParams{
 		ID:                 leadID,
@@ -202,48 +257,57 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		return ConvertResult{}, fmt.Errorf("record pipeline history: %w", err)
 	}
 
-	// 8. Create Order
-	amountNum, err := data.Numeric(input.Amount)
-	if err != nil {
-		return ConvertResult{}, fmt.Errorf("invalid amount: %w", err)
-	}
-	discountNum, err := data.Numeric(input.DiscountAmount)
-	if err != nil {
-		return ConvertResult{}, fmt.Errorf("invalid discount amount: %w", err)
-	}
-	finalNum, err := data.Numeric(input.Amount - input.DiscountAmount)
-	if err != nil {
-		return ConvertResult{}, fmt.Errorf("invalid final amount: %w", err)
-	}
+	// 8. Create Order (if class provided)
+	var orderCode string
+	var orderIDStr string
+	if hasClass {
+		amountNum, err := data.Numeric(input.Amount)
+		if err != nil {
+			return ConvertResult{}, fmt.Errorf("invalid amount: %w", err)
+		}
+		discountNum, err := data.Numeric(input.DiscountAmount)
+		if err != nil {
+			return ConvertResult{}, fmt.Errorf("invalid discount amount: %w", err)
+		}
+		finalNum, err := data.Numeric(input.Amount - input.DiscountAmount)
+		if err != nil {
+			return ConvertResult{}, fmt.Errorf("invalid final amount: %w", err)
+		}
 
-	order, err := q.CreateOrder(ctx, db.CreateOrderParams{
-		OrderCode:      "", // trigger sequence
-		LeadID:         leadID,
-		StudentID:      profile.ID,
-		CourseID:       classRow.CourseID,
-		ClassID:        classID,
-		Amount:         amountNum,
-		DiscountAmount: discountNum,
-		FinalAmount:    finalNum,
-		DiscountNote:   data.Text(stringPtr(input.DiscountNote)),
-		Status:         db.OrderStatusPending,
-		PaymentMethod:  data.Text(stringPtr(input.PaymentMethod)),
-		PaidAt:         pgtype.Timestamptz{},
-		Notes:          data.Text(stringPtr(input.Notes)),
-		CreatedBy:      actorUUID,
-	})
-	if err != nil {
-		return ConvertResult{}, mapWriteError(err)
+		order, err := q.CreateOrder(ctx, db.CreateOrderParams{
+			OrderCode:      "", // trigger sequence
+			LeadID:         leadID,
+			StudentID:      profile.ID,
+			CourseID:       classRow.CourseID,
+			ClassID:        classID,
+			Amount:         amountNum,
+			DiscountAmount: discountNum,
+			FinalAmount:    finalNum,
+			DiscountNote:   data.Text(stringPtr(input.DiscountNote)),
+			Status:         db.OrderStatusPending,
+			PaymentMethod:  data.Text(stringPtr(input.PaymentMethod)),
+			PaidAt:         pgtype.Timestamptz{},
+			Notes:          data.Text(stringPtr(input.Notes)),
+			CreatedBy:      actorUUID,
+		})
+		if err != nil {
+			return ConvertResult{}, mapWriteError(err)
+		}
+		orderCode = order.OrderCode
+		orderIDStr = data.UUIDString(order.ID)
 	}
 
 	// 9. Audit log
-	if err := audit.Write(ctx, q, actorID, "lead.convert", "lead", leadID, nil, map[string]any{
+	auditDetails := map[string]any{
 		"student_id":   data.UUIDString(profile.ID),
 		"student_code": profile.StudentCode,
-		"order_id":     data.UUIDString(order.ID),
-		"order_code":   order.OrderCode,
-		"class_id":     data.UUIDString(classID),
-	}); err != nil {
+	}
+	if hasClass {
+		auditDetails["order_id"] = orderIDStr
+		auditDetails["order_code"] = orderCode
+		auditDetails["class_id"] = data.UUIDString(classID)
+	}
+	if err := audit.Write(ctx, q, actorID, "lead.convert", "lead", leadID, nil, auditDetails); err != nil {
 		return ConvertResult{}, err
 	}
 
@@ -254,26 +318,25 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 	return ConvertResult{
 		StudentID:       data.UUIDString(profile.ID),
 		StudentCode:     profile.StudentCode,
-		OrderID:         data.UUIDString(order.ID),
-		OrderCode:       order.OrderCode,
+		OrderID:         orderIDStr,
+		OrderCode:       orderCode,
 		InitialPassword: initialPassword,
 	}, nil
 }
 
 func generateRandomPassword(length int) (string, error) {
 	if length < 8 {
-		length = 10
+		length = 8
 	}
 	const (
-		upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-		lower   = "abcdefghijkmnpqrstuvwxyz"
-		digits  = "23456789"
-		special = "!@#$%^&*"
-		all     = upper + lower + digits + special
+		upper  = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+		lower  = "abcdefghijkmnpqrstuvwxyz"
+		digits = "23456789"
+		all    = upper + lower + digits
 	)
 
 	b := make([]byte, length)
-	sets := []string{upper, lower, digits, special}
+	sets := []string{upper, lower, digits}
 	for i, set := range sets {
 		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(set))))
 		if err != nil {

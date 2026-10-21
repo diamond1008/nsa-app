@@ -52,6 +52,21 @@ AND (
 )
 AND (sqlc.narg(from_date)::date IS NULL OR c.end_date >= sqlc.narg(from_date)::date)
 AND (sqlc.narg(to_date)::date IS NULL OR c.start_date <= sqlc.narg(to_date)::date)
+AND (
+  sqlc.narg(upcoming_only)::boolean IS NULL
+  OR sqlc.narg(upcoming_only)::boolean = FALSE
+  OR c.start_date > CURRENT_DATE
+)
+AND (
+  sqlc.narg(sale_user_id)::uuid IS NULL
+  OR EXISTS (
+    SELECT 1 FROM class_enrollments ce2
+    JOIN leads l ON l.converted_student_id = ce2.student_id
+    WHERE ce2.class_id = c.id
+      AND (l.assigned_to = sqlc.narg(sale_user_id)::uuid OR l.created_by = sqlc.narg(sale_user_id)::uuid)
+      AND l.deleted_at IS NULL
+  )
+)
 GROUP BY c.id, co.code, co.name
 HAVING (
   sqlc.arg(capacity)::text = ''
@@ -96,6 +111,21 @@ AND (
 )
 AND (sqlc.narg(from_date)::date IS NULL OR c.end_date >= sqlc.narg(from_date)::date)
 AND (sqlc.narg(to_date)::date IS NULL OR c.start_date <= sqlc.narg(to_date)::date)
+AND (
+  sqlc.narg(upcoming_only)::boolean IS NULL
+  OR sqlc.narg(upcoming_only)::boolean = FALSE
+  OR c.start_date > CURRENT_DATE
+)
+AND (
+  sqlc.narg(sale_user_id)::uuid IS NULL
+  OR EXISTS (
+    SELECT 1 FROM class_enrollments ce2
+    JOIN leads l ON l.converted_student_id = ce2.student_id
+    WHERE ce2.class_id = c.id
+      AND (l.assigned_to = sqlc.narg(sale_user_id)::uuid OR l.created_by = sqlc.narg(sale_user_id)::uuid)
+      AND l.deleted_at IS NULL
+  )
+)
 GROUP BY c.id
 HAVING (
   sqlc.arg(capacity)::text = ''
@@ -175,6 +205,15 @@ SELECT
 FROM class_enrollments ce
 JOIN student_profiles sp ON sp.id = ce.student_id
 WHERE ce.class_id = $1
+AND (
+  sqlc.narg(sale_user_id)::uuid IS NULL
+  OR EXISTS (
+    SELECT 1 FROM leads l
+    WHERE l.converted_student_id = ce.student_id
+      AND (l.assigned_to = sqlc.narg(sale_user_id)::uuid OR l.created_by = sqlc.narg(sale_user_id)::uuid)
+      AND l.deleted_at IS NULL
+  )
+)
 ORDER BY ce.enrolled_at DESC, ce.id;
 
 -- name: UpdateClassEnrollmentStatus :one

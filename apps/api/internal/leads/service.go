@@ -231,28 +231,32 @@ func (s *Service) List(ctx context.Context, actorID string, isAdmin bool, filter
 	offset := (page - 1) * perPage
 
 	rows, err := s.queries.ListLeads(ctx, db.ListLeadsParams{
-		Search:         search,
-		PipelineStatus: pipelineStatus,
-		Source:         source,
-		AssignedTo:     assignedTo,
-		CreatedFrom:    createdFrom,
-		CreatedTo:      createdTo,
-		SortBy:         sortBy,
-		SortOrder:      sortOrder,
-		PageLimit:      int32(perPage),
-		PageOffset:     int32(offset),
+		Search:           search,
+		PipelineStatus:   pipelineStatus,
+		Source:           source,
+		AssignedTo:       assignedTo,
+		CreatedFrom:      createdFrom,
+		CreatedTo:        createdTo,
+		UnregisteredOnly: pgtype.Bool{Bool: filter.UnregisteredOnly, Valid: filter.UnregisteredOnly},
+		ConvertedOnly:    pgtype.Bool{Bool: filter.ConvertedOnly, Valid: filter.ConvertedOnly},
+		SortBy:           sortBy,
+		SortOrder:        sortOrder,
+		PageLimit:        int32(perPage),
+		PageOffset:       int32(offset),
 	})
 	if err != nil {
 		return pagination.Result[View]{}, fmt.Errorf("list leads: %w", err)
 	}
 
 	total, err := s.queries.CountLeads(ctx, db.CountLeadsParams{
-		Search:         search,
-		PipelineStatus: pipelineStatus,
-		Source:         source,
-		AssignedTo:     assignedTo,
-		CreatedFrom:    createdFrom,
-		CreatedTo:      createdTo,
+		Search:           search,
+		PipelineStatus:   pipelineStatus,
+		Source:           source,
+		AssignedTo:       assignedTo,
+		CreatedFrom:      createdFrom,
+		CreatedTo:        createdTo,
+		UnregisteredOnly: pgtype.Bool{Bool: filter.UnregisteredOnly, Valid: filter.UnregisteredOnly},
+		ConvertedOnly:    pgtype.Bool{Bool: filter.ConvertedOnly, Valid: filter.ConvertedOnly},
 	})
 	if err != nil {
 		return pagination.Result[View]{}, fmt.Errorf("count leads: %w", err)
@@ -284,6 +288,35 @@ func (s *Service) Update(ctx context.Context, actorID string, isAdmin bool, lead
 		return View{}, ErrUnauthorizedAccess
 	}
 
+	isConvertedStudent := existing.ConvertedStudentID.Valid ||
+		existing.PipelineStatus == db.LeadPipelineStatusDaDangKy ||
+		existing.PipelineStatus == db.LeadPipelineStatusDangHoc
+
+	if isConvertedStudent && !isAdmin {
+		existingPhone := ""
+		if existing.Phone.Valid {
+			existingPhone = strings.TrimSpace(existing.Phone.String)
+		}
+		existingEmail := ""
+		if existing.Email.Valid {
+			existingEmail = strings.TrimSpace(existing.Email.String)
+		}
+		inputPhone := ""
+		if input.Phone != nil {
+			inputPhone = strings.TrimSpace(*input.Phone)
+		}
+		inputEmail := ""
+		if input.Email != nil {
+			inputEmail = strings.TrimSpace(*input.Email)
+		}
+
+		if strings.TrimSpace(input.FullName) != strings.TrimSpace(existing.FullName) ||
+			inputPhone != existingPhone ||
+			inputEmail != existingEmail {
+			return View{}, ErrLeadLocked
+		}
+	}
+
 	dateOfBirth, err := data.Date(input.DateOfBirth)
 	if err != nil {
 		return View{}, err
@@ -297,6 +330,28 @@ func (s *Service) Update(ctx context.Context, actorID string, isAdmin bool, lead
 		}
 	}
 
+	fullNameToUpdate := input.FullName
+	phoneToUpdate := data.Text(input.Phone)
+	emailToUpdate := data.Text(input.Email)
+	dobToUpdate := dateOfBirth
+	genderToUpdate := data.Text(input.Gender)
+	addressToUpdate := data.Text(input.Address)
+	sourceToUpdate := input.Source
+	sourceDetailToUpdate := data.Text(input.SourceDetail)
+	courseIDToUpdate := courseID
+
+	if isConvertedStudent && !isAdmin {
+		fullNameToUpdate = existing.FullName
+		phoneToUpdate = existing.Phone
+		emailToUpdate = existing.Email
+		dobToUpdate = existing.DateOfBirth
+		genderToUpdate = existing.Gender
+		addressToUpdate = existing.Address
+		sourceToUpdate = existing.Source
+		sourceDetailToUpdate = existing.SourceDetail
+		courseIDToUpdate = existing.InterestedCourseID
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return View{}, fmt.Errorf("begin update lead: %w", err)
@@ -307,20 +362,20 @@ func (s *Service) Update(ctx context.Context, actorID string, isAdmin bool, lead
 
 	_, err = q.UpdateLead(ctx, db.UpdateLeadParams{
 		ID:                 leadID,
-		FullName:           input.FullName,
-		Phone:              data.Text(input.Phone),
-		Email:              data.Text(input.Email),
-		DateOfBirth:        dateOfBirth,
-		Gender:             data.Text(input.Gender),
-		Address:            data.Text(input.Address),
-		Source:             input.Source,
-		SourceDetail:       data.Text(input.SourceDetail),
+		FullName:           fullNameToUpdate,
+		Phone:              phoneToUpdate,
+		Email:              emailToUpdate,
+		DateOfBirth:        dobToUpdate,
+		Gender:             genderToUpdate,
+		Address:            addressToUpdate,
+		Source:             sourceToUpdate,
+		SourceDetail:       sourceDetailToUpdate,
 		UtmSource:          data.Text(input.UTMSource),
 		UtmMedium:          data.Text(input.UTMMedium),
 		UtmCampaign:        data.Text(input.UTMCampaign),
 		UtmContent:         data.Text(input.UTMContent),
 		UtmTerm:            data.Text(input.UTMTerm),
-		InterestedCourseID: courseID,
+		InterestedCourseID: courseIDToUpdate,
 		Notes:              data.Text(input.Notes),
 	})
 	if err != nil {

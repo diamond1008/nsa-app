@@ -90,15 +90,36 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, _ := auth.ClaimsFrom(r.Context())
+	isManager := claims != nil && claims.HasAnyRole(auth.RoleAdmin, "SALE_ADMIN", "ACADEMIC_ADMIN")
+	actorID, _ := auth.UserIDFrom(r.Context())
+	if !isManager && view.CreatedBy != actorID {
+		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Chuyên viên chỉ được xem phiếu do chính mình lập")
+		return
+	}
+
 	response.OK(w, view)
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page, perPage, _ := request.Page(r)
+
+	claims, _ := auth.ClaimsFrom(r.Context())
+	isManager := claims != nil && claims.HasAnyRole(auth.RoleAdmin, "SALE_ADMIN", "ACADEMIC_ADMIN")
+
+	var createdBy string
+	if !isManager {
+		actorID, _ := auth.UserIDFrom(r.Context())
+		createdBy = actorID
+	} else if reqCreatedBy := r.URL.Query().Get("created_by"); reqCreatedBy != "" {
+		createdBy = reqCreatedBy
+	}
+
 	filter := ListFilter{
 		Status:      r.URL.Query().Get("status"),
 		StudentID:   r.URL.Query().Get("student_id"),
 		LeadID:      r.URL.Query().Get("lead_id"),
+		CreatedBy:   createdBy,
 		Search:      r.URL.Query().Get("search"),
 		CreatedFrom: r.URL.Query().Get("created_from"),
 		CreatedTo:   r.URL.Query().Get("created_to"),
@@ -159,6 +180,14 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 		response.Fail(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Order not found")
 	case errors.Is(err, ErrInvalidStatus):
 		response.Fail(w, http.StatusBadRequest, "INVALID_ORDER_STATUS", "Invalid order status value")
+	case errors.Is(err, ErrForbiddenOrderAccess):
+		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Chỉ chuyên viên tạo phiếu đăng ký hoặc cấp quản lý mới có quyền lập phiếu thu cho đơn này")
+	case errors.Is(err, ErrClassAlreadyStarted):
+		response.Fail(w, http.StatusBadRequest, "CLASS_ALREADY_STARTED", "Lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới")
+	case errors.Is(err, ErrLeadAlreadyHasOrder):
+		response.Fail(w, http.StatusBadRequest, "LEAD_ALREADY_HAS_ORDER", "Học viên này đã có phiếu đăng ký trong hệ thống, không thể lập thêm phiếu trùng lặp")
+	case errors.Is(err, ErrLeadNotConverted):
+		response.Fail(w, http.StatusBadRequest, "LEAD_NOT_CONVERTED", "Chỉ học viên đã được chốt (đã cấp mã học viên) mới được phép lập phiếu đăng ký")
 	default:
 		response.InternalError(w, h.log, auth.RequestIDFrom(r.Context()), err)
 	}

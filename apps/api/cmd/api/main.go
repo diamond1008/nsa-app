@@ -303,6 +303,34 @@ func mountAdminRoutes(
 			})
 		}
 
+		classAccessMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				classIDStr := chi.URLParam(r, "classID")
+				classID, err := data.UUID(classIDStr)
+				if err != nil {
+					response.Fail(w, http.StatusNotFound, "CLASS_NOT_FOUND", "Class not found")
+					return
+				}
+				if queries != nil {
+					claims, ok := auth.ClaimsFrom(r.Context())
+					if !ok {
+						response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+						return
+					}
+					allowed, err := auth.CanAccessClass(r.Context(), queries, claims, classID)
+					if err != nil {
+						response.InternalError(w, log, auth.RequestIDFrom(r.Context()), err)
+						return
+					}
+					if !allowed {
+						response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Bạn chỉ được xem lớp học có học viên thuộc quyền quản lý của mình")
+						return
+					}
+				}
+				next.ServeHTTP(w, r)
+			})
+		}
+
 		r.Route("/students", func(r chi.Router) {
 			r.With(adminOnly).Get("/", studentHandler.List)
 			r.With(adminOnly).Post("/", studentHandler.Create)
@@ -360,19 +388,23 @@ func mountAdminRoutes(
 		r.Route("/classes", func(r chi.Router) {
 			r.With(saleAndAdmin).Get("/", classHandler.List)
 			r.With(adminOnly).Post("/", classHandler.Create)
-			r.With(saleAndAdmin).Get("/{classID}", classHandler.Get)
-			r.With(adminOnly).Put("/{classID}", classHandler.Update)
-			r.With(saleAndAdmin).Get("/{classID}/operation-history", classHandler.OperationHistory)
 
-			r.With(saleAndAdmin).Get("/{classID}/enrollments", classHandler.ListEnrollments)
-			r.With(adminOnly).Post("/{classID}/enrollments", classHandler.Enroll)
-			r.With(adminOnly).Put("/{classID}/enrollments/{enrollmentID}", classHandler.UpdateEnrollment)
-			r.With(adminOnly).Post("/{classID}/enrollments/{enrollmentID}/transfer", classHandler.TransferEnrollment)
+			r.Route("/{classID}", func(r chi.Router) {
+				r.Use(classAccessMiddleware)
+				r.With(saleAndAdmin).Get("/", classHandler.Get)
+				r.With(adminOnly).Put("/", classHandler.Update)
+				r.With(saleAndAdmin).Get("/operation-history", classHandler.OperationHistory)
 
-			r.With(saleAndAdmin).Get("/{classID}/teacher-assignments", classHandler.ListAssignments)
-			r.With(adminOnly).Post("/{classID}/teacher-assignments", classHandler.AssignTeacher)
-			r.With(adminOnly).Put("/{classID}/teacher-assignments/{assignmentID}", classHandler.UpdateAssignment)
-			r.With(adminOnly).Delete("/{classID}/teacher-assignments/{assignmentID}", classHandler.DeleteAssignment)
+				r.With(saleAndAdmin).Get("/enrollments", classHandler.ListEnrollments)
+				r.With(adminOnly).Post("/enrollments", classHandler.Enroll)
+				r.With(adminOnly).Put("/enrollments/{enrollmentID}", classHandler.UpdateEnrollment)
+				r.With(adminOnly).Post("/enrollments/{enrollmentID}/transfer", classHandler.TransferEnrollment)
+
+				r.With(saleAndAdmin).Get("/teacher-assignments", classHandler.ListAssignments)
+				r.With(adminOnly).Post("/teacher-assignments", classHandler.AssignTeacher)
+				r.With(adminOnly).Put("/teacher-assignments/{assignmentID}", classHandler.UpdateAssignment)
+				r.With(adminOnly).Delete("/teacher-assignments/{assignmentID}", classHandler.DeleteAssignment)
+			})
 		})
 
 		r.Route("/locations", func(r chi.Router) {
@@ -474,7 +506,7 @@ func mountSaleRoutes(
 
 		r.Get("/staff", leadHandler.ListStaff)
 		r.Get("/courses", courseHandler.List)
-		r.Get("/classes", classHandler.List)
+		r.Get("/classes", classHandler.ListSaleClasses)
 
 		r.Route("/dashboard", func(r chi.Router) {
 			r.Get("/my-stats", leadHandler.MyStats)

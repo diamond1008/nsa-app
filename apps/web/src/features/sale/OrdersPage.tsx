@@ -192,8 +192,8 @@ export function OrdersPage() {
                 <Icon name="user-check" className="h-3.5 w-3.5 text-gtext hover:text-navy" />
               </Button>
             </Link>
-          ) : order.student_id && isAdmin ? (
-            <Link to={`/admin/hoc-vien/${order.student_id}`}>
+          ) : order.student_id ? (
+            <Link to={`/sale/hoc-vien/${order.student_id}`}>
               <Button variant="ghost" className="h-8 px-2 text-xs" title="Xem hồ sơ học viên">
                 <Icon name="academic" className="h-3.5 w-3.5 text-gtext hover:text-navy" />
               </Button>

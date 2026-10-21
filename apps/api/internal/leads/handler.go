@@ -62,6 +62,10 @@ type convertRequest struct {
 	DiscountNote   string  `json:"discount_note"`
 	PaymentMethod  string  `json:"payment_method"`
 	Notes          string  `json:"notes"`
+	Password       string  `json:"password"`
+	Email          string  `json:"email"`
+	FullName       string  `json:"full_name"`
+	Phone          string  `json:"phone"`
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -117,8 +121,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		CreatedTo:      r.URL.Query().Get("created_to"),
 		SortBy:         r.URL.Query().Get("sort_by"),
 		SortOrder:      r.URL.Query().Get("sort_order"),
-		Page:           page,
-		PerPage:        perPage,
+		Page:             page,
+		PerPage:          perPage,
+		UnregisteredOnly: r.URL.Query().Get("unregistered_only") == "true",
+		ConvertedOnly:    r.URL.Query().Get("converted_only") == "true",
 	}
 
 	res, err := h.service.List(r.Context(), actorID, isAdmin, filter)
@@ -222,21 +228,19 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.ClassID == "" {
-		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "class_id is required")
-		return
-	}
-	if body.Amount < 0 {
-		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "amount cannot be negative")
-		return
-	}
-	if body.DiscountAmount < 0 {
-		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "discount_amount cannot be negative")
-		return
-	}
-	if body.DiscountAmount > body.Amount {
-		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "discount_amount cannot exceed amount")
-		return
+	if body.ClassID != "" {
+		if body.Amount < 0 {
+			response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "amount cannot be negative")
+			return
+		}
+		if body.DiscountAmount < 0 {
+			response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "discount_amount cannot be negative")
+			return
+		}
+		if body.DiscountAmount > body.Amount {
+			response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "discount_amount cannot exceed amount")
+			return
+		}
 	}
 
 	result, err := h.service.Convert(r.Context(), actorID, isAdmin, leadID, ConvertInput{
@@ -246,6 +250,10 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 		DiscountNote:   body.DiscountNote,
 		PaymentMethod:  body.PaymentMethod,
 		Notes:          body.Notes,
+		Password:       body.Password,
+		Email:          body.Email,
+		FullName:       body.FullName,
+		Phone:          body.Phone,
 	})
 	if err != nil {
 		h.handleError(w, r, err)
@@ -391,6 +399,8 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 		response.Fail(w, http.StatusBadRequest, "INVALID_ASSIGNEE", "Invalid assignee user ID")
 	case errors.Is(err, ErrEmailAlreadyExists):
 		response.Fail(w, http.StatusConflict, "EMAIL_EXISTS", "Email này đã được sử dụng cho một tài khoản khác trong hệ thống")
+	case errors.Is(err, ErrLeadLocked):
+		response.Fail(w, http.StatusBadRequest, "LEAD_LOCKED", "Hồ sơ học viên đã được khóa thông tin định danh. Vui lòng liên hệ Phòng Đào tạo.")
 	default:
 		response.InternalError(w, h.log, auth.RequestIDFrom(r.Context()), err)
 	}

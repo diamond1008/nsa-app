@@ -156,15 +156,31 @@ AND (
   $6::timestamptz IS NULL
   OR l.created_at <= $6::timestamptz
 )
+AND (
+  $7::boolean IS NULL
+  OR $7::boolean = FALSE
+  OR NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE (o.lead_id = l.id OR (l.converted_student_id IS NOT NULL AND o.student_id = l.converted_student_id))
+      AND o.status NOT IN ('cancelled', 'refunded')
+  )
+)
+AND (
+  $8::boolean IS NULL
+  OR $8::boolean = FALSE
+  OR l.converted_student_id IS NOT NULL
+)
 `
 
 type CountLeadsParams struct {
-	Search         string                 `json:"search"`
-	PipelineStatus NullLeadPipelineStatus `json:"pipeline_status"`
-	Source         NullLeadSource         `json:"source"`
-	AssignedTo     pgtype.UUID            `json:"assigned_to"`
-	CreatedFrom    pgtype.Timestamptz     `json:"created_from"`
-	CreatedTo      pgtype.Timestamptz     `json:"created_to"`
+	Search           string                 `json:"search"`
+	PipelineStatus   NullLeadPipelineStatus `json:"pipeline_status"`
+	Source           NullLeadSource         `json:"source"`
+	AssignedTo       pgtype.UUID            `json:"assigned_to"`
+	CreatedFrom      pgtype.Timestamptz     `json:"created_from"`
+	CreatedTo        pgtype.Timestamptz     `json:"created_to"`
+	UnregisteredOnly pgtype.Bool            `json:"unregistered_only"`
+	ConvertedOnly    pgtype.Bool            `json:"converted_only"`
 }
 
 func (q *Queries) CountLeads(ctx context.Context, arg CountLeadsParams) (int64, error) {
@@ -175,6 +191,8 @@ func (q *Queries) CountLeads(ctx context.Context, arg CountLeadsParams) (int64, 
 		arg.AssignedTo,
 		arg.CreatedFrom,
 		arg.CreatedTo,
+		arg.UnregisteredOnly,
+		arg.ConvertedOnly,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -652,16 +670,32 @@ AND (
   $6::timestamptz IS NULL
   OR l.created_at <= $6::timestamptz
 )
+AND (
+  $7::boolean IS NULL
+  OR $7::boolean = FALSE
+  OR NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE (o.lead_id = l.id OR (l.converted_student_id IS NOT NULL AND o.student_id = l.converted_student_id))
+      AND o.status NOT IN ('cancelled', 'refunded')
+  )
+)
+AND (
+  $8::boolean IS NULL
+  OR $8::boolean = FALSE
+  OR l.converted_student_id IS NOT NULL
+)
 ORDER BY l.created_at DESC
 `
 
 type ListAllLeadsForExportParams struct {
-	Search         string                 `json:"search"`
-	PipelineStatus NullLeadPipelineStatus `json:"pipeline_status"`
-	Source         NullLeadSource         `json:"source"`
-	AssignedTo     pgtype.UUID            `json:"assigned_to"`
-	CreatedFrom    pgtype.Timestamptz     `json:"created_from"`
-	CreatedTo      pgtype.Timestamptz     `json:"created_to"`
+	Search           string                 `json:"search"`
+	PipelineStatus   NullLeadPipelineStatus `json:"pipeline_status"`
+	Source           NullLeadSource         `json:"source"`
+	AssignedTo       pgtype.UUID            `json:"assigned_to"`
+	CreatedFrom      pgtype.Timestamptz     `json:"created_from"`
+	CreatedTo        pgtype.Timestamptz     `json:"created_to"`
+	UnregisteredOnly pgtype.Bool            `json:"unregistered_only"`
+	ConvertedOnly    pgtype.Bool            `json:"converted_only"`
 }
 
 type ListAllLeadsForExportRow struct {
@@ -692,6 +726,8 @@ func (q *Queries) ListAllLeadsForExport(ctx context.Context, arg ListAllLeadsFor
 		arg.AssignedTo,
 		arg.CreatedFrom,
 		arg.CreatedTo,
+		arg.UnregisteredOnly,
+		arg.ConvertedOnly,
 	)
 	if err != nil {
 		return nil, err
@@ -769,27 +805,43 @@ AND (
   $6::timestamptz IS NULL
   OR l.created_at <= $6::timestamptz
 )
+AND (
+  $7::boolean IS NULL
+  OR $7::boolean = FALSE
+  OR NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE (o.lead_id = l.id OR (l.converted_student_id IS NOT NULL AND o.student_id = l.converted_student_id))
+      AND o.status NOT IN ('cancelled', 'refunded')
+  )
+)
+AND (
+  $8::boolean IS NULL
+  OR $8::boolean = FALSE
+  OR l.converted_student_id IS NOT NULL
+)
 ORDER BY
-  CASE WHEN $7::text = 'full_name' AND $8::text = 'asc' THEN l.full_name END ASC,
-  CASE WHEN $7::text = 'full_name' AND $8::text = 'desc' THEN l.full_name END DESC,
-  CASE WHEN $7::text = 'created_at' AND $8::text = 'asc' THEN l.created_at END ASC,
-  CASE WHEN $7::text = 'created_at' AND $8::text = 'desc' THEN l.created_at END DESC,
+  CASE WHEN $9::text = 'full_name' AND $10::text = 'asc' THEN l.full_name END ASC,
+  CASE WHEN $9::text = 'full_name' AND $10::text = 'desc' THEN l.full_name END DESC,
+  CASE WHEN $9::text = 'created_at' AND $10::text = 'asc' THEN l.created_at END ASC,
+  CASE WHEN $9::text = 'created_at' AND $10::text = 'desc' THEN l.created_at END DESC,
   l.created_at DESC,
   l.id DESC
-LIMIT $10 OFFSET $9
+LIMIT $12 OFFSET $11
 `
 
 type ListLeadsParams struct {
-	Search         string                 `json:"search"`
-	PipelineStatus NullLeadPipelineStatus `json:"pipeline_status"`
-	Source         NullLeadSource         `json:"source"`
-	AssignedTo     pgtype.UUID            `json:"assigned_to"`
-	CreatedFrom    pgtype.Timestamptz     `json:"created_from"`
-	CreatedTo      pgtype.Timestamptz     `json:"created_to"`
-	SortBy         string                 `json:"sort_by"`
-	SortOrder      string                 `json:"sort_order"`
-	PageOffset     int32                  `json:"page_offset"`
-	PageLimit      int32                  `json:"page_limit"`
+	Search           string                 `json:"search"`
+	PipelineStatus   NullLeadPipelineStatus `json:"pipeline_status"`
+	Source           NullLeadSource         `json:"source"`
+	AssignedTo       pgtype.UUID            `json:"assigned_to"`
+	CreatedFrom      pgtype.Timestamptz     `json:"created_from"`
+	CreatedTo        pgtype.Timestamptz     `json:"created_to"`
+	UnregisteredOnly pgtype.Bool            `json:"unregistered_only"`
+	ConvertedOnly    pgtype.Bool            `json:"converted_only"`
+	SortBy           string                 `json:"sort_by"`
+	SortOrder        string                 `json:"sort_order"`
+	PageOffset       int32                  `json:"page_offset"`
+	PageLimit        int32                  `json:"page_limit"`
 }
 
 type ListLeadsRow struct {
@@ -836,6 +888,8 @@ func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLea
 		arg.AssignedTo,
 		arg.CreatedFrom,
 		arg.CreatedTo,
+		arg.UnregisteredOnly,
+		arg.ConvertedOnly,
 		arg.SortBy,
 		arg.SortOrder,
 		arg.PageOffset,

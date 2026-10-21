@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/auth"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/audit"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/pagination"
@@ -50,6 +51,30 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 		if err != nil {
 			return View{}, fmt.Errorf("invalid student ID: %w", err)
 		}
+	} else if leadID.Valid {
+		var convStudentID pgtype.UUID
+		_ = s.pool.QueryRow(ctx, "SELECT converted_student_id FROM leads WHERE id = $1", leadID).Scan(&convStudentID)
+		if convStudentID.Valid {
+			studentID = convStudentID
+		}
+	}
+
+	// Must be a converted student with student_id to create registration order
+	if !studentID.Valid {
+		return View{}, ErrLeadNotConverted
+	}
+
+	// Validate that the lead does not already have an active registration order
+	if leadID.Valid {
+		var existingCount int
+		err := s.pool.QueryRow(ctx, `
+			SELECT COUNT(1) FROM orders 
+			WHERE (lead_id = $1 OR (student_id IS NOT NULL AND $2::uuid IS NOT NULL AND student_id = $2::uuid))
+			  AND status NOT IN ('cancelled', 'refunded')
+		`, leadID, studentID).Scan(&existingCount)
+		if err == nil && existingCount > 0 {
+			return View{}, ErrLeadAlreadyHasOrder
+		}
 	}
 
 	var courseID pgtype.UUID
@@ -65,6 +90,18 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 		classID, err = data.UUID(*input.ClassID)
 		if err != nil {
 			return View{}, fmt.Errorf("invalid class ID: %w", err)
+		}
+		// Validate that the target class has not yet reached its start date
+		classRow, err := s.queries.GetAdminClass(ctx, classID)
+		if err != nil {
+			return View{}, fmt.Errorf("read target class: %w", err)
+		}
+		if classRow.StartDate.Valid {
+			today := time.Now().UTC().Truncate(24 * time.Hour)
+			classStart := classRow.StartDate.Time.UTC().Truncate(24 * time.Hour)
+			if !classStart.After(today) {
+				return View{}, ErrClassAlreadyStarted
+			}
 		}
 	}
 
@@ -107,6 +144,22 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 	})
 	if err != nil {
 		return View{}, err
+	}
+
+	// If order is linked to a class and student, enroll the student in the class
+	if classID.Valid && studentID.Valid {
+		var existingEnrollmentID pgtype.UUID
+		err = tx.QueryRow(ctx, "SELECT id FROM class_enrollments WHERE class_id = $1 AND student_id = $2", classID, studentID).Scan(&existingEnrollmentID)
+		if err != nil && errors.Is(err, pgx.ErrNoRows) {
+			_, err = q.CreateClassEnrollment(ctx, db.CreateClassEnrollmentParams{
+				ClassID:   classID,
+				StudentID: studentID,
+				CreatedBy: actorUUID,
+			})
+			if err != nil {
+				return View{}, fmt.Errorf("enroll student in class: %w", err)
+			}
+		}
 	}
 
 	getOrder, err := q.GetOrder(ctx, order.ID)
@@ -170,6 +223,14 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 		}
 	}
 
+	var createdBy pgtype.UUID
+	if filter.CreatedBy != "" {
+		parsed, err := data.UUID(filter.CreatedBy)
+		if err == nil {
+			createdBy = parsed
+		}
+	}
+
 	var createdFrom pgtype.Timestamptz
 	if filter.CreatedFrom != "" {
 		t, err := time.Parse(time.RFC3339, filter.CreatedFrom)
@@ -201,6 +262,7 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 		Status:      status,
 		StudentID:   studentID,
 		LeadID:      leadID,
+		CreatedBy:   createdBy,
 		CreatedFrom: createdFrom,
 		CreatedTo:   createdTo,
 		PageOffset:  int32(offset),
@@ -215,6 +277,7 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 		Status:      status,
 		StudentID:   studentID,
 		LeadID:      leadID,
+		CreatedBy:   createdBy,
 		CreatedFrom: createdFrom,
 		CreatedTo:   createdTo,
 	})
@@ -247,6 +310,17 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, orderIDValue
 	}
 	if err != nil {
 		return View{}, fmt.Errorf("get order for status update: %w", err)
+	}
+
+	actorUUID, err := data.UUID(actorID)
+	if err != nil {
+		return View{}, fmt.Errorf("invalid actor ID: %w", err)
+	}
+
+	claims, _ := auth.ClaimsFrom(ctx)
+	isManager := claims != nil && claims.HasAnyRole(auth.RoleAdmin, "SALE_ADMIN", "ACADEMIC_ADMIN")
+	if !isManager && existing.CreatedBy != actorUUID {
+		return View{}, ErrForbiddenOrderAccess
 	}
 
 	var paidAt pgtype.Timestamptz

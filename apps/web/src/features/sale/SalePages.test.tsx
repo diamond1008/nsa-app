@@ -252,8 +252,8 @@ describe("Sale feature pages", () => {
       expect(screen.getAllByText("Hoàng Minh Học Viên")[0]).toBeInTheDocument();
       expect(screen.getAllByText("HV2026-001")[0]).toBeInTheDocument();
       expect(screen.getAllByText("Khóa Lập Trình Nhúng")[0]).toBeInTheDocument();
-      expect(screen.getAllByText("Chi tiết")[0]).toBeInTheDocument();
-      expect(screen.getAllByText("Phiếu ĐK")[0]).toBeInTheDocument();
+      expect(screen.queryByText("Chi tiết")).not.toBeInTheDocument();
+      expect(screen.queryByText("Phiếu ĐK")).not.toBeInTheDocument();
     });
   });
 
@@ -291,7 +291,7 @@ describe("Sale feature pages", () => {
     await waitFor(() => {
       expect(screen.getAllByText("PDK-20261016-001")[0]).toBeInTheDocument();
       expect(screen.getAllByText("Nguyễn Văn Đậu")[0]).toBeInTheDocument();
-      expect(screen.getAllByText("Thu tiền")[0]).toBeInTheDocument();
+      expect(screen.getAllByText("Chưa thanh toán")[0]).toBeInTheDocument();
     });
   });
 

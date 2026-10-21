@@ -55,12 +55,23 @@ function numberToVietnameseWords(num: number): string {
   return `${capitalized} đồng chẵn.`;
 }
 
+export interface ReceiptInfo {
+  receiptCode?: string;
+  amount?: number;
+  round?: number;
+  totalRounds?: number;
+  percentage?: number;
+  paidAt?: string;
+  paymentMethod?: string;
+}
+
 interface ReceiptPrintModalProps {
   order: Order | null;
   onClose: () => void;
+  receiptInfo?: ReceiptInfo | null;
 }
 
-export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
+export function ReceiptPrintModal({ order, onClose, receiptInfo }: ReceiptPrintModalProps) {
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   if (!order) return null;
@@ -69,27 +80,39 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
     window.print();
   };
 
-  const receiptCode = order.order_code.replace("DH", "PT");
+  const receiptCode = receiptInfo?.receiptCode || order.order_code.replace("DH", "PT");
+  const actualAmount = receiptInfo?.amount ?? order.final_amount;
   const studentName = order.student_name || order.lead_name || "Học viên";
   const courseClassName = order.class_name
     ? `${order.course_name} (${order.class_code})`
     : order.course_name || "Khóa học đào tạo";
-  const amountWords = numberToVietnameseWords(order.final_amount);
+  const amountWords = numberToVietnameseWords(actualAmount);
+  
+  const paymentMethodKey = receiptInfo?.paymentMethod || order.payment_method;
   const paymentMethodLabel =
-    order.payment_method === "transfer"
+    paymentMethodKey === "transfer"
       ? "Chuyển khoản ngân hàng"
-      : order.payment_method === "cash"
+      : paymentMethodKey === "cash"
         ? "Tiền mặt tại văn phòng"
-        : order.payment_method === "pos"
+        : paymentMethodKey === "pos"
           ? "Quẹt thẻ POS"
-          : order.payment_method === "installment"
+          : paymentMethodKey === "installment"
             ? "Trả góp học phí"
-            : order.payment_method || "Chuyển khoản ngân hàng";
+            : paymentMethodKey || "Chuyển khoản ngân hàng";
 
-  const paymentDate = order.paid_at ? new Date(order.paid_at) : new Date(order.created_at);
+  const dateValue = receiptInfo?.paidAt || order.paid_at || order.created_at;
+  const paymentDate = new Date(dateValue);
   const day = paymentDate.getDate();
   const month = paymentDate.getMonth() + 1;
   const year = paymentDate.getFullYear();
+
+  const stageText =
+    receiptInfo?.round && receiptInfo.totalRounds && receiptInfo.totalRounds > 1
+      ? ` (Đợt ${receiptInfo.round}/${receiptInfo.totalRounds} · ${receiptInfo.percentage}%)`
+      : "";
+
+  // Strip html comment metadata for clean print note
+  const cleanNotes = order.notes?.replace(/<!--INSTALLMENT_DATA:[\s\S]*?-->/g, "").trim() || "";
 
   return (
     <Modal open={Boolean(order)} onClose={onClose} title="Biên lai Phiếu thu Tiền học phí">
@@ -181,7 +204,7 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
             <div className="flex items-baseline">
               <span className="w-36 shrink-0 font-medium text-slate-600">Nội dung thu:</span>
               <span className="font-semibold text-slate-800">
-                Thu học phí ghi danh khóa học: {courseClassName}
+                Thu học phí ghi danh khóa học: {courseClassName}{stageText}
               </span>
             </div>
 
@@ -205,7 +228,7 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
             <div className="flex items-baseline pt-2 border-t border-dashed border-slate-200">
               <span className="w-36 shrink-0 font-bold text-slate-900">Số tiền thực thu:</span>
               <span className="font-extrabold text-base text-[#0532e6]">
-                {formatVND(order.final_amount)}
+                {formatVND(actualAmount)}
               </span>
             </div>
 
@@ -214,10 +237,10 @@ export function ReceiptPrintModal({ order, onClose }: ReceiptPrintModalProps) {
               <span className="italic font-medium text-slate-800">{amountWords}</span>
             </div>
 
-            {order.notes && (
+            {cleanNotes && (
               <div className="flex items-baseline">
                 <span className="w-36 shrink-0 font-medium text-slate-600">Ghi chú:</span>
-                <span className="text-slate-600">{order.notes}</span>
+                <span className="text-slate-600 whitespace-pre-line">{cleanNotes}</span>
               </div>
             )}
           </div>

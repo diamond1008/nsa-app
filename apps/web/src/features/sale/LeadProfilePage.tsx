@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
@@ -36,8 +36,12 @@ import {
   PIPELINE_STATUS_OPTIONS,
   SOURCE_OPTIONS,
 } from "./saleShared";
+import { ConfirmChotLeadModal } from "./ConfirmChotLeadModal";
+import { CreateRegistrationOrderModal } from "./CreateRegistrationOrderModal";
+import { LeadOrdersTab } from "./LeadOrdersTab";
+import type { TrainingClass } from "../../lib/domainTypes";
 
-type TabKey = "info" | "activities" | "academic";
+type TabKey = "info" | "activities" | "orders" | "academic";
 
 export function LeadProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +61,7 @@ export function LeadProfilePage() {
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignedSaleId, setAssignedSaleId] = useState("");
+  const [isChotModalOpen, setIsChotModalOpen] = useState(false);
 
   // Standalone Task Modal
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -86,24 +91,28 @@ export function LeadProfilePage() {
   // Queries
   const leadQuery = useQuery({
     queryKey: ["sale", "lead", id],
-    queryFn: async () => {
-      const data = await saleApi.getLead(id!);
-      setInfoForm({
-        full_name: data.full_name,
-        phone: data.phone ?? "",
-        email: data.email ?? "",
-        date_of_birth: data.date_of_birth ? data.date_of_birth.substring(0, 10) : "",
-        gender: data.gender ?? "",
-        address: data.address ?? "",
-        source: data.source,
-        source_detail: data.source_detail ?? "",
-        interested_course_id: data.interested_course_id ?? "",
-        notes: data.notes ?? "",
-      });
-      return data;
-    },
+    queryFn: () => saleApi.getLead(id!),
     enabled: Boolean(id),
   });
+
+  useEffect(() => {
+    if (leadQuery.data) {
+      setInfoForm({
+        full_name: leadQuery.data.full_name,
+        phone: leadQuery.data.phone ?? "",
+        email: leadQuery.data.email ?? "",
+        date_of_birth: leadQuery.data.date_of_birth
+          ? leadQuery.data.date_of_birth.substring(0, 10)
+          : "",
+        gender: leadQuery.data.gender ?? "",
+        address: leadQuery.data.address ?? "",
+        source: leadQuery.data.source,
+        source_detail: leadQuery.data.source_detail ?? "",
+        interested_course_id: leadQuery.data.interested_course_id ?? "",
+        notes: leadQuery.data.notes ?? "",
+      });
+    }
+  }, [leadQuery.data]);
 
   const interactionsQuery = useQuery({
     queryKey: ["sale", "lead", id, "interactions"],
@@ -134,6 +143,36 @@ export function LeadProfilePage() {
     queryFn: () => saleApi.listCourses(),
   });
 
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+
+  const leadOrdersQuery = useQuery({
+    queryKey: ["sale", "lead-orders", id, leadQuery.data?.converted_student_id],
+    queryFn: () =>
+      saleApi.listOrders({
+        lead_id: id!,
+        student_id: leadQuery.data?.converted_student_id || undefined,
+        per_page: 50,
+      }),
+    enabled: Boolean(id && leadQuery.data?.converted_student_id),
+  });
+  const leadOrdersCount = leadOrdersQuery.data?.items?.length ?? 0;
+
+  const availableClassesQuery = useQuery({
+    queryKey: ["sale", "classes", "available-for-page-order"],
+    queryFn: () => saleApi.listClasses({ capacity: "available" }),
+    enabled: isCreateOrderOpen,
+  });
+
+  const availableClasses = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return ((availableClassesQuery.data?.items ?? []) as TrainingClass[]).filter((c) => {
+      if (c.start_date && c.start_date <= todayStr) {
+        return false;
+      }
+      return c.status === "planning" || c.status === "open";
+    });
+  }, [availableClassesQuery.data?.items]);
+
   // Mutations
   const updateInfoMutation = useMutation({
     mutationFn: (data: CreateLeadInput) => saleApi.updateLead(id!, data),
@@ -162,23 +201,6 @@ export function LeadProfilePage() {
       setStatusReason("");
       setSuccessMsg("Chuyển trạng thái Lead thành công!");
       setTimeout(() => setSuccessMsg(""), 4000);
-    },
-    onError: (err: unknown) => {
-      setErrorMsg(mutationMessage(err));
-    },
-  });
-
-  const quickChotMutation = useMutation({
-    mutationFn: () => saleApi.updateLeadStatus(id!, "da_dang_ky", "Chốt học viên thành công"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sale", "lead", id] });
-      queryClient.invalidateQueries({
-        queryKey: ["sale", "lead", id, "pipeline-history"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
-      queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
-      setSuccessMsg("Đã chốt học viên thành công! Bạn có thể tạo phiếu đăng ký cho học viên này.");
-      setTimeout(() => setSuccessMsg(""), 5000);
     },
     onError: (err: unknown) => {
       setErrorMsg(mutationMessage(err));
@@ -321,6 +343,7 @@ export function LeadProfilePage() {
   }
 
   const isConverted = Boolean(lead.converted_student_id);
+  const isStudentLocked = isConverted;
 
   return (
     <div className="space-y-6">
@@ -374,19 +397,21 @@ export function LeadProfilePage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setNewStatus(lead.pipeline_status);
-                setStatusReason("");
-                setIsStatusModalOpen(true);
-              }}
-            >
-              <Icon name="edit" className="h-4 w-4" />
-              Chuyển trạng thái
-            </Button>
+            {!isConverted && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setNewStatus(lead.pipeline_status);
+                  setStatusReason("");
+                  setIsStatusModalOpen(true);
+                }}
+              >
+                <Icon name="edit" className="h-4 w-4" />
+                Chuyển trạng thái
+              </Button>
+            )}
 
-            {isAdmin && (
+            {isAdmin && !isConverted && (
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -399,46 +424,39 @@ export function LeadProfilePage() {
               </Button>
             )}
 
-            {/* Chốt học viên / Tạo phiếu đăng ký */}
-            {lead.pipeline_status !== "da_dang_ky" &&
-            lead.pipeline_status !== "dang_hoc" &&
-            !isConverted ? (
+            {/* Chốt học viên / Tạo & Xem phiếu đăng ký */}
+            {!isConverted ? (
+              <Button
+                type="button"
+                variant="primary"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                onClick={() => setIsChotModalOpen(true)}
+              >
+                <Icon name="check" className="h-4 w-4 mr-1" />
+                Chốt học viên
+              </Button>
+            ) : (
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  variant="primary"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
-                  onClick={() => quickChotMutation.mutate()}
-                  loading={quickChotMutation.isPending}
+                  variant="ghost"
+                  className="text-slate-700 bg-white border border-slate-200/90 hover:border-emerald-600 hover:bg-emerald-50/50 shadow-2xs cursor-pointer"
+                  onClick={() => setIsCreateOrderOpen(true)}
                 >
-                  <Icon name="check" className="h-4 w-4 mr-1" />
-                  Chốt học viên
+                  <Icon name="shopping-bag" className="h-4 w-4 mr-1 text-emerald-600" />
+                  Tạo phiếu đăng ký
                 </Button>
-                <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-slate-700 bg-white border border-slate-200/90 hover:border-emerald-600 hover:bg-emerald-50/50 shadow-2xs"
-                  >
-                    <Icon name="shopping-bag" className="h-4 w-4 mr-1 text-emerald-600" />
-                    Tạo phiếu đăng ký
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
-                  >
-                    <Icon name="shopping-bag" className="h-4 w-4 mr-1" />
-                    Tạo phiếu đăng ký
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-2xs cursor-pointer"
+                  onClick={() => setActiveTab("orders")}
+                >
+                  <Icon name="shopping-bag" className="h-4 w-4 mr-1" />
+                  Xem phiếu đăng ký {leadOrdersCount > 0 && `(${leadOrdersCount})`}
+                </Button>
                 {lead.converted_student_id && (
-                  <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
+                  <Link to={`/sale/hoc-vien/${lead.converted_student_id}`}>
                     <Button
                       type="button"
                       variant="ghost"
@@ -491,6 +509,30 @@ export function LeadProfilePage() {
           {isConverted && (
             <button
               type="button"
+              onClick={() => setActiveTab("orders")}
+              className={clsx(
+                "px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px flex items-center gap-2",
+                activeTab === "orders"
+                  ? "border-[#0532e6] text-[#0532e6] font-bold"
+                  : "border-transparent text-gtext hover:text-[#0532e6]",
+              )}
+            >
+              <span>Phiếu đăng ký</span>
+              <span
+                className={clsx(
+                  "rounded-full px-2 py-0.5 text-xs font-semibold",
+                  leadOrdersCount > 0
+                    ? "bg-blue-100 text-[#0532e6]"
+                    : "bg-gbg2 text-gtext font-normal",
+                )}
+              >
+                {leadOrdersCount}
+              </span>
+            </button>
+          )}
+          {isConverted && (
+            <button
+              type="button"
               onClick={() => setActiveTab("academic")}
               className={clsx(
                 "px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px text-emerald-700",
@@ -509,20 +551,60 @@ export function LeadProfilePage() {
       {activeTab === "info" && infoForm && (
         <div className="space-y-6">
           <Card className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-navy-heading uppercase tracking-wider">
+                {isStudentLocked ? "Thông tin hồ sơ học viên" : "Chỉnh sửa thông tin liên hệ"}
+              </h3>
+              {isStudentLocked && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                  <Icon name="lock" className="h-3.5 w-3.5" />
+                  Định danh đã khóa
+                </span>
+              )}
+            </div>
+
+            {isStudentLocked && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/90 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <Icon name="lock" className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-amber-950">Hồ sơ đã là Học viên chính thức</span>
+                  <p className="mt-0.5 text-amber-800 leading-relaxed">
+                    Các thông tin định danh (Họ tên, SĐT, Email, Ngày sinh, Khóa học) đã được khóa để bảo vệ tài khoản đăng nhập và tính toàn vẹn dữ liệu đào tạo.
+                    Vui lòng liên hệ <strong>Phòng Đào tạo</strong> nếu cần điều chỉnh. Bạn chỉ có thể cập nhật ghi chú chăm sóc bên dưới.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                updateInfoMutation.mutate({
-                  ...infoForm,
-                  phone: infoForm.phone?.trim() || undefined,
-                  email: infoForm.email?.trim() || undefined,
-                  date_of_birth: infoForm.date_of_birth || undefined,
-                  gender: infoForm.gender || undefined,
-                  address: infoForm.address?.trim() || undefined,
-                  source_detail: infoForm.source_detail?.trim() || undefined,
-                  interested_course_id: infoForm.interested_course_id || undefined,
-                  notes: infoForm.notes?.trim() || undefined,
-                });
+                if (isStudentLocked) {
+                  updateInfoMutation.mutate({
+                    full_name: lead.full_name,
+                    phone: lead.phone || undefined,
+                    email: lead.email || undefined,
+                    date_of_birth: lead.date_of_birth ? lead.date_of_birth.substring(0, 10) : undefined,
+                    gender: lead.gender || undefined,
+                    address: lead.address || undefined,
+                    source: lead.source,
+                    source_detail: lead.source_detail || undefined,
+                    interested_course_id: lead.interested_course_id || undefined,
+                    notes: infoForm.notes?.trim() || undefined,
+                  });
+                } else {
+                  updateInfoMutation.mutate({
+                    ...infoForm,
+                    phone: infoForm.phone?.trim() || undefined,
+                    email: infoForm.email?.trim() || undefined,
+                    date_of_birth: infoForm.date_of_birth || undefined,
+                    gender: infoForm.gender || undefined,
+                    address: infoForm.address?.trim() || undefined,
+                    source_detail: infoForm.source_detail?.trim() || undefined,
+                    interested_course_id: infoForm.interested_course_id || undefined,
+                    notes: infoForm.notes?.trim() || undefined,
+                  });
+                }
               }}
               className="space-y-4"
             >
@@ -530,23 +612,27 @@ export function LeadProfilePage() {
                 <Input
                   label="Họ và tên *"
                   required
+                  disabled={isStudentLocked}
                   value={infoForm.full_name}
                   onChange={(e) => setInfoForm((prev) => ({ ...prev!, full_name: e.target.value }))}
                 />
                 <Input
                   label="Số điện thoại"
+                  disabled={isStudentLocked}
                   value={infoForm.phone ?? ""}
                   onChange={(e) => setInfoForm((prev) => ({ ...prev!, phone: e.target.value }))}
                 />
                 <Input
                   label="Email"
                   type="email"
+                  disabled={isStudentLocked}
                   value={infoForm.email ?? ""}
                   onChange={(e) => setInfoForm((prev) => ({ ...prev!, email: e.target.value }))}
                 />
                 <Input
                   label="Ngày sinh"
                   type="date"
+                  disabled={isStudentLocked}
                   value={infoForm.date_of_birth ?? ""}
                   onChange={(e) =>
                     setInfoForm((prev) => ({ ...prev!, date_of_birth: e.target.value }))
@@ -554,6 +640,7 @@ export function LeadProfilePage() {
                 />
                 <Select
                   label="Giới tính"
+                  disabled={isStudentLocked}
                   value={infoForm.gender ?? ""}
                   onChange={(e) => setInfoForm((prev) => ({ ...prev!, gender: e.target.value }))}
                 >
@@ -564,6 +651,7 @@ export function LeadProfilePage() {
                 </Select>
                 <Select
                   label="Khóa học quan tâm"
+                  disabled={isStudentLocked}
                   value={infoForm.interested_course_id ?? ""}
                   onChange={(e) =>
                     setInfoForm((prev) => ({
@@ -584,6 +672,7 @@ export function LeadProfilePage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Select
                   label="Nguồn Lead"
+                  disabled={isStudentLocked}
                   value={infoForm.source ?? "facebook"}
                   onChange={(e) => setInfoForm((prev) => ({ ...prev!, source: e.target.value }))}
                 >
@@ -595,6 +684,7 @@ export function LeadProfilePage() {
                 </Select>
                 <Input
                   label="Chi tiết nguồn"
+                  disabled={isStudentLocked}
                   placeholder="VD: FB Ads T7, mã chiến dịch..."
                   value={infoForm.source_detail ?? ""}
                   onChange={(e) =>
@@ -605,6 +695,7 @@ export function LeadProfilePage() {
 
               <Input
                 label="Địa chỉ"
+                disabled={isStudentLocked}
                 placeholder="Địa chỉ liên hệ..."
                 value={infoForm.address ?? ""}
                 onChange={(e) => setInfoForm((prev) => ({ ...prev!, address: e.target.value }))}
@@ -619,7 +710,7 @@ export function LeadProfilePage() {
 
               <div className="flex justify-end pt-4 border-t border-gborder">
                 <Button type="submit" variant="primary" loading={updateInfoMutation.isPending}>
-                  Lưu thay đổi
+                  {isStudentLocked ? "Lưu ghi chú chăm sóc" : "Lưu thay đổi"}
                 </Button>
               </div>
             </form>
@@ -928,6 +1019,17 @@ export function LeadProfilePage() {
         </div>
       )}
 
+      {/* Tab: Phiếu đăng ký (nếu đã convert) */}
+      {activeTab === "orders" && isConverted && (
+        <Card className="p-6">
+          <LeadOrdersTab
+            leadId={id!}
+            studentId={lead.converted_student_id || undefined}
+            onCreateOrder={() => setIsCreateOrderOpen(true)}
+          />
+        </Card>
+      )}
+
       {/* Tab 5: Quá trình học tập (nếu đã convert) */}
       {activeTab === "academic" && isConverted && (
         <Card className="p-6">
@@ -939,7 +1041,7 @@ export function LeadProfilePage() {
               </p>
             </div>
             {lead.converted_student_id && (
-              <Link to={`/admin/hoc-vien/${lead.converted_student_id}`}>
+              <Link to={`/sale/hoc-vien/${lead.converted_student_id}`}>
                 <Button variant="primary">Xem hồ sơ chi tiết (360°) →</Button>
               </Link>
             )}
@@ -1099,6 +1201,44 @@ export function LeadProfilePage() {
           </div>
         </form>
       </Modal>
+
+      {/* Modal: Xác nhận Chốt học viên & Cấp tài khoản */}
+      <ConfirmChotLeadModal
+        open={isChotModalOpen}
+        lead={lead}
+        onClose={() => setIsChotModalOpen(false)}
+        onSuccess={(result) => {
+          queryClient.invalidateQueries({ queryKey: ["sale"] });
+          queryClient.invalidateQueries({ queryKey: ["admin"] });
+          setSuccessMsg(
+            `Đã chốt học viên ${lead.full_name} thành công! Mã học viên: ${result.student_code}`,
+          );
+          setTimeout(() => setSuccessMsg(""), 5000);
+        }}
+      />
+
+      {/* Modal: Lập Phiếu đăng ký mới */}
+      {isCreateOrderOpen && lead && (
+        <CreateRegistrationOrderModal
+          open={isCreateOrderOpen}
+          onClose={() => setIsCreateOrderOpen(false)}
+          selectableLeads={[lead]}
+          isLoadingLeads={false}
+          availableClasses={availableClasses}
+          defaultLeadId={lead.id}
+          defaultClassId={
+            lead.interested_course_id
+              ? availableClasses.find((c) => c.course_id === lead.interested_course_id)?.id
+              : undefined
+          }
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["sale"] });
+            setActiveTab("orders");
+            setSuccessMsg("Lập phiếu đăng ký cho học viên thành công!");
+            setTimeout(() => setSuccessMsg(""), 5000);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatVND,
+  generateStudentPassword,
   getChannelLabel,
   getPipelineStatusLabel,
   getSourceLabel,
@@ -12,6 +13,11 @@ import {
 } from "./saleShared";
 
 describe("sale shared helpers and badges", () => {
+  it("generates 8 alphanumeric characters (letters and numbers, no special symbols) for student initial password", () => {
+    const password = generateStudentPassword();
+    expect(password).toHaveLength(8);
+    expect(password).toMatch(/^[A-Za-z0-9]{8}$/);
+  });
   it("formats VND amounts accurately", () => {
     expect(formatVND(15000000)).toMatch(/15\.000\.000\s?đ/);
     expect(formatVND(0)).toBe("0 đ");

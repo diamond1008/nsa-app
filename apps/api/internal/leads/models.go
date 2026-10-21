@@ -17,6 +17,7 @@ var (
 	ErrInvalidAssignee         = errors.New("invalid assignee user")
 	ErrEmailAlreadyExists      = errors.New("email already exists")
 	ErrInvalidCSV              = errors.New("invalid CSV content")
+	ErrLeadLocked              = errors.New("hồ sơ học viên đã được khóa thông tin định danh, chỉ được phép cập nhật ghi chú")
 )
 
 // View represents the full JSON view of a Lead.
@@ -87,8 +88,10 @@ type ListFilter struct {
 	CreatedTo      string
 	SortBy         string
 	SortOrder      string
-	Page           int
-	PerPage        int
+	Page             int
+	PerPage          int
+	UnregisteredOnly bool
+	ConvertedOnly    bool
 }
 
 // ListResult is the paginated response for leads.
@@ -113,6 +116,10 @@ type ConvertInput struct {
 	DiscountNote   string
 	PaymentMethod  string
 	Notes          string
+	Password       string
+	Email          string
+	FullName       string
+	Phone          string
 }
 
 // ConvertResult contains the generated entities after conversion.

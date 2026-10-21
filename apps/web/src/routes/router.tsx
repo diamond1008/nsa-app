@@ -37,7 +37,10 @@ const AdminOperationsPage = lazyLoad(
   () => import("../features/admin/AdminPages"),
   "AdminOperationsPage",
 );
-const ClassDetailPage = lazyLoad(() => import("../features/admin/AdminPages"), "ClassDetailPage");
+const ClassDetailPage = lazyLoad<{ readOnly?: boolean }>(
+  () => import("../features/admin/AdminPages"),
+  "ClassDetailPage",
+);
 const ClassesPage = lazyLoad<{ readOnly?: boolean }>(
   () => import("../features/admin/AdminPages"),
   "ClassesPage",
@@ -274,6 +277,14 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: "/sale/lop-hoc/:classId",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <ClassDetailPage readOnly />
+              </RequireRole>
+            ),
+          },
+          {
             path: "/sale/lich-hoc",
             element: (
               <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
@@ -356,7 +367,7 @@ export const router = createBrowserRouter([
           {
             path: "/admin/hoc-vien/:personId",
             element: (
-              <RequireRole roles={["ADMIN", "ACADEMIC_ADMIN"]}>
+              <RequireRole roles={["ADMIN", "ACADEMIC_ADMIN", "SALE", "SALE_ADMIN"]}>
                 <PersonProfilePage kind="student" />
               </RequireRole>
             ),

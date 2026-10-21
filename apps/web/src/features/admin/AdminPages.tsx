@@ -66,6 +66,7 @@ import { adminApi } from "./adminApi";
 import { EnrollmentActionButtons } from "./EnrollmentActionButtons";
 import type { EnrollmentAction } from "./EnrollmentActionButtons";
 import { directoryRowNumber, PersonAvatar } from "./PersonIdentity";
+import { useOptionalAuth } from "../auth/AuthContext";
 
 function mutationMessage(error: unknown): string {
   return error instanceof ApiRequestError
@@ -2543,7 +2544,7 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
               className: "whitespace-nowrap text-right w-1",
               cell: (c) => (
                 <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                  <Link to={readOnly ? `/sale/lop-hoc` : `/admin/lop-hoc/${c.id}`}>
+                  <Link to={readOnly ? `/sale/lop-hoc/${c.id}` : `/admin/lop-hoc/${c.id}`}>
                     <Button variant="ghost">Chi tiết</Button>
                   </Link>
                   {!readOnly && (
@@ -2585,6 +2586,55 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   );
 }
 
+function computeClassDates(
+  startDateStr: string,
+  targetShift: "2D" | "3D",
+  totalSessions: number,
+): { startDate: string; endDate: string } {
+  if (!startDateStr || !totalSessions || totalSessions <= 0) {
+    return { startDate: startDateStr, endDate: "" };
+  }
+  const parts = startDateStr.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return { startDate: startDateStr, endDate: "" };
+  }
+
+  const current = new Date(parts[0], parts[1] - 1, parts[2]);
+  const allowedDays = targetShift === "2D" ? [1, 3, 5] : [2, 4, 6];
+
+  // Advance to first allowed shift day if needed
+  while (!allowedDays.includes(current.getDay())) {
+    current.setDate(current.getDate() + 1);
+  }
+
+  const formatYMD = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const actualStart = formatYMD(current);
+
+  let remaining = totalSessions - 1;
+  while (remaining > 0) {
+    current.setDate(current.getDate() + 1);
+    if (allowedDays.includes(current.getDay())) {
+      remaining--;
+    }
+  }
+
+  return { startDate: actualStart, endDate: formatYMD(current) };
+}
+
+function formatDateFullVi(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return dateStr;
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  const days = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+  const dayName = days[d.getDay()];
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dayName}, ${dd}/${mm}/${yyyy}`;
+}
+
 function ClassForm({
   initial,
   courses,
@@ -2598,8 +2648,12 @@ function ClassForm({
   error: Error | null;
   onSubmit: (body: unknown) => void;
 }) {
+  const sortedCourses = useMemo(() => {
+    return [...courses].sort((a, b) => a.code.localeCompare(b.code));
+  }, [courses]);
+
   const [form, setForm] = useState({
-    course_id: initial?.course_id ?? courses[0]?.id ?? "",
+    course_id: initial?.course_id ?? sortedCourses[0]?.id ?? "",
     class_code: initial?.class_code ?? "",
     name: initial?.name ?? "",
     start_date: initial?.start_date ?? "",
@@ -2608,7 +2662,125 @@ function ClassForm({
     status: initial?.status ?? "planning",
     change_reason: "",
   });
+
+  const [shift, setShift] = useState<"2D" | "3D">("2D");
+  const [batchNum, setBatchNum] = useState<number>(1);
+
+  // Fetch all existing classes to calculate sequential batch numbers
+  const existingClassesQuery = useQuery({
+    queryKey: ["admin", "classes", "for-code-generation"],
+    queryFn: () => adminApi.classes({ page: 1, per_page: 500 }),
+    enabled: !initial,
+  });
+
+  const currentCourse = useMemo(() => {
+    return courses.find((c) => c.id === form.course_id);
+  }, [courses, form.course_id]);
+
+  // Compute next batch number given course code and shift
+  const calculateNextBatch = (courseCode: string, targetShift: "2D" | "3D") => {
+    if (!courseCode) return 1;
+    const escaped = courseCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`^${escaped}-${targetShift}(\\d+)`, "i");
+    let max = 0;
+    for (const c of existingClassesQuery.data?.items ?? []) {
+      const match = c.class_code.match(regex);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > max) {
+          max = num;
+        }
+      }
+    }
+    return max + 1;
+  };
+
+  // Sync auto-generated code and name whenever course, shift, or existing classes change
+  useEffect(() => {
+    if (initial || !currentCourse) return;
+    const next = calculateNextBatch(currentCourse.code, shift);
+    setBatchNum(next);
+    const code = `${currentCourse.code}-${shift}${String(next).padStart(3, "0")}`;
+    setForm((prev) => ({
+      ...prev,
+      class_code: code,
+      name: code,
+    }));
+  }, [currentCourse, shift, existingClassesQuery.data, initial]);
+
+  const handleCourseChange = (courseId: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    setForm((prev) => {
+      if (!initial && course) {
+        const next = calculateNextBatch(course.code, shift);
+        setBatchNum(next);
+        const code = `${course.code}-${shift}${String(next).padStart(3, "0")}`;
+
+        let nextStart = prev.start_date;
+        let nextEnd = prev.end_date;
+        if (prev.start_date) {
+          const dates = computeClassDates(prev.start_date, shift, course.total_sessions || 10);
+          nextStart = dates.startDate;
+          nextEnd = dates.endDate;
+        }
+
+        return {
+          ...prev,
+          course_id: courseId,
+          class_code: code,
+          name: code,
+          start_date: nextStart,
+          end_date: nextEnd,
+        };
+      }
+      return { ...prev, course_id: courseId };
+    });
+  };
+
+  const handleShiftChange = (newShift: "2D" | "3D") => {
+    setShift(newShift);
+    if (!initial && currentCourse) {
+      const next = calculateNextBatch(currentCourse.code, newShift);
+      setBatchNum(next);
+      const code = `${currentCourse.code}-${newShift}${String(next).padStart(3, "0")}`;
+
+      let nextStart = form.start_date;
+      let nextEnd = form.end_date;
+      if (form.start_date) {
+        const dates = computeClassDates(form.start_date, newShift, currentCourse.total_sessions || 10);
+        nextStart = dates.startDate;
+        nextEnd = dates.endDate;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        class_code: code,
+        name: code,
+        start_date: nextStart,
+        end_date: nextEnd,
+      }));
+    }
+  };
+
+  const handleStartDateChange = (newStartDate: string) => {
+    if (!initial && currentCourse && newStartDate) {
+      const dates = computeClassDates(
+        newStartDate,
+        shift,
+        currentCourse.total_sessions || 10,
+      );
+      setForm((prev) => ({
+        ...prev,
+        start_date: dates.startDate,
+        end_date: dates.endDate,
+      }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, start_date: newStartDate }));
+  };
+
   const update = (k: string, v: string | number) => setForm((o) => ({ ...o, [k]: v }));
+
   return (
     <form
       className="space-y-4"
@@ -2618,49 +2790,159 @@ function ClassForm({
       }}
     >
       {error && <ErrorBanner message={mutationMessage(error)} />}
+
+      {/* Select Course */}
       <Select
         required
         label="Khóa học"
         value={form.course_id}
-        onChange={(e) => update("course_id", e.target.value)}
+        onChange={(e) => handleCourseChange(e.target.value)}
+        disabled={Boolean(initial)}
       >
-        <option value="">Chọn khóa học</option>
-        {courses.map((c) => (
+        <option value="">-- Chọn khóa học chuẩn --</option>
+        {sortedCourses.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.code} — {c.name}
+            {c.code} — {c.name} ({c.total_sessions} buổi)
           </option>
         ))}
       </Select>
+
+      {/* When creating: Shift selection & System-Generated Unique Identifiers */}
+      {!initial ? (
+        <div className="rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50/70 to-blue-50/20 p-4 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Icon name="sparkles" className="h-4 w-4 text-[#0532e6]" />
+              Quy chuẩn định danh & Ca học (Tự động sinh)
+            </span>
+            <span className="text-[11px] font-medium text-slate-500 font-mono">
+              [Mã Khóa]-[Ca][Số Khóa]
+            </span>
+          </div>
+
+          {/* Ca học selector */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Ca học <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleShiftChange("2D")}
+                className={clsx(
+                  "flex flex-col items-center justify-center py-2.5 px-3 rounded-xl border text-xs transition-all cursor-pointer",
+                  shift === "2D"
+                    ? "bg-[#0532e6] text-white border-[#0532e6] shadow-sm font-semibold ring-2 ring-blue-400/30"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300",
+                )}
+              >
+                <span className="font-mono text-sm font-bold">2D</span>
+                <span className="text-[11px] opacity-90">Thứ 2 / 4 / 6</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShiftChange("3D")}
+                className={clsx(
+                  "flex flex-col items-center justify-center py-2.5 px-3 rounded-xl border text-xs transition-all cursor-pointer",
+                  shift === "3D"
+                    ? "bg-[#0532e6] text-white border-[#0532e6] shadow-sm font-semibold ring-2 ring-blue-400/30"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300",
+                )}
+              >
+                <span className="font-mono text-sm font-bold">3D</span>
+                <span className="text-[11px] opacity-90">Thứ 3 / 5 / 7</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Auto-generated Unique Class Code & Name Display (Read-Only / Locked) */}
+          <div className="rounded-xl border border-blue-200 bg-white p-3.5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <Icon name="lock" className="h-3.5 w-3.5 text-blue-600" />
+                Mã định danh duy nhất (Unique Code)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
+                Khóa số {String(batchNum).padStart(3, "0")} (Tự động tăng)
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-slate-100">
+              <div>
+                <div className="text-[11px] text-slate-500">Mã lớp & Tên lớp chuẩn:</div>
+                <div className="text-base font-mono font-bold text-[#0532e6] tracking-wide">
+                  {form.class_code || "---"}
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="inline-flex items-center text-[11px] text-slate-500 italic bg-slate-50 px-2 py-1 rounded-md border border-slate-200">
+                  Hệ thống khóa cố định, chống sai lệch dữ liệu
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* When editing existing class: Display existing locked identifiers */
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
+          <div className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+            <Icon name="lock" className="h-3.5 w-3.5 text-slate-500" />
+            Mã định danh lớp học (Cố định)
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-sm font-bold text-slate-800">
+              {form.class_code}
+            </span>
+            <span className="text-xs text-slate-500">{form.name}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Class Schedule & Capacity Fields */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input
-          required
-          label="Mã lớp"
-          value={form.class_code}
-          onChange={(e) => update("class_code", e.target.value)}
-        />
-        <Input
-          required
-          label="Tên lớp"
-          value={form.name}
-          onChange={(e) => update("name", e.target.value)}
-        />
+        <div>
+          <Input
+            required
+            label="Ngày bắt đầu (Khai giảng)"
+            type="date"
+            value={form.start_date}
+            onChange={(e) => handleStartDateChange(e.target.value)}
+          />
+          {form.start_date ? (
+            <div className="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
+              <Icon name="calendar" className="h-3.5 w-3.5 text-[#0532e6]" />
+              Khai giảng: {formatDateFullVi(form.start_date)}
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-400 mt-1 italic">
+              Chọn ngày để hệ thống tự chốt lịch học
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Input
+            required
+            label="Ngày kết thúc (Hệ thống tự chốt)"
+            type="date"
+            value={form.end_date}
+            readOnly={!initial}
+            className={clsx(!initial && "bg-slate-50 cursor-not-allowed text-slate-800 font-semibold")}
+            onChange={(e) => update("end_date", e.target.value)}
+          />
+          {form.end_date ? (
+            <div className="text-[11px] text-emerald-700 mt-1 flex items-center gap-1 font-semibold">
+              <Icon name="check" className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              Tự chốt {currentCourse?.total_sessions ?? 0} buổi ({shift === "2D" ? "Ca 2/4/6" : "Ca 3/5/7"}): Bế giảng {formatDateFullVi(form.end_date)}
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-400 mt-1 italic">
+              Tự động tính ngày bế giảng sau khi chọn ngày bắt đầu
+            </div>
+          )}
+        </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Input
-          required
-          label="Ngày bắt đầu"
-          type="date"
-          value={form.start_date}
-          onChange={(e) => update("start_date", e.target.value)}
-        />
-        <Input
-          required
-          label="Ngày kết thúc"
-          type="date"
-          value={form.end_date}
-          onChange={(e) => update("end_date", e.target.value)}
-        />
-      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
           required
@@ -2675,11 +2957,15 @@ function ClassForm({
           value={form.status}
           onChange={(e) => update("status", e.target.value)}
         >
-          {["planning", "open", "in_progress", "completed", "cancelled", "archived"].map((v) => (
-            <option key={v}>{v}</option>
-          ))}
+          <option value="planning">Chuẩn bị (planning)</option>
+          <option value="open">Đang mở tuyển sinh (open)</option>
+          <option value="in_progress">Đang diễn ra (in_progress)</option>
+          <option value="completed">Hoàn thành (completed)</option>
+          <option value="cancelled">Đã hủy (cancelled)</option>
+          <option value="archived">Lưu trữ (archived)</option>
         </Select>
       </div>
+
       {initial ? (
         <Textarea
           required
@@ -2689,17 +2975,32 @@ function ClassForm({
           placeholder="Ví dụ: Điều chỉnh sĩ số theo tình hình thực tế"
         />
       ) : null}
-      <div className="flex justify-end">
+
+      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
         <Button type="submit" loading={loading}>
-          Lưu lớp học
+          {initial ? "Cập nhật lớp học" : "Tạo lớp học"}
         </Button>
       </div>
     </form>
   );
 }
 
-export function ClassDetailPage() {
+export function ClassDetailPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { classId = "" } = useParams();
+  const auth = useOptionalAuth();
+  const isSaleOnly = Boolean(
+    auth?.hasRole("SALE") &&
+    !auth?.hasRole("SALE_ADMIN") &&
+    !auth?.hasRole("ADMIN") &&
+    !auth?.hasRole("ACADEMIC_ADMIN")
+  );
+  const isSaleAdmin = Boolean(
+    auth?.hasRole("SALE_ADMIN") &&
+    !auth?.hasRole("ADMIN") &&
+    !auth?.hasRole("ACADEMIC_ADMIN")
+  );
+  const effectiveReadOnly = readOnly || isSaleOnly || isSaleAdmin;
+
   const client = useQueryClient();
   const [studentId, setStudentId] = useState("");
   const [teacherId, setTeacherId] = useState("");
@@ -2735,20 +3036,22 @@ export function ClassDetailPage() {
   const history = useQuery({
     queryKey: ["admin", "class", classId, "operation-history"],
     queryFn: () => adminApi.classHistory(classId),
-    enabled: !!classId,
+    enabled: !!classId && !isSaleOnly,
   });
   const transferTargets = useQuery({
     queryKey: ["admin", "classes", "transfer-targets", detail.data?.course_id],
     queryFn: () => adminApi.classes({ page: 1, per_page: 100, course_id: detail.data!.course_id }),
-    enabled: Boolean(detail.data?.course_id),
+    enabled: Boolean(detail.data?.course_id) && !effectiveReadOnly,
   });
   const students = useQuery({
     queryKey: ["admin", "students", "options"],
     queryFn: () => adminApi.students({ page: 1, per_page: 100, status: "active" }),
+    enabled: !effectiveReadOnly,
   });
   const teachers = useQuery({
     queryKey: ["admin", "teachers", "options"],
     queryFn: () => adminApi.teachers({ page: 1, per_page: 100, status: "active" }),
+    enabled: !effectiveReadOnly,
   });
   const enroll = useMutation({
     mutationFn: () => adminApi.enroll(classId, studentId),
@@ -2799,7 +3102,7 @@ export function ClassDetailPage() {
         title={detail.data ? `${detail.data.class_code} — ${detail.data.name}` : "Chi tiết lớp"}
         subtitle={detail.data?.course_name}
         actions={
-          <Link to="/admin/lop-hoc">
+          <Link to={effectiveReadOnly ? "/sale/lop-hoc" : "/admin/lop-hoc"}>
             <Button variant="ghost">
               <Icon name="arrow-left" className="h-4 w-4" />
               Danh sách lớp
@@ -2821,35 +3124,48 @@ export function ClassDetailPage() {
       </QueryState>
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <h2 className="mb-4 text-lg font-bold text-navy">Ghi danh học viên</h2>
-          {enroll.error && <ErrorBanner message={mutationMessage(enroll.error)} />}
-          <div className="mb-4 flex gap-2">
-            <Select
-              label="Học viên"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-            >
-              <option value="">Chọn học viên</option>
-              {students.data?.items.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.student_code} — {s.full_name}
-                </option>
-              ))}
-            </Select>
-            <Button
-              className="mt-6"
-              disabled={!studentId}
-              loading={enroll.isPending}
-              onClick={() => enroll.mutate()}
-            >
-              Ghi danh
-            </Button>
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-navy">
+              {effectiveReadOnly ? "Danh sách học viên" : "Ghi danh học viên"}
+            </h2>
+            {isSaleOnly && (
+              <p className="text-xs text-gtext">
+                Hiển thị học viên do bạn phụ trách trong lớp này
+              </p>
+            )}
           </div>
+          {!effectiveReadOnly && (
+            <>
+              {enroll.error && <ErrorBanner message={mutationMessage(enroll.error)} />}
+              <div className="mb-4 flex gap-2">
+                <Select
+                  label="Học viên"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                >
+                  <option value="">Chọn học viên</option>
+                  {students.data?.items.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.student_code} — {s.full_name}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  className="mt-6"
+                  disabled={!studentId}
+                  loading={enroll.isPending}
+                  onClick={() => enroll.mutate()}
+                >
+                  Ghi danh
+                </Button>
+              </div>
+            </>
+          )}
           <QueryState
             loading={enrollments.isLoading}
             error={enrollments.error}
             empty={!enrollments.data?.length}
-            emptyTitle="Lớp chưa có học viên"
+            emptyTitle={isSaleOnly ? "Chưa có học viên bạn phụ trách trong lớp này" : "Lớp chưa có học viên"}
           >
             <div className="space-y-2">
               {enrollments.data?.map((e) => (
@@ -2858,19 +3174,30 @@ export function ClassDetailPage() {
                   className="flex items-center justify-between rounded-lg border border-gborder p-3"
                 >
                   <div>
-                    <b>{e.student_code}</b>
+                    {effectiveReadOnly ? (
+                      <Link
+                        to={`/sale/hoc-vien/${e.student_id}`}
+                        className="font-bold text-navy hover:underline"
+                      >
+                        {e.student_code}
+                      </Link>
+                    ) : (
+                      <b>{e.student_code}</b>
+                    )}
                     <p className="text-sm text-gtext">{e.full_name}</p>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <StatusBadge value={e.status} />
-                    <EnrollmentActionButtons
-                      enrollment={e}
-                      onAction={(action) => {
-                        setEnrollmentAction(e);
-                        setActionType(action);
-                        if (action === "reenroll") setReturnEffectiveAt(vietnamDateTimeLocal());
-                      }}
-                    />
+                    {!effectiveReadOnly && (
+                      <EnrollmentActionButtons
+                        enrollment={e}
+                        onAction={(action) => {
+                          setEnrollmentAction(e);
+                          setActionType(action);
+                          if (action === "reenroll") setReturnEffectiveAt(vietnamDateTimeLocal());
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -2878,33 +3205,39 @@ export function ClassDetailPage() {
           </QueryState>
         </Card>
         <Card>
-          <h2 className="mb-4 text-lg font-bold text-navy">Phân công giảng viên</h2>
-          {(assign.error || remove.error) && (
-            <ErrorBanner message={mutationMessage(assign.error || remove.error)} />
+          <h2 className="mb-4 text-lg font-bold text-navy">
+            {effectiveReadOnly ? "Giảng viên phụ trách" : "Phân công giảng viên"}
+          </h2>
+          {!effectiveReadOnly && (
+            <>
+              {(assign.error || remove.error) && (
+                <ErrorBanner message={mutationMessage(assign.error || remove.error)} />
+              )}
+              <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <Select
+                  label="Giảng viên"
+                  value={teacherId}
+                  onChange={(e) => setTeacherId(e.target.value)}
+                >
+                  <option value="">Chọn giảng viên</option>
+                  {teachers.data?.items.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.teacher_code} — {t.full_name}
+                    </option>
+                  ))}
+                </Select>
+                <Input label="Vai trò" value={role} onChange={(e) => setRole(e.target.value)} />
+                <Button
+                  className="mt-6"
+                  disabled={!teacherId || !role}
+                  loading={assign.isPending}
+                  onClick={() => assign.mutate()}
+                >
+                  Phân công
+                </Button>
+              </div>
+            </>
           )}
-          <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <Select
-              label="Giảng viên"
-              value={teacherId}
-              onChange={(e) => setTeacherId(e.target.value)}
-            >
-              <option value="">Chọn giảng viên</option>
-              {teachers.data?.items.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.teacher_code} — {t.full_name}
-                </option>
-              ))}
-            </Select>
-            <Input label="Vai trò" value={role} onChange={(e) => setRole(e.target.value)} />
-            <Button
-              className="mt-6"
-              disabled={!teacherId || !role}
-              loading={assign.isPending}
-              onClick={() => assign.mutate()}
-            >
-              Phân công
-            </Button>
-          </div>
           <QueryState
             loading={assignments.isLoading}
             error={assignments.error}
@@ -2923,47 +3256,51 @@ export function ClassDetailPage() {
                     </b>
                     <p className="text-sm text-gtext">{a.assignment_role}</p>
                   </div>
-                  <Button variant="danger" onClick={() => setAssignmentToRemove(a)}>
-                    Gỡ
-                  </Button>
+                  {!effectiveReadOnly && (
+                    <Button variant="danger" onClick={() => setAssignmentToRemove(a)}>
+                      Gỡ
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
           </QueryState>
         </Card>
       </div>
-      <Card className="mt-6">
-        <SectionHeader
-          title="Lịch sử vận hành"
-          subtitle="Các thay đổi quan trọng được lưu lại để đối soát."
-        />
-        <QueryState
-          loading={history.isLoading}
-          error={history.error}
-          empty={!history.data?.length}
-          emptyTitle="Chưa có lịch sử vận hành"
-        >
-          <div className="divide-y divide-gborder">
-            {history.data?.map((item) => (
-              <div key={item.id} className="grid gap-2 py-4 sm:grid-cols-[180px_1fr_auto]">
-                <div>
-                  <p className="font-semibold text-navy">{operationEventLabel(item.event_type)}</p>
-                  <p className="text-xs text-gtext">{formatDateTime(item.occurred_at)}</p>
+      {!isSaleOnly && (
+        <Card className="mt-6">
+          <SectionHeader
+            title="Lịch sử vận hành"
+            subtitle="Các thay đổi quan trọng được lưu lại để đối soát."
+          />
+          <QueryState
+            loading={history.isLoading}
+            error={history.error}
+            empty={!history.data?.length}
+            emptyTitle="Chưa có lịch sử vận hành"
+          >
+            <div className="divide-y divide-gborder">
+              {history.data?.map((item) => (
+                <div key={item.id} className="grid gap-2 py-4 sm:grid-cols-[180px_1fr_auto]">
+                  <div>
+                    <p className="font-semibold text-navy">{operationEventLabel(item.event_type)}</p>
+                    <p className="text-xs text-gtext">{formatDateTime(item.occurred_at)}</p>
+                  </div>
+                  <div className="text-sm text-gtext">
+                    <p>{item.reason || "Thao tác khởi tạo dữ liệu"}</p>
+                    {Object.keys(item.details ?? {}).length > 0 ? (
+                      <p className="mt-1 text-xs text-gtext/80">{operationDetails(item.details)}</p>
+                    ) : null}
+                  </div>
+                  <span className="text-xs font-medium text-navy">
+                    {item.actor_email || "Hệ thống"}
+                  </span>
                 </div>
-                <div className="text-sm text-gtext">
-                  <p>{item.reason || "Thao tác khởi tạo dữ liệu"}</p>
-                  {Object.keys(item.details ?? {}).length > 0 ? (
-                    <p className="mt-1 text-xs text-gtext/80">{operationDetails(item.details)}</p>
-                  ) : null}
-                </div>
-                <span className="text-xs font-medium text-navy">
-                  {item.actor_email || "Hệ thống"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </QueryState>
-      </Card>
+              ))}
+            </div>
+          </QueryState>
+        </Card>
+      )}
       <Modal
         open={!!enrollmentAction}
         title={

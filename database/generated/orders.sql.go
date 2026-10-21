@@ -37,12 +37,16 @@ AND (
   OR o.lead_id = $4::uuid
 )
 AND (
-  $5::timestamptz IS NULL
-  OR o.created_at >= $5::timestamptz
+  $5::uuid IS NULL
+  OR o.created_by = $5::uuid
 )
 AND (
   $6::timestamptz IS NULL
-  OR o.created_at <= $6::timestamptz
+  OR o.created_at >= $6::timestamptz
+)
+AND (
+  $7::timestamptz IS NULL
+  OR o.created_at <= $7::timestamptz
 )
 `
 
@@ -51,6 +55,7 @@ type CountOrdersParams struct {
 	Status      NullOrderStatus    `json:"status"`
 	StudentID   pgtype.UUID        `json:"student_id"`
 	LeadID      pgtype.UUID        `json:"lead_id"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
 	CreatedFrom pgtype.Timestamptz `json:"created_from"`
 	CreatedTo   pgtype.Timestamptz `json:"created_to"`
 }
@@ -61,6 +66,7 @@ func (q *Queries) CountOrders(ctx context.Context, arg CountOrdersParams) (int64
 		arg.Status,
 		arg.StudentID,
 		arg.LeadID,
+		arg.CreatedBy,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 	)
@@ -541,17 +547,21 @@ AND (
   OR o.lead_id = $4::uuid
 )
 AND (
-  $5::timestamptz IS NULL
-  OR o.created_at >= $5::timestamptz
+  $5::uuid IS NULL
+  OR o.created_by = $5::uuid
 )
 AND (
   $6::timestamptz IS NULL
-  OR o.created_at <= $6::timestamptz
+  OR o.created_at >= $6::timestamptz
+)
+AND (
+  $7::timestamptz IS NULL
+  OR o.created_at <= $7::timestamptz
 )
 ORDER BY
   o.created_at DESC,
   o.id DESC
-LIMIT $8 OFFSET $7
+LIMIT $9 OFFSET $8
 `
 
 type ListOrdersParams struct {
@@ -559,6 +569,7 @@ type ListOrdersParams struct {
 	Status      NullOrderStatus    `json:"status"`
 	StudentID   pgtype.UUID        `json:"student_id"`
 	LeadID      pgtype.UUID        `json:"lead_id"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
 	CreatedFrom pgtype.Timestamptz `json:"created_from"`
 	CreatedTo   pgtype.Timestamptz `json:"created_to"`
 	PageOffset  int32              `json:"page_offset"`
@@ -600,6 +611,7 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 		arg.Status,
 		arg.StudentID,
 		arg.LeadID,
+		arg.CreatedBy,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 		arg.PageOffset,

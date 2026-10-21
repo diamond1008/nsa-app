@@ -29,6 +29,30 @@ export const SOURCE_OPTIONS: Array<{ value: LeadSource; label: string }> = [
   { value: "other", label: "Khác" },
 ];
 
+export function generateStudentPassword(): string {
+  // 8 ký tự gồm chữ cái (hoa, thường) và số, không chứa ký tự đặc biệt khó gõ
+  const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowers = "abcdefghijkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const all = uppers + lowers + digits;
+
+  const chars = [
+    uppers[Math.floor(Math.random() * uppers.length)],
+    lowers[Math.floor(Math.random() * lowers.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+  ];
+  for (let i = 3; i < 8; i++) {
+    chars.push(all[Math.floor(Math.random() * all.length)]);
+  }
+
+  // Shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
+
 export const CHANNEL_OPTIONS: Array<{ value: InteractionChannel; label: string }> = [
   { value: "phone_call", label: "Điện thoại" },
   { value: "zalo", label: "Zalo" },

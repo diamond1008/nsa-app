@@ -53,12 +53,14 @@ type ListFilter struct {
 	CourseID  string
 	TeacherID string
 	Capacity  string
-	FromDate  string
-	ToDate    string
-	SortBy    string
-	SortOrder string
-	Page      int
-	PerPage   int
+	FromDate   string
+	ToDate     string
+	SaleUserID   string
+	UpcomingOnly bool
+	SortBy       string
+	SortOrder  string
+	Page       int
+	PerPage    int
 }
 
 type View struct {
@@ -259,9 +261,15 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (pagination.Resul
 	if err != nil {
 		return pagination.Result[View]{}, err
 	}
+	saleUserID, err := optionalFilterUUID(filter.SaleUserID)
+	if err != nil {
+		return pagination.Result[View]{}, err
+	}
 	params := db.ListAdminClassesParams{
 		Search: strings.TrimSpace(filter.Search), Status: filter.Status, CourseID: courseID,
 		TeacherID: teacherID, Capacity: filter.Capacity, FromDate: fromDate, ToDate: toDate,
+		UpcomingOnly: pgtype.Bool{Bool: filter.UpcomingOnly, Valid: filter.UpcomingOnly},
+		SaleUserID: saleUserID,
 		SortBy: filter.SortBy, SortOrder: filter.SortOrder,
 		PageOffset: int32((filter.Page - 1) * filter.PerPage), PageLimit: int32(filter.PerPage),
 	}
@@ -272,6 +280,8 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (pagination.Resul
 	total, err := s.queries.CountAdminClasses(ctx, db.CountAdminClassesParams{
 		Search: params.Search, Status: params.Status, CourseID: courseID, TeacherID: teacherID,
 		Capacity: params.Capacity, FromDate: fromDate, ToDate: toDate,
+		UpcomingOnly: pgtype.Bool{Bool: filter.UpcomingOnly, Valid: filter.UpcomingOnly},
+		SaleUserID: saleUserID,
 	})
 	if err != nil {
 		return pagination.Result[View]{}, fmt.Errorf("count classes: %w", err)
@@ -328,7 +338,7 @@ func (s *Service) GetTeacherClass(ctx context.Context, userIDValue, classIDValue
 	} else if err != nil {
 		return TeacherClassView{}, fmt.Errorf("get teacher class: %w", err)
 	}
-	studentRows, err := s.queries.ListClassEnrollments(ctx, classID)
+	studentRows, err := s.queries.ListClassEnrollments(ctx, db.ListClassEnrollmentsParams{ClassID: classID})
 	if err != nil {
 		return TeacherClassView{}, fmt.Errorf("list teacher class students: %w", err)
 	}
@@ -470,17 +480,24 @@ func (s *Service) EnrollWithReason(ctx context.Context, actorID, classIDValue, s
 	return view, nil
 }
 
-func (s *Service) ListEnrollments(ctx context.Context, classIDValue string) ([]EnrollmentView, error) {
+func (s *Service) ListEnrollments(ctx context.Context, classIDValue, saleUserIDValue string) ([]EnrollmentView, error) {
 	classID, err := data.UUID(classIDValue)
 	if err != nil {
 		return nil, ErrClassNotFound
+	}
+	saleUserID, err := optionalFilterUUID(saleUserIDValue)
+	if err != nil {
+		return nil, err
 	}
 	if _, err := s.queries.GetAdminClass(ctx, classID); errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrClassNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("get enrollment class: %w", err)
 	}
-	rows, err := s.queries.ListClassEnrollments(ctx, classID)
+	rows, err := s.queries.ListClassEnrollments(ctx, db.ListClassEnrollmentsParams{
+		ClassID:    classID,
+		SaleUserID: saleUserID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list enrollments: %w", err)
 	}

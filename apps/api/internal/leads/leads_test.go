@@ -1,7 +1,6 @@
 package leads
 
 import (
-	"strings"
 	"testing"
 	"unicode"
 
@@ -47,31 +46,18 @@ func TestValidateLeadWriteDefaultsSource(t *testing.T) {
 }
 
 func TestGenerateRandomPassword(t *testing.T) {
-	pass, err := generateRandomPassword(10)
+	pass, err := generateRandomPassword(8)
 	if err != nil {
 		t.Fatalf("failed to generate random password: %v", err)
 	}
-	if len(pass) != 10 {
-		t.Fatalf("expected length 10, got %d", len(pass))
+	if len(pass) != 8 {
+		t.Fatalf("expected length 8, got %d", len(pass))
 	}
 
-	var hasUpper, hasLower, hasDigit, hasSpecial bool
 	for _, ch := range pass {
-		switch {
-		case unicode.IsUpper(ch):
-			hasUpper = true
-		case unicode.IsLower(ch):
-			hasLower = true
-		case unicode.IsDigit(ch):
-			hasDigit = true
-		case strings.ContainsRune("!@#$%^&*", ch):
-			hasSpecial = true
+		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) {
+			t.Fatalf("password %q contains non-alphanumeric character: %c", pass, ch)
 		}
-	}
-
-	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
-		t.Fatalf("password %q missing required character set: upper=%v lower=%v digit=%v special=%v",
-			pass, hasUpper, hasLower, hasDigit, hasSpecial)
 	}
 }
 

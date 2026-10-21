@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, ErrorBanner, Modal, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
@@ -8,6 +8,15 @@ import { saleKeys } from "../../lib/queryKeys";
 import { saleApi } from "./saleApi";
 import type { CreateOrderInput } from "./saleApi";
 import { formatVND } from "./saleShared";
+import {
+  calculateInstallments,
+  formatOrderNotesWithInstallments,
+} from "./installmentUtils";
+import {
+  ClassSelectorDropdown,
+  InstallmentPlanPicker,
+  StudentSelectorDropdown,
+} from "./SaleDropdowns";
 
 interface CreateRegistrationOrderModalProps {
   open: boolean;
@@ -18,6 +27,7 @@ interface CreateRegistrationOrderModalProps {
     id: string;
     class_code: string;
     name: string;
+    start_date?: string;
     enrolled_students: number;
     maximum_students: number;
   }>;
@@ -44,6 +54,7 @@ export function CreateRegistrationOrderModal({
   const [amount, setAmount] = useState<number>(15000000);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [discountNote, setDiscountNote] = useState("");
+  const [installmentPlan, setInstallmentPlan] = useState<number>(1);
   const [orderNotes, setOrderNotes] = useState("");
 
   useEffect(() => {
@@ -53,6 +64,10 @@ export function CreateRegistrationOrderModal({
 
   const selectedLead = selectableLeads.find((l) => l.id === selectedLeadId);
   const finalAmount = Math.max(0, amount - discountAmount);
+  const installmentItems = useMemo(
+    () => calculateInstallments(finalAmount, installmentPlan),
+    [finalAmount, installmentPlan],
+  );
 
   const createOrderMutation = useMutation({
     mutationFn: (data: CreateOrderInput) => saleApi.createOrder(data),
@@ -78,8 +93,25 @@ export function CreateRegistrationOrderModal({
       return;
     }
 
+    if (!selectedLead.converted_student_id) {
+      setFormError("Học viên này chưa được chốt (chưa có mã học viên). Vui lòng chốt học viên trước khi lập phiếu đăng ký.");
+      return;
+    }
+
     if (!selectedClassId) {
       setFormError("Vui lòng chọn lớp học đang tuyển sinh.");
+      return;
+    }
+
+    const selectedClass = availableClasses.find((c) => c.id === selectedClassId);
+    if (!selectedClass) {
+      setFormError("Vui lòng chọn lớp học đang tuyển sinh.");
+      return;
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (selectedClass.start_date && selectedClass.start_date <= todayStr) {
+      setFormError("Lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới.");
       return;
     }
 
@@ -93,6 +125,13 @@ export function CreateRegistrationOrderModal({
       return;
     }
 
+    const serializedNotes = formatOrderNotesWithInstallments(orderNotes, {
+      plan_type: installmentPlan,
+      total_installments: installmentPlan,
+      installments: installmentItems,
+      user_notes: orderNotes,
+    });
+
     createOrderMutation.mutate({
       lead_id: selectedLeadId,
       student_id: selectedLead.converted_student_id || undefined,
@@ -100,7 +139,7 @@ export function CreateRegistrationOrderModal({
       amount,
       discount_amount: discountAmount,
       discount_note: discountNote || undefined,
-      notes: orderNotes || undefined,
+      notes: serializedNotes,
     });
   };
 
@@ -121,52 +160,36 @@ export function CreateRegistrationOrderModal({
 
         {/* Select Converted Lead */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
             Học viên (Lead đã chốt) <span className="text-red-500">*</span>
           </label>
           {isLoadingLeads ? (
             <div className="text-xs text-slate-400 py-2">Đang tải danh sách học viên...</div>
           ) : selectableLeads.length === 0 ? (
-            <div className="p-3 text-xs text-rose-700 bg-rose-50 rounded-xl border border-rose-200">
-              Hiện bạn chưa có Lead nào để tạo phiếu đăng ký. Vui lòng chốt Lead hoặc chọn một Lead
-              để tạo phiếu.
+            <div className="p-3 text-xs text-amber-800 bg-amber-50 rounded-xl border border-amber-200">
+              Hiện tại chưa có học viên nào đang chờ lập phiếu đăng ký. Tất cả học viên đã chốt trước đó đều đã có phiếu đăng ký trong hệ thống.
             </div>
           ) : (
-            <select
+            <StudentSelectorDropdown
               value={selectedLeadId}
-              onChange={(e) => setSelectedLeadId(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200/80 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-[#0532e6] focus:outline-none"
+              onChange={setSelectedLeadId}
+              leads={selectableLeads}
               required
-            >
-              <option value="">-- Chọn học viên --</option>
-              {selectableLeads.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.full_name} ({l.phone || "Không có SĐT"}) —{" "}
-                  {l.interested_course_name || "Chưa có khóa"}
-                </option>
-              ))}
-            </select>
+            />
           )}
         </div>
 
         {/* Target Class */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
             Lớp học ghi danh <span className="text-red-500">*</span>
           </label>
-          <select
+          <ClassSelectorDropdown
             value={selectedClassId}
-            onChange={(e) => setSelectedClassId(e.target.value)}
-            className="w-full h-10 rounded-xl border border-slate-200/80 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-[#0532e6] focus:outline-none"
+            onChange={setSelectedClassId}
+            classes={availableClasses}
             required
-          >
-            <option value="">-- Chọn lớp học đang mở --</option>
-            {availableClasses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.class_code} — {c.name} (Sĩ số: {c.enrolled_students}/{c.maximum_students})
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* Tuition & Discount */}
@@ -228,6 +251,50 @@ export function CreateRegistrationOrderModal({
           <span className="text-lg font-bold text-[#0532e6] tracking-tight">
             {formatVND(finalAmount)}
           </span>
+        </div>
+
+        {/* Payment Policy / Installments Selection */}
+        <div className="space-y-3 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-slate-800">
+                Chính sách đóng học phí (Số đợt thanh toán) <span className="text-red-500">*</span>
+              </label>
+              <span className="text-[11px] font-bold text-[#0532e6]">
+                Đang chọn: {installmentPlan} đợt
+              </span>
+            </div>
+            <InstallmentPlanPicker value={installmentPlan} onChange={setInstallmentPlan} />
+          </div>
+
+          {/* Breakdown preview of each installment */}
+          <div className="space-y-2 pt-2 border-t border-slate-200/70">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700">
+              <span>Kế hoạch chia đợt đóng ({installmentPlan} đợt):</span>
+              <span className="font-bold text-[#0532e6]">{formatVND(finalAmount)}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {installmentItems.map((item) => (
+                <div
+                  key={item.round}
+                  className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-2.5 text-xs shadow-2xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-[11px] font-bold text-[#0532e6]">
+                      {item.round}
+                    </span>
+                    <span className="font-medium text-slate-700">
+                      Đợt {item.round} ({item.percentage}%)
+                    </span>
+                  </div>
+                  <span className="font-bold text-[#0532e6]">{formatVND(item.amount)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="pt-1 text-[11px] text-slate-500 italic">
+              * Khi tạo xong phiếu đăng ký, chuyên viên Sale sẽ chủ động vào trang <b>Phiếu thu</b> để lập phiếu thu cho từng đợt theo thực tế.
+            </p>
+          </div>
         </div>
 
         {/* Notes */}

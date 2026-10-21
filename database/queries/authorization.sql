@@ -28,3 +28,14 @@ SELECT EXISTS(
     AND (assigned_to = $2 OR created_by = $2)
     AND deleted_at IS NULL
 );
+
+-- name: CheckSaleAssignedToClass :one
+-- True when the given user is the assigned sale or creator of any lead converted into a student enrolled in the given class.
+SELECT EXISTS(
+  SELECT 1
+  FROM class_enrollments ce
+  JOIN leads l ON l.converted_student_id = ce.student_id
+  WHERE ce.class_id = $1
+    AND (l.assigned_to = $2 OR l.created_by = $2)
+    AND l.deleted_at IS NULL
+);

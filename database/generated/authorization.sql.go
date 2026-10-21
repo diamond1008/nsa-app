@@ -11,6 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const checkSaleAssignedToClass = `-- name: CheckSaleAssignedToClass :one
+SELECT EXISTS(
+  SELECT 1
+  FROM class_enrollments ce
+  JOIN leads l ON l.converted_student_id = ce.student_id
+  WHERE ce.class_id = $1
+    AND (l.assigned_to = $2 OR l.created_by = $2)
+    AND l.deleted_at IS NULL
+)
+`
+
+type CheckSaleAssignedToClassParams struct {
+	ClassID    pgtype.UUID `json:"class_id"`
+	AssignedTo pgtype.UUID `json:"assigned_to"`
+}
+
+// True when the given user is the assigned sale or creator of any lead converted into a student enrolled in the given class.
+func (q *Queries) CheckSaleAssignedToClass(ctx context.Context, arg CheckSaleAssignedToClassParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkSaleAssignedToClass, arg.ClassID, arg.AssignedTo)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const checkSaleAssignedToStudent = `-- name: CheckSaleAssignedToStudent :one
 SELECT EXISTS(
   SELECT 1 FROM leads

@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 
 import { DataTable, Pagination, QueryState, StatusBadge } from "../../components/data";
 import type { Column } from "../../components/data";
 import { FilterBar, useDebouncedValue } from "../../components/filters";
 import { Icon } from "../../components/icons";
-import { Button, Input, Modal, PageHeader } from "../../components/ui";
+import { Input, PageHeader } from "../../components/ui";
 import { formatDate } from "../../lib/format";
 import type { Lead } from "../../lib/domainTypes";
 import { saleApi } from "./saleApi";
-import { adminApi } from "../admin/adminApi";
+import { LeadDetailDrawer } from "./LeadDetailDrawer";
 
 export function SaleStudentsPage() {
   const [search, setSearch] = useState("");
@@ -20,8 +19,8 @@ export function SaleStudentsPage() {
   const [page, setPage] = useState(1);
   const perPage = 15;
 
-  // Selected student for quick inspection drawer/modal
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  // Selected student lead ID to open the slide-over tab drawer on the right
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   // Fetch converted leads (which represent converted students managed by this Sale)
   const studentsQuery = useQuery({
@@ -41,16 +40,10 @@ export function SaleStudentsPage() {
         page,
         per_page: perPage,
         search: debouncedSearch || undefined,
-        pipeline_status: "da_dang_ky",
+        converted_only: true,
         created_from: fromDate ? `${fromDate}T00:00:00Z` : undefined,
         created_to: toDate ? `${toDate}T23:59:59Z` : undefined,
       }),
-  });
-
-  const studentClassesQuery = useQuery({
-    queryKey: ["sale", "student-class-history", selectedLead?.converted_student_id],
-    queryFn: () => adminApi.studentClassHistory(selectedLead!.converted_student_id!, { page: 1 }),
-    enabled: Boolean(selectedLead?.converted_student_id),
   });
 
   const items = studentsQuery.data?.items ?? [];
@@ -61,7 +54,7 @@ export function SaleStudentsPage() {
     {
       header: "Học viên",
       cell: (lead: Lead) => {
-        const studentCode = lead.converted_student_code || "HV-CHOT";
+        const studentCode = lead.converted_student_code;
         const initials = lead.full_name
           .split(" ")
           .filter(Boolean)
@@ -70,14 +63,22 @@ export function SaleStudentsPage() {
           .join("")
           .toUpperCase();
 
-        const content = (
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-xs">
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedLeadId(lead.id);
+            }}
+            className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
+            title="Nhấn để mở bảng chi tiết học viên"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-xs group-hover:shadow-md transition-shadow">
               {initials || "HV"}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900 group-hover:text-[#0532e6] transition-colors">
+                <span className="font-semibold text-slate-900 group-hover:text-[#0532e6] transition-colors underline-offset-2 group-hover:underline">
                   {lead.full_name}
                 </span>
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-50 text-blue-700 border border-blue-200/80">
@@ -99,22 +100,8 @@ export function SaleStudentsPage() {
                 )}
               </div>
             </div>
-          </div>
+          </button>
         );
-
-        if (lead.converted_student_id) {
-          return (
-            <Link
-              to={`/sale/hoc-vien/${lead.converted_student_id}`}
-              className="group block"
-              title="Xem hồ sơ chi tiết học viên"
-            >
-              {content}
-            </Link>
-          );
-        }
-
-        return content;
       },
     },
     {
@@ -154,49 +141,6 @@ export function SaleStudentsPage() {
           lead.converted_student_status || (lead.converted_student_id ? "active" : "pending");
         return <StatusBadge value={status} />;
       },
-    },
-    {
-      header: "Thao tác",
-      className: "text-right",
-      cell: (lead: Lead) => (
-        <div className="flex items-center justify-end gap-1.5">
-          {lead.converted_student_id ? (
-            <Link to={`/sale/hoc-vien/${lead.converted_student_id}`}>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#0532e6] hover:bg-white/80 border border-slate-200/60 shadow-2xs"
-                title="Xem hồ sơ chi tiết học viên"
-              >
-                <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
-                Chi tiết
-              </Button>
-            </Link>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#0532e6] hover:bg-white/80 border border-slate-200/60 shadow-2xs"
-              onClick={() => setSelectedLead(lead)}
-              title="Xem hồ sơ học viên & lớp học"
-            >
-              <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
-              Chi tiết
-            </Button>
-          )}
-          <Link to={`/sale/phieu-dang-ky?lead_id=${lead.id}`}>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-8 px-2.5 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200/80 shadow-2xs"
-              title="Xem hoặc tạo phiếu đăng ký học phí"
-            >
-              <Icon name="shopping-bag" className="h-3.5 w-3.5 mr-1" />
-              Phiếu ĐK
-            </Button>
-          </Link>
-        </div>
-      ),
     },
   ];
 
@@ -261,7 +205,12 @@ export function SaleStudentsPage() {
         emptyTitle="Chưa có học viên nào"
       >
         <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
-          <DataTable items={items} columns={columns} />
+          <DataTable
+            items={items}
+            columns={columns}
+            onRowClick={(lead) => setSelectedLeadId(lead.id)}
+            rowClassName={() => "cursor-pointer hover:bg-blue-50/40 transition-colors"}
+          />
           {totalPages > 1 && (
             <div className="p-4 border-t border-white/60">
               <Pagination page={page} totalPages={totalPages} onPage={setPage} />
@@ -270,120 +219,14 @@ export function SaleStudentsPage() {
         </div>
       </QueryState>
 
-      {/* Student Quick Detail Modal */}
-      {selectedLead && (
-        <Modal
-          open={Boolean(selectedLead)}
-          onClose={() => setSelectedLead(null)}
-          title={`Hồ sơ học viên: ${selectedLead.full_name}`}
-        >
-          <div className="space-y-5">
-            {/* Header info */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-base font-bold text-white shadow-sm">
-                {selectedLead.full_name
-                  .split(" ")
-                  .filter(Boolean)
-                  .slice(-2)
-                  .map((n: string) => n[0])
-                  .join("")
-                  .toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-slate-900 text-base truncate">
-                    {selectedLead.full_name}
-                  </h4>
-                  <span className="px-2 py-0.5 rounded text-xs font-mono font-semibold bg-blue-100 text-blue-800">
-                    {selectedLead.converted_student_code || "Học viên"}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Ngày chuyển đổi:{" "}
-                  {selectedLead.converted_at
-                    ? formatDate(selectedLead.converted_at)
-                    : formatDate(selectedLead.created_at)}
-                </p>
-              </div>
-            </div>
-
-            {/* Contact details */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
-                <span className="text-slate-400 block mb-0.5">Số điện thoại:</span>
-                <span className="font-semibold text-slate-800">{selectedLead.phone || "—"}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
-                <span className="text-slate-400 block mb-0.5">Email:</span>
-                <span className="font-semibold text-slate-800 truncate block">
-                  {selectedLead.email || "—"}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
-                <span className="text-slate-400 block mb-0.5">Khóa học đăng ký:</span>
-                <span className="font-semibold text-blue-600">
-                  {selectedLead.interested_course_name || "—"}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-white border border-slate-200/70 shadow-2xs">
-                <span className="text-slate-400 block mb-0.5">Địa chỉ:</span>
-                <span className="font-semibold text-slate-800 truncate block">
-                  {selectedLead.address || "—"}
-                </span>
-              </div>
-            </div>
-
-            {/* Enrolled classes */}
-            <div className="space-y-2">
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Lớp học đang tham gia
-              </h5>
-              {studentClassesQuery.isLoading ? (
-                <div className="p-4 text-center text-xs text-slate-400">
-                  Đang tải thông tin lớp học...
-                </div>
-              ) : (studentClassesQuery.data?.items ?? []).length > 0 ? (
-                <div className="space-y-2">
-                  {studentClassesQuery.data?.items.map((c) => (
-                    <div
-                      key={c.enrollment_id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 bg-white shadow-2xs"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800 text-xs">{c.class_code}</span>
-                          <span className="text-xs text-slate-600 font-medium">{c.class_name}</span>
-                        </div>
-                        <span className="text-[11px] text-slate-400">Khóa: {c.course_name}</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Đang theo học
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-xs text-slate-400 rounded-xl bg-slate-50 border border-dashed border-slate-200">
-                  Chưa có lịch sử lớp học đào tạo trực tiếp.
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/80">
-              <Button type="button" variant="ghost" onClick={() => setSelectedLead(null)}>
-                Đóng
-              </Button>
-              <Link to={`/sale/phieu-dang-ky?lead_id=${selectedLead.id}`}>
-                <Button type="button" variant="primary">
-                  <Icon name="shopping-bag" className="h-4 w-4 mr-1.5" />
-                  Xem Phiếu đăng ký
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </Modal>
-      )}
+      {/* Right-side Slide-Over Detail Drawer */}
+      <LeadDetailDrawer
+        leadId={selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        onLeadUpdated={() => {
+          void studentsQuery.refetch();
+        }}
+      />
     </div>
   );
 }

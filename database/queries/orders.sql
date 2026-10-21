@@ -91,6 +91,10 @@ AND (
   OR o.lead_id = sqlc.narg(lead_id)::uuid
 )
 AND (
+  sqlc.narg(created_by)::uuid IS NULL
+  OR o.created_by = sqlc.narg(created_by)::uuid
+)
+AND (
   sqlc.narg(created_from)::timestamptz IS NULL
   OR o.created_at >= sqlc.narg(created_from)::timestamptz
 )
@@ -127,6 +131,10 @@ AND (
 AND (
   sqlc.narg(lead_id)::uuid IS NULL
   OR o.lead_id = sqlc.narg(lead_id)::uuid
+)
+AND (
+  sqlc.narg(created_by)::uuid IS NULL
+  OR o.created_by = sqlc.narg(created_by)::uuid
 )
 AND (
   sqlc.narg(created_from)::timestamptz IS NULL

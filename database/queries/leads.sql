@@ -89,6 +89,20 @@ AND (
   sqlc.narg(created_to)::timestamptz IS NULL
   OR l.created_at <= sqlc.narg(created_to)::timestamptz
 )
+AND (
+  sqlc.narg(unregistered_only)::boolean IS NULL
+  OR sqlc.narg(unregistered_only)::boolean = FALSE
+  OR NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE (o.lead_id = l.id OR (l.converted_student_id IS NOT NULL AND o.student_id = l.converted_student_id))
+      AND o.status NOT IN ('cancelled', 'refunded')
+  )
+)
+AND (
+  sqlc.narg(converted_only)::boolean IS NULL
+  OR sqlc.narg(converted_only)::boolean = FALSE
+  OR l.converted_student_id IS NOT NULL
+)
 ORDER BY
   CASE WHEN sqlc.arg(sort_by)::text = 'full_name' AND sqlc.arg(sort_order)::text = 'asc' THEN l.full_name END ASC,
   CASE WHEN sqlc.arg(sort_by)::text = 'full_name' AND sqlc.arg(sort_order)::text = 'desc' THEN l.full_name END DESC,
@@ -127,6 +141,20 @@ AND (
 AND (
   sqlc.narg(created_to)::timestamptz IS NULL
   OR l.created_at <= sqlc.narg(created_to)::timestamptz
+)
+AND (
+  sqlc.narg(unregistered_only)::boolean IS NULL
+  OR sqlc.narg(unregistered_only)::boolean = FALSE
+  OR NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE (o.lead_id = l.id OR (l.converted_student_id IS NOT NULL AND o.student_id = l.converted_student_id))
+      AND o.status NOT IN ('cancelled', 'refunded')
+  )
+)
+AND (
+  sqlc.narg(converted_only)::boolean IS NULL
+  OR sqlc.narg(converted_only)::boolean = FALSE
+  OR l.converted_student_id IS NOT NULL
 );
 
 -- name: UpdateLead :one
@@ -297,6 +325,20 @@ AND (
 AND (
   sqlc.narg(created_to)::timestamptz IS NULL
   OR l.created_at <= sqlc.narg(created_to)::timestamptz
+)
+AND (
+  sqlc.narg(unregistered_only)::boolean IS NULL
+  OR sqlc.narg(unregistered_only)::boolean = FALSE
+  OR NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE (o.lead_id = l.id OR (l.converted_student_id IS NOT NULL AND o.student_id = l.converted_student_id))
+      AND o.status NOT IN ('cancelled', 'refunded')
+  )
+)
+AND (
+  sqlc.narg(converted_only)::boolean IS NULL
+  OR sqlc.narg(converted_only)::boolean = FALSE
+  OR l.converted_student_id IS NOT NULL
 )
 ORDER BY l.created_at DESC;
 
