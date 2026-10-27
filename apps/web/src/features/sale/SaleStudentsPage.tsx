@@ -78,7 +78,7 @@ export function SaleStudentsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900 group-hover:text-[#0532e6] transition-colors underline-offset-2 group-hover:underline">
+                <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors duration-150">
                   {lead.full_name}
                 </span>
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-50 text-blue-700 border border-blue-200/80">

@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/auth"
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/request"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/response"
 )
@@ -94,8 +96,18 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	isManager := claims != nil && claims.HasAnyRole(auth.RoleAdmin, "SALE_ADMIN", "ACADEMIC_ADMIN")
 	actorID, _ := auth.UserIDFrom(r.Context())
 	if !isManager && view.CreatedBy != actorID {
-		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Chuyên viên chỉ được xem phiếu do chính mình lập")
-		return
+		canAccess := false
+		if view.StudentID != nil && *view.StudentID != "" {
+			if stUUID, err := data.UUID(*view.StudentID); err == nil {
+				if allowed, err := auth.CanAccessStudentProfile(r.Context(), h.service.Queries(), claims, stUUID); err == nil && allowed {
+					canAccess = true
+				}
+			}
+		}
+		if !canAccess {
+			response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Chuyên viên chỉ được xem phiếu do mình lập hoặc thuộc học viên mình quản lý")
+			return
+		}
 	}
 
 	response.OK(w, view)
@@ -110,7 +122,48 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var createdBy string
 	if !isManager {
 		actorID, _ := auth.UserIDFrom(r.Context())
-		createdBy = actorID
+		reqStudentID := r.URL.Query().Get("student_id")
+		reqLeadID := r.URL.Query().Get("lead_id")
+
+		if reqStudentID != "" {
+			stUUID, err := data.UUID(reqStudentID)
+			if err != nil {
+				response.Fail(w, http.StatusNotFound, "STUDENT_NOT_FOUND", "Student not found")
+				return
+			}
+			allowed, err := auth.CanAccessStudentProfile(r.Context(), h.service.Queries(), claims, stUUID)
+			if err != nil {
+				response.InternalError(w, h.log, auth.RequestIDFrom(r.Context()), err)
+				return
+			}
+			if !allowed {
+				response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Bạn chỉ được xem đơn hàng của học viên thuộc quyền quản lý của mình")
+				return
+			}
+			createdBy = ""
+		} else if reqLeadID != "" {
+			leadUUID, err := data.UUID(reqLeadID)
+			if err != nil {
+				response.Fail(w, http.StatusNotFound, "LEAD_NOT_FOUND", "Lead not found")
+				return
+			}
+			lead, err := h.service.Queries().GetLead(r.Context(), leadUUID)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					response.Fail(w, http.StatusNotFound, "LEAD_NOT_FOUND", "Lead not found")
+				} else {
+					response.InternalError(w, h.log, auth.RequestIDFrom(r.Context()), err)
+				}
+				return
+			}
+			if !lead.AssignedTo.Valid || data.UUIDString(lead.AssignedTo) != actorID {
+				response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Bạn chỉ được xem đơn hàng của lead thuộc quyền quản lý của mình")
+				return
+			}
+			createdBy = ""
+		} else {
+			createdBy = actorID
+		}
 	} else if reqCreatedBy := r.URL.Query().Get("created_by"); reqCreatedBy != "" {
 		createdBy = reqCreatedBy
 	}
@@ -181,11 +234,11 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 	case errors.Is(err, ErrInvalidStatus):
 		response.Fail(w, http.StatusBadRequest, "INVALID_ORDER_STATUS", "Invalid order status value")
 	case errors.Is(err, ErrForbiddenOrderAccess):
-		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Chỉ chuyên viên tạo phiếu đăng ký hoặc cấp quản lý mới có quyền lập phiếu thu cho đơn này")
+		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Chuyên viên chỉ có quyền thao tác trên đơn hàng hoặc học viên do mình phụ trách")
 	case errors.Is(err, ErrClassAlreadyStarted):
 		response.Fail(w, http.StatusBadRequest, "CLASS_ALREADY_STARTED", "Lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới")
 	case errors.Is(err, ErrLeadAlreadyHasOrder):
-		response.Fail(w, http.StatusBadRequest, "LEAD_ALREADY_HAS_ORDER", "Học viên này đã có phiếu đăng ký trong hệ thống, không thể lập thêm phiếu trùng lặp")
+		response.Fail(w, http.StatusBadRequest, "LEAD_ALREADY_HAS_ORDER", "Học viên này đã có phiếu đăng ký đang hiệu lực cho lớp học này, không thể lập thêm phiếu trùng lặp")
 	case errors.Is(err, ErrLeadNotConverted):
 		response.Fail(w, http.StatusBadRequest, "LEAD_NOT_CONVERTED", "Chỉ học viên đã được chốt (đã cấp mã học viên) mới được phép lập phiếu đăng ký")
 	default:

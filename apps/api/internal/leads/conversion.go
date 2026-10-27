@@ -44,7 +44,10 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		}
 		classID = parsedClassID
 	}
-	actorUUID, _ := data.UUID(actorID)
+	actorUUID, err := data.UUID(actorID)
+	if err != nil {
+		return ConvertResult{}, fmt.Errorf("invalid actor ID: %w", err)
+	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -54,7 +57,7 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 
 	q := s.queries.WithTx(tx)
 
-	lead, err := q.GetLead(ctx, leadID)
+	lead, err := q.GetLeadForUpdate(ctx, leadID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ConvertResult{}, ErrNotFound
 	}
@@ -64,7 +67,7 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 	if lead.ConvertedStudentID.Valid {
 		return ConvertResult{}, ErrAlreadyConverted
 	}
-	if !isAdmin && lead.AssignedTo.Valid && data.UUIDString(lead.AssignedTo) != actorID {
+	if !isAdmin && (!lead.AssignedTo.Valid || data.UUIDString(lead.AssignedTo) != actorID) {
 		return ConvertResult{}, ErrUnauthorizedAccess
 	}
 
@@ -308,7 +311,7 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		auditDetails["class_id"] = data.UUIDString(classID)
 	}
 	if err := audit.Write(ctx, q, actorID, "lead.convert", "lead", leadID, nil, auditDetails); err != nil {
-		return ConvertResult{}, err
+		return ConvertResult{}, fmt.Errorf("write convert audit log: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -336,29 +339,30 @@ func generateRandomPassword(length int) (string, error) {
 	)
 
 	b := make([]byte, length)
-	sets := []string{upper, lower, digits}
-	for i, set := range sets {
-		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(set))))
+	charsets := []string{upper, lower, digits}
+	for i, cs := range charsets {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(cs))))
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("crypto rand charset %d: %w", i, err)
 		}
-		b[i] = set[idx.Int64()]
+		b[i] = cs[idx.Int64()]
 	}
 
-	for i := len(sets); i < length; i++ {
+	for i := len(charsets); i < length; i++ {
 		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(all))))
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("crypto rand fill %d: %w", i, err)
 		}
 		b[i] = all[idx.Int64()]
 	}
 
-	for i := range b {
-		j, err := rand.Int(rand.Reader, big.NewInt(int64(length)))
+	for i := length - 1; i > 0; i-- {
+		jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("crypto rand shuffle %d: %w", i, err)
 		}
-		b[i], b[j.Int64()] = b[j.Int64()], b[i]
+		j := int(jBig.Int64())
+		b[i], b[j] = b[j], b[i]
 	}
 
 	return string(b), nil

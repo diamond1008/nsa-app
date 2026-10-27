@@ -331,6 +331,7 @@ export const router = createBrowserRouter([
           { path: "/sale/receipts", element: <Navigate to="/sale/phieu-thu" replace /> },
           { path: "/sale/bao-cao", element: <Navigate to="/sale/reports" replace /> },
           { path: "/sale/nhan-vien", element: <Navigate to="/sale/users" replace /> },
+          { path: "/sale/doi-ngu", element: <Navigate to="/sale/users" replace /> },
           {
             path: "/admin",
             element: (

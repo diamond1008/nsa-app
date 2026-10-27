@@ -75,6 +75,19 @@ func (q *Queries) CountOrders(ctx context.Context, arg CountOrdersParams) (int64
 	return count, err
 }
 
+const countPendingOrders = `-- name: CountPendingOrders :one
+SELECT COUNT(*)::bigint AS count
+FROM orders
+WHERE status = 'pending' AND deleted_at IS NULL
+`
+
+func (q *Queries) CountPendingOrders(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPendingOrders)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createOrder = `-- name: CreateOrder :one
 
 INSERT INTO orders (
@@ -168,6 +181,45 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const getDailyRevenueTrend = `-- name: GetDailyRevenueTrend :many
+SELECT
+  TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS day,
+  COUNT(*)::bigint AS paid_orders,
+  COALESCE(SUM(final_amount), 0)::numeric AS revenue
+FROM orders
+WHERE deleted_at IS NULL
+  AND status = 'paid'
+  AND created_at >= NOW() - INTERVAL '30 days'
+GROUP BY TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')
+ORDER BY day ASC
+`
+
+type GetDailyRevenueTrendRow struct {
+	Day        string         `json:"day"`
+	PaidOrders int64          `json:"paid_orders"`
+	Revenue    pgtype.Numeric `json:"revenue"`
+}
+
+func (q *Queries) GetDailyRevenueTrend(ctx context.Context) ([]GetDailyRevenueTrendRow, error) {
+	rows, err := q.db.Query(ctx, getDailyRevenueTrend)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDailyRevenueTrendRow{}
+	for rows.Next() {
+		var i GetDailyRevenueTrendRow
+		if err := rows.Scan(&i.Day, &i.PaidOrders, &i.Revenue); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getOrder = `-- name: GetOrder :one
@@ -336,6 +388,95 @@ func (q *Queries) GetRevenueBySource(ctx context.Context) ([]GetRevenueBySourceR
 	return items, nil
 }
 
+const getRevenueByWeek = `-- name: GetRevenueByWeek :many
+SELECT
+  TO_CHAR(DATE_TRUNC('week', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-"W"IW') AS week,
+  COUNT(*)::bigint AS total_orders,
+  COUNT(*) FILTER (WHERE status = 'paid')::bigint AS paid_orders,
+  COALESCE(SUM(final_amount) FILTER (WHERE status = 'paid'), 0)::numeric AS total_revenue
+FROM orders
+WHERE deleted_at IS NULL
+  AND created_at >= NOW() - INTERVAL '12 weeks'
+GROUP BY DATE_TRUNC('week', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
+ORDER BY week ASC
+`
+
+type GetRevenueByWeekRow struct {
+	Week         string         `json:"week"`
+	TotalOrders  int64          `json:"total_orders"`
+	PaidOrders   int64          `json:"paid_orders"`
+	TotalRevenue pgtype.Numeric `json:"total_revenue"`
+}
+
+func (q *Queries) GetRevenueByWeek(ctx context.Context) ([]GetRevenueByWeekRow, error) {
+	rows, err := q.db.Query(ctx, getRevenueByWeek)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRevenueByWeekRow{}
+	for rows.Next() {
+		var i GetRevenueByWeekRow
+		if err := rows.Scan(
+			&i.Week,
+			&i.TotalOrders,
+			&i.PaidOrders,
+			&i.TotalRevenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRevenueByYear = `-- name: GetRevenueByYear :many
+SELECT
+  TO_CHAR(DATE_TRUNC('year', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY') AS year,
+  COUNT(*)::bigint AS total_orders,
+  COUNT(*) FILTER (WHERE status = 'paid')::bigint AS paid_orders,
+  COALESCE(SUM(final_amount) FILTER (WHERE status = 'paid'), 0)::numeric AS total_revenue
+FROM orders
+WHERE deleted_at IS NULL
+GROUP BY DATE_TRUNC('year', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
+ORDER BY year ASC
+`
+
+type GetRevenueByYearRow struct {
+	Year         string         `json:"year"`
+	TotalOrders  int64          `json:"total_orders"`
+	PaidOrders   int64          `json:"paid_orders"`
+	TotalRevenue pgtype.Numeric `json:"total_revenue"`
+}
+
+func (q *Queries) GetRevenueByYear(ctx context.Context) ([]GetRevenueByYearRow, error) {
+	rows, err := q.db.Query(ctx, getRevenueByYear)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRevenueByYearRow{}
+	for rows.Next() {
+		var i GetRevenueByYearRow
+		if err := rows.Scan(
+			&i.Year,
+			&i.TotalOrders,
+			&i.PaidOrders,
+			&i.TotalRevenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRevenueSummary = `-- name: GetRevenueSummary :one
 SELECT
   COALESCE(SUM(final_amount) FILTER (
@@ -371,6 +512,80 @@ func (q *Queries) GetRevenueSummary(ctx context.Context) (GetRevenueSummaryRow, 
 		&i.MonthPaidOrders,
 	)
 	return i, err
+}
+
+const getTopCoursesRevenue = `-- name: GetTopCoursesRevenue :many
+SELECT
+  c.id AS course_id,
+  c.code AS course_code,
+  c.name AS course_name,
+  COUNT(o.id)::bigint AS total_orders,
+  COUNT(o.id) FILTER (WHERE o.status = 'paid')::bigint AS paid_orders,
+  COALESCE(SUM(o.final_amount) FILTER (WHERE o.status = 'paid'), 0)::numeric AS revenue
+FROM courses c
+LEFT JOIN orders o ON o.course_id = c.id AND o.deleted_at IS NULL
+WHERE c.status = 'active'
+GROUP BY c.id, c.code, c.name
+ORDER BY revenue DESC, paid_orders DESC, total_orders DESC
+LIMIT 5
+`
+
+type GetTopCoursesRevenueRow struct {
+	CourseID    pgtype.UUID    `json:"course_id"`
+	CourseCode  string         `json:"course_code"`
+	CourseName  string         `json:"course_name"`
+	TotalOrders int64          `json:"total_orders"`
+	PaidOrders  int64          `json:"paid_orders"`
+	Revenue     pgtype.Numeric `json:"revenue"`
+}
+
+func (q *Queries) GetTopCoursesRevenue(ctx context.Context) ([]GetTopCoursesRevenueRow, error) {
+	rows, err := q.db.Query(ctx, getTopCoursesRevenue)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTopCoursesRevenueRow{}
+	for rows.Next() {
+		var i GetTopCoursesRevenueRow
+		if err := rows.Scan(
+			&i.CourseID,
+			&i.CourseCode,
+			&i.CourseName,
+			&i.TotalOrders,
+			&i.PaidOrders,
+			&i.Revenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const hasActiveOrderForStudentClass = `-- name: HasActiveOrderForStudentClass :one
+SELECT EXISTS (
+    SELECT 1
+    FROM orders
+    WHERE student_id = $1
+      AND class_id = $2
+      AND status NOT IN ('cancelled', 'refunded')
+) AS exists
+`
+
+type HasActiveOrderForStudentClassParams struct {
+	StudentID pgtype.UUID `json:"student_id"`
+	ClassID   pgtype.UUID `json:"class_id"`
+}
+
+func (q *Queries) HasActiveOrderForStudentClass(ctx context.Context, arg HasActiveOrderForStudentClassParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasActiveOrderForStudentClass, arg.StudentID, arg.ClassID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listAllOrdersForExport = `-- name: ListAllOrdersForExport :many

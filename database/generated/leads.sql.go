@@ -204,21 +204,31 @@ SELECT
   u.id AS user_id,
   u.email,
   COUNT(l.id)::bigint AS total_leads,
-  COUNT(l.id) FILTER (WHERE l.pipeline_status = 'da_dang_ky')::bigint AS converted_leads
+  COUNT(l.id) FILTER (WHERE l.pipeline_status = 'da_dang_ky')::bigint AS converted_leads,
+  COALESCE(
+    (
+      SELECT SUM(o.final_amount)
+      FROM orders o
+      WHERE (o.created_by = u.id OR o.lead_id IN (SELECT l2.id FROM leads l2 WHERE l2.assigned_to = u.id))
+        AND o.status = 'paid'
+        AND DATE_TRUNC('month', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE_TRUNC('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
+    ), 0
+  )::numeric AS month_revenue
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 JOIN roles r ON r.id = ur.role_id
-LEFT JOIN leads l ON l.assigned_to = u.id
+LEFT JOIN leads l ON l.assigned_to = u.id AND l.deleted_at IS NULL
 WHERE r.code IN ('SALE', 'SALE_ADMIN', 'ADMIN') AND u.status = 'active'
 GROUP BY u.id, u.email
-ORDER BY total_leads DESC, u.email ASC
+ORDER BY month_revenue DESC, converted_leads DESC, total_leads DESC
 `
 
 type CountLeadsByAssigneeRow struct {
-	UserID         pgtype.UUID `json:"user_id"`
-	Email          string      `json:"email"`
-	TotalLeads     int64       `json:"total_leads"`
-	ConvertedLeads int64       `json:"converted_leads"`
+	UserID         pgtype.UUID    `json:"user_id"`
+	Email          string         `json:"email"`
+	TotalLeads     int64          `json:"total_leads"`
+	ConvertedLeads int64          `json:"converted_leads"`
+	MonthRevenue   pgtype.Numeric `json:"month_revenue"`
 }
 
 func (q *Queries) CountLeadsByAssignee(ctx context.Context) ([]CountLeadsByAssigneeRow, error) {
@@ -235,6 +245,7 @@ func (q *Queries) CountLeadsByAssignee(ctx context.Context) ([]CountLeadsByAssig
 			&i.Email,
 			&i.TotalLeads,
 			&i.ConvertedLeads,
+			&i.MonthRevenue,
 		); err != nil {
 			return nil, err
 		}
@@ -310,6 +321,32 @@ func (q *Queries) CountLeadsByStatus(ctx context.Context) ([]CountLeadsByStatusR
 		return nil, err
 	}
 	return items, nil
+}
+
+const countTeamOverdueTasks = `-- name: CountTeamOverdueTasks :one
+SELECT COUNT(*)::bigint AS count
+FROM lead_tasks
+WHERE due_at < NOW() AND completed_at IS NULL
+`
+
+func (q *Queries) CountTeamOverdueTasks(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countTeamOverdueTasks)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUnassignedLeads = `-- name: CountUnassignedLeads :one
+SELECT COUNT(*)::bigint AS count
+FROM leads
+WHERE assigned_to IS NULL AND deleted_at IS NULL AND pipeline_status <> 'da_dang_ky'
+`
+
+func (q *Queries) CountUnassignedLeads(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countUnassignedLeads)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createLead = `-- name: CreateLead :one
@@ -483,6 +520,44 @@ func (q *Queries) FindDuplicateLead(ctx context.Context, arg FindDuplicateLeadPa
 	return i, err
 }
 
+const getDailyLeadTrend = `-- name: GetDailyLeadTrend :many
+SELECT
+  TO_CHAR(l.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS day,
+  COUNT(l.id)::bigint AS total_leads,
+  COUNT(l.id) FILTER (WHERE l.pipeline_status = 'da_dang_ky')::bigint AS converted_leads
+FROM leads l
+WHERE l.deleted_at IS NULL
+  AND l.created_at >= NOW() - INTERVAL '30 days'
+GROUP BY TO_CHAR(l.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')
+ORDER BY day ASC
+`
+
+type GetDailyLeadTrendRow struct {
+	Day            string `json:"day"`
+	TotalLeads     int64  `json:"total_leads"`
+	ConvertedLeads int64  `json:"converted_leads"`
+}
+
+func (q *Queries) GetDailyLeadTrend(ctx context.Context) ([]GetDailyLeadTrendRow, error) {
+	rows, err := q.db.Query(ctx, getDailyLeadTrend)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDailyLeadTrendRow{}
+	for rows.Next() {
+		var i GetDailyLeadTrendRow
+		if err := rows.Scan(&i.Day, &i.TotalLeads, &i.ConvertedLeads); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLead = `-- name: GetLead :one
 SELECT
   l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at, l.deleted_at,
@@ -580,6 +655,49 @@ func (q *Queries) GetLead(ctx context.Context, id pgtype.UUID) (GetLeadRow, erro
 		&i.ConvertedStudentName,
 		&i.ConvertedStudentStatus,
 		&i.CreatedByEmail,
+	)
+	return i, err
+}
+
+const getLeadForUpdate = `-- name: GetLeadForUpdate :one
+SELECT id, full_name, phone, email, date_of_birth, gender, address, source, source_detail, utm_source, utm_medium, utm_campaign, utm_content, utm_term, interested_course_id, notes, pipeline_status, assigned_to, assigned_at, assigned_by, converted_student_id, converted_at, converted_by, created_by, created_at, updated_at, deleted_at
+FROM leads
+WHERE id = $1
+LIMIT 1
+FOR UPDATE
+`
+
+func (q *Queries) GetLeadForUpdate(ctx context.Context, id pgtype.UUID) (Lead, error) {
+	row := q.db.QueryRow(ctx, getLeadForUpdate, id)
+	var i Lead
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Phone,
+		&i.Email,
+		&i.DateOfBirth,
+		&i.Gender,
+		&i.Address,
+		&i.Source,
+		&i.SourceDetail,
+		&i.UtmSource,
+		&i.UtmMedium,
+		&i.UtmCampaign,
+		&i.UtmContent,
+		&i.UtmTerm,
+		&i.InterestedCourseID,
+		&i.Notes,
+		&i.PipelineStatus,
+		&i.AssignedTo,
+		&i.AssignedAt,
+		&i.AssignedBy,
+		&i.ConvertedStudentID,
+		&i.ConvertedAt,
+		&i.ConvertedBy,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

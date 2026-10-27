@@ -35,7 +35,7 @@ func OwnsStudentProfile(ctx context.Context, q *db.Queries, claims *AccessClaims
 	}
 	userID, err := parseUUID(claims.UserID)
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("invalid claim user ID: %w", err)
 	}
 	owns, err := q.CheckStudentProfileOwnership(ctx, db.CheckStudentProfileOwnershipParams{ID: studentProfileID, UserID: userID})
 	if err != nil {
@@ -57,7 +57,7 @@ func CanAccessStudentProfile(ctx context.Context, q *db.Queries, claims *AccessC
 	}
 	userID, err := parseUUID(claims.UserID)
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("invalid claim user ID: %w", err)
 	}
 	if claims.HasAnyRole(RoleSale) {
 		owns, err := q.CheckSaleAssignedToStudent(ctx, db.CheckSaleAssignedToStudentParams{
@@ -94,7 +94,7 @@ func IsAssignedTeacher(ctx context.Context, q *db.Queries, claims *AccessClaims,
 	}
 	userID, err := parseUUID(claims.UserID)
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("invalid claim user ID: %w", err)
 	}
 	assigned, err := q.CheckTeacherAssignedToClass(ctx, db.CheckTeacherAssignedToClassParams{ClassID: classID, UserID: userID})
 	if err != nil {
@@ -115,7 +115,7 @@ func CanAccessClass(ctx context.Context, q *db.Queries, claims *AccessClaims, cl
 	}
 	userID, err := parseUUID(claims.UserID)
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("invalid claim user ID: %w", err)
 	}
 	if claims.HasAnyRole(RoleSale) {
 		assigned, err := q.CheckSaleAssignedToClass(ctx, db.CheckSaleAssignedToClassParams{

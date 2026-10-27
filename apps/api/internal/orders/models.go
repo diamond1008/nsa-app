@@ -11,7 +11,7 @@ var (
 	ErrInvalidStatus        = errors.New("invalid order status")
 	ErrForbiddenOrderAccess = errors.New("forbidden: regular sale can only update their own orders")
 	ErrClassAlreadyStarted  = errors.New("lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới")
-	ErrLeadAlreadyHasOrder  = errors.New("học viên này đã có phiếu đăng ký trong hệ thống, không thể lập thêm phiếu trùng lặp")
+	ErrLeadAlreadyHasOrder  = errors.New("học viên này đã có phiếu đăng ký đang hiệu lực cho lớp học này, không thể lập thêm phiếu trùng lặp")
 	ErrLeadNotConverted     = errors.New("chỉ học viên đã được chốt (đã cấp mã học viên) mới được phép lập phiếu đăng ký")
 )
 
@@ -82,6 +82,20 @@ type MonthlyRevenue struct {
 	TotalRevenue float64 `json:"total_revenue"`
 }
 
+type WeeklyRevenue struct {
+	Week         string  `json:"week"`
+	TotalOrders  int64   `json:"total_orders"`
+	PaidOrders   int64   `json:"paid_orders"`
+	TotalRevenue float64 `json:"total_revenue"`
+}
+
+type YearlyRevenue struct {
+	Year         string  `json:"year"`
+	TotalOrders  int64   `json:"total_orders"`
+	PaidOrders   int64   `json:"paid_orders"`
+	TotalRevenue float64 `json:"total_revenue"`
+}
+
 type SourceRevenue struct {
 	Source      string  `json:"source"`
 	TotalOrders int64   `json:"total_orders"`
@@ -95,8 +109,27 @@ type RevenueSummary struct {
 	MonthPaidOrders int64   `json:"month_paid_orders"`
 }
 
+type DailyRevenueTrendPoint struct {
+	Day        string  `json:"day"`
+	PaidOrders int64   `json:"paid_orders"`
+	Revenue    float64 `json:"revenue"`
+}
+
+type TopCourseStat struct {
+	CourseID    string  `json:"course_id"`
+	CourseCode  string  `json:"course_code"`
+	CourseName  string  `json:"course_name"`
+	TotalOrders int64   `json:"total_orders"`
+	PaidOrders  int64   `json:"paid_orders"`
+	Revenue     float64 `json:"revenue"`
+}
+
 type RevenueReportView struct {
-	Summary  RevenueSummary   `json:"summary"`
-	ByMonth  []MonthlyRevenue `json:"by_month"`
-	BySource []SourceRevenue  `json:"by_source"`
+	Summary           RevenueSummary           `json:"summary"`
+	ByMonth           []MonthlyRevenue         `json:"by_month"`
+	ByWeek            []WeeklyRevenue          `json:"by_week"`
+	ByYear            []YearlyRevenue          `json:"by_year"`
+	BySource          []SourceRevenue          `json:"by_source"`
+	DailyRevenueTrend []DailyRevenueTrendPoint `json:"daily_revenue_trend"`
+	TopCourses        []TopCourseStat          `json:"top_courses"`
 }

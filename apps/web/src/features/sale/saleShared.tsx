@@ -29,27 +29,35 @@ export const SOURCE_OPTIONS: Array<{ value: LeadSource; label: string }> = [
   { value: "other", label: "Khác" },
 ];
 
-export function generateStudentPassword(): string {
-  // 8 ký tự gồm chữ cái (hoa, thường) và số, không chứa ký tự đặc biệt khó gõ
+function secureRandomInt(max: number): number {
+  const array = new Uint32Array(1);
+  window.crypto.getRandomValues(array);
+  return array[0] % max;
+}
+
+export function generateStudentPassword(length = 8): string {
+  // 8 ký tự gồm chữ cái (hoa, thường) và số, không chứa ký tự dễ nhầm lẫn (I, l, O, o, 0, 1)
   const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lowers = "abcdefghijkmnpqrstuvwxyz";
   const digits = "23456789";
   const all = uppers + lowers + digits;
 
   const chars = [
-    uppers[Math.floor(Math.random() * uppers.length)],
-    lowers[Math.floor(Math.random() * lowers.length)],
-    digits[Math.floor(Math.random() * digits.length)],
+    uppers[secureRandomInt(uppers.length)],
+    lowers[secureRandomInt(lowers.length)],
+    digits[secureRandomInt(digits.length)],
   ];
-  for (let i = 3; i < 8; i++) {
-    chars.push(all[Math.floor(Math.random() * all.length)]);
+
+  for (let i = 3; i < length; i++) {
+    chars.push(all[secureRandomInt(all.length)]);
   }
 
-  // Shuffle
+  // Fisher-Yates shuffle
   for (let i = chars.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = secureRandomInt(i + 1);
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
+
   return chars.join("");
 }
 

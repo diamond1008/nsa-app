@@ -530,6 +530,35 @@ func (s *Service) DashboardOverview(ctx context.Context) (DashboardOverviewView,
 			Email:          r.Email,
 			TotalLeads:     r.TotalLeads,
 			ConvertedLeads: r.ConvertedLeads,
+			MonthRevenue:   data.NumericFloat(r.MonthRevenue),
+		})
+	}
+
+	unassignedCount, err := s.queries.CountUnassignedLeads(ctx)
+	if err != nil {
+		return DashboardOverviewView{}, fmt.Errorf("count unassigned leads: %w", err)
+	}
+
+	overdueCount, err := s.queries.CountTeamOverdueTasks(ctx)
+	if err != nil {
+		return DashboardOverviewView{}, fmt.Errorf("count overdue tasks: %w", err)
+	}
+
+	pendingOrdersCount, err := s.queries.CountPendingOrders(ctx)
+	if err != nil {
+		return DashboardOverviewView{}, fmt.Errorf("count pending orders: %w", err)
+	}
+
+	trendRows, err := s.queries.GetDailyLeadTrend(ctx)
+	if err != nil {
+		return DashboardOverviewView{}, fmt.Errorf("get daily lead trend: %w", err)
+	}
+	dailyLeadTrend := make([]DailyLeadTrendPoint, 0, len(trendRows))
+	for _, tr := range trendRows {
+		dailyLeadTrend = append(dailyLeadTrend, DailyLeadTrendPoint{
+			Day:            tr.Day,
+			TotalLeads:     tr.TotalLeads,
+			ConvertedLeads: tr.ConvertedLeads,
 		})
 	}
 
@@ -537,6 +566,12 @@ func (s *Service) DashboardOverview(ctx context.Context) (DashboardOverviewView,
 		ByStatus:   byStatus,
 		BySource:   bySource,
 		ByAssignee: byAssignee,
+		Alerts: ActionAlerts{
+			UnassignedLeads: unassignedCount,
+			OverdueTasks:    overdueCount,
+			PendingOrders:   pendingOrdersCount,
+		},
+		DailyLeadTrend: dailyLeadTrend,
 	}, nil
 }
 

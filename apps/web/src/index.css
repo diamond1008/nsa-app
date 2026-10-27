@@ -74,6 +74,66 @@ body {
   height: 0 !important;
 }
 
+/* Utility to completely hide scrollbars while preserving full scrolling functionality */
+.no-scrollbar::-webkit-scrollbar,
+.no-scrollbar *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar::-webkit-scrollbar-thumb,
+.no-scrollbar *::-webkit-scrollbar-thumb,
+*:hover.no-scrollbar::-webkit-scrollbar-thumb,
+.no-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
+  display: none !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Modern auto-fading overlay scrollbar for main content:
+   - Appears in bright brand blue when actively scrolling
+   - Auto-fades out when idle
+*/
+.app-custom-scroll::-webkit-scrollbar {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+.app-custom-scroll::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.app-custom-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
+  border-radius: 9999px !important;
+  transition: background-color 0.35s ease;
+}
+
+.app-custom-scroll.is-scrolling::-webkit-scrollbar-thumb,
+.app-custom-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.65) !important;
+}
+
+.app-custom-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(51, 65, 85, 0.9) !important;
+}
+
+@supports (-moz-appearance: none) {
+  .app-custom-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .app-custom-scroll.is-scrolling,
+  .app-custom-scroll:hover {
+    scrollbar-color: rgba(100, 116, 139, 0.65) transparent;
+  }
+}
+
 /* Slim modern overlay scrollbar - auto fades out when idle */
 ::-webkit-scrollbar,
 *::-webkit-scrollbar {
@@ -97,9 +157,9 @@ body {
   transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*:hover::-webkit-scrollbar-thumb,
-html:hover::-webkit-scrollbar-thumb,
-body:hover::-webkit-scrollbar-thumb {
+*:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb,
+html:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb,
+body:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb {
   background-color: rgba(148, 163, 184, 0.45) !important;
 }
 

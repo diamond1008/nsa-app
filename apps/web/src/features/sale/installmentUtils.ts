@@ -55,19 +55,28 @@ export interface InstallmentMetadata {
 }
 
 /**
+ * Validates that the sum of installment amounts strictly matches the expected total amount.
+ */
+export function verifyInstallmentsSum(items: InstallmentItem[], totalAmount: number): boolean {
+  const sum = items.reduce((acc, item) => acc + item.amount, 0);
+  return sum === Math.max(0, Math.round(totalAmount));
+}
+
+/**
  * Calculates the exact amount for each installment stage given final amount and plan.
  * Ensures the sum of all installments strictly equals finalAmount.
  */
 export function calculateInstallments(finalAmount: number, planType: number): InstallmentItem[] {
   const plan = INSTALLMENT_PLANS[planType] || INSTALLMENT_PLANS[1];
   const items: InstallmentItem[] = [];
+  const roundedFinal = Math.max(0, Math.round(finalAmount));
   let allocated = 0;
 
   plan.percentages.forEach((pct, index) => {
     const isLast = index === plan.percentages.length - 1;
     const roundAmount = isLast
-      ? Math.max(0, finalAmount - allocated)
-      : Math.round((finalAmount * pct) / 100);
+      ? Math.max(0, roundedFinal - allocated)
+      : Math.round((roundedFinal * pct) / 100);
 
     if (!isLast) {
       allocated += roundAmount;
@@ -149,7 +158,7 @@ export function parseOrderInstallmentPlan(order: Order): InstallmentMetadata {
         percentage: 100,
         amount: order.final_amount,
         status: isPaid ? "paid" : "pending",
-        receipt_code: order.order_code.replace("DH", "PT"),
+        receipt_code: order.order_code.replace(/^(ORD|DH)/, "PT"),
         payment_method: order.payment_method || undefined,
         paid_at: order.paid_at || undefined,
         collected_by_name: order.created_by_email?.split("@")[0] || "Sale",

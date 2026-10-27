@@ -717,15 +717,46 @@ export interface SaleDashboardStats {
   team_month_revenue?: number;
 }
 
+export interface AssigneeStat {
+  user_id: string;
+  email: string;
+  total_leads: number;
+  converted_leads: number;
+  month_revenue?: number;
+}
+
+export interface ActionAlerts {
+  unassigned_leads: number;
+  overdue_tasks: number;
+  pending_orders: number;
+}
+
+export interface DailyLeadTrendPoint {
+  day: string;
+  total_leads: number;
+  converted_leads: number;
+}
+
+export interface DailyRevenueTrendPoint {
+  day: string;
+  paid_orders: number;
+  revenue: number;
+}
+
+export interface TopCourseStat {
+  course_id: string;
+  course_code: string;
+  course_name: string;
+  total_orders: number;
+  paid_orders: number;
+  revenue: number;
+}
 export interface DashboardOverview {
+  alerts?: ActionAlerts;
+  daily_lead_trend?: DailyLeadTrendPoint[];
   by_status: Record<string, number>;
   by_source: Record<string, number>;
-  by_assignee: Array<{
-    user_id: string;
-    email: string;
-    total_leads: number;
-    converted_leads: number;
-  }>;
+  by_assignee: AssigneeStat[];
 }
 
 export interface RevenueReport {
@@ -741,11 +772,25 @@ export interface RevenueReport {
     paid_orders: number;
     total_revenue: number;
   }>;
+  by_week?: Array<{
+    week: string;
+    total_orders: number;
+    paid_orders: number;
+    total_revenue: number;
+  }>;
+  by_year?: Array<{
+    year: string;
+    total_orders: number;
+    paid_orders: number;
+    total_revenue: number;
+  }>;
   by_source: Array<{
     source: string;
     total_orders: number;
     revenue: number;
   }>;
+  daily_revenue_trend?: DailyRevenueTrendPoint[];
+  top_courses?: TopCourseStat[];
 }
 
 export interface ConvertResult {

@@ -137,19 +137,36 @@ type SaleStaffView struct {
 	Email string `json:"email"`
 }
 
+// ActionAlerts captures items requiring immediate manager/team action.
+type ActionAlerts struct {
+	UnassignedLeads int64 `json:"unassigned_leads"`
+	OverdueTasks    int64 `json:"overdue_tasks"`
+	PendingOrders   int64 `json:"pending_orders"`
+}
+
+// DailyLeadTrendPoint captures daily new leads and converted leads.
+type DailyLeadTrendPoint struct {
+	Day            string `json:"day"`
+	TotalLeads     int64  `json:"total_leads"`
+	ConvertedLeads int64  `json:"converted_leads"`
+}
+
 // DashboardOverviewView aggregates CRM data for managers.
 type DashboardOverviewView struct {
-	ByStatus   map[string]int64 `json:"by_status"`
-	BySource   map[string]int64 `json:"by_source"`
-	ByAssignee []AssigneeStat   `json:"by_assignee"`
+	ByStatus       map[string]int64      `json:"by_status"`
+	BySource       map[string]int64      `json:"by_source"`
+	ByAssignee     []AssigneeStat        `json:"by_assignee"`
+	Alerts         ActionAlerts          `json:"alerts"`
+	DailyLeadTrend []DailyLeadTrendPoint `json:"daily_lead_trend"`
 }
 
 // AssigneeStat captures lead stats for an individual salesperson.
 type AssigneeStat struct {
-	UserID         string `json:"user_id"`
-	Email          string `json:"email"`
-	TotalLeads     int64  `json:"total_leads"`
-	ConvertedLeads int64  `json:"converted_leads"`
+	UserID         string  `json:"user_id"`
+	Email          string  `json:"email"`
+	TotalLeads     int64   `json:"total_leads"`
+	ConvertedLeads int64   `json:"converted_leads"`
+	MonthRevenue   float64 `json:"month_revenue"`
 }
 
 // SaleDashboardStats captures personal stats for a salesperson.

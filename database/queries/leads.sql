@@ -222,14 +222,23 @@ SELECT
   u.id AS user_id,
   u.email,
   COUNT(l.id)::bigint AS total_leads,
-  COUNT(l.id) FILTER (WHERE l.pipeline_status = 'da_dang_ky')::bigint AS converted_leads
+  COUNT(l.id) FILTER (WHERE l.pipeline_status = 'da_dang_ky')::bigint AS converted_leads,
+  COALESCE(
+    (
+      SELECT SUM(o.final_amount)
+      FROM orders o
+      WHERE (o.created_by = u.id OR o.lead_id IN (SELECT l2.id FROM leads l2 WHERE l2.assigned_to = u.id))
+        AND o.status = 'paid'
+        AND DATE_TRUNC('month', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE_TRUNC('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
+    ), 0
+  )::numeric AS month_revenue
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 JOIN roles r ON r.id = ur.role_id
-LEFT JOIN leads l ON l.assigned_to = u.id
+LEFT JOIN leads l ON l.assigned_to = u.id AND l.deleted_at IS NULL
 WHERE r.code IN ('SALE', 'SALE_ADMIN', 'ADMIN') AND u.status = 'active'
 GROUP BY u.id, u.email
-ORDER BY total_leads DESC, u.email ASC;
+ORDER BY month_revenue DESC, converted_leads DESC, total_leads DESC;
 
 -- name: ListSaleStaff :many
 SELECT DISTINCT
@@ -346,4 +355,33 @@ ORDER BY l.created_at DESC;
 UPDATE leads
 SET deleted_at = NOW()
 WHERE id = $1;
+
+-- name: GetLeadForUpdate :one
+SELECT *
+FROM leads
+WHERE id = $1
+LIMIT 1
+FOR UPDATE;
+
+-- name: CountUnassignedLeads :one
+SELECT COUNT(*)::bigint AS count
+FROM leads
+WHERE assigned_to IS NULL AND deleted_at IS NULL AND pipeline_status <> 'da_dang_ky';
+
+-- name: CountTeamOverdueTasks :one
+SELECT COUNT(*)::bigint AS count
+FROM lead_tasks
+WHERE due_at < NOW() AND completed_at IS NULL;
+
+-- name: GetDailyLeadTrend :many
+SELECT
+  TO_CHAR(l.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS day,
+  COUNT(l.id)::bigint AS total_leads,
+  COUNT(l.id) FILTER (WHERE l.pipeline_status = 'da_dang_ky')::bigint AS converted_leads
+FROM leads l
+WHERE l.deleted_at IS NULL
+  AND l.created_at >= NOW() - INTERVAL '30 days'
+GROUP BY TO_CHAR(l.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')
+ORDER BY day ASC;
+
 

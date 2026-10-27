@@ -31,6 +31,10 @@ func NewService(pool *pgxpool.Pool) *Service {
 	}
 }
 
+func (s *Service) Queries() *db.Queries {
+	return s.queries
+}
+
 func (s *Service) Create(ctx context.Context, actorID string, input CreateInput) (View, error) {
 	actorUUID, err := data.UUID(actorID)
 	if err != nil {
@@ -51,30 +55,6 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 		if err != nil {
 			return View{}, fmt.Errorf("invalid student ID: %w", err)
 		}
-	} else if leadID.Valid {
-		var convStudentID pgtype.UUID
-		_ = s.pool.QueryRow(ctx, "SELECT converted_student_id FROM leads WHERE id = $1", leadID).Scan(&convStudentID)
-		if convStudentID.Valid {
-			studentID = convStudentID
-		}
-	}
-
-	// Must be a converted student with student_id to create registration order
-	if !studentID.Valid {
-		return View{}, ErrLeadNotConverted
-	}
-
-	// Validate that the lead does not already have an active registration order
-	if leadID.Valid {
-		var existingCount int
-		err := s.pool.QueryRow(ctx, `
-			SELECT COUNT(1) FROM orders 
-			WHERE (lead_id = $1 OR (student_id IS NOT NULL AND $2::uuid IS NOT NULL AND student_id = $2::uuid))
-			  AND status NOT IN ('cancelled', 'refunded')
-		`, leadID, studentID).Scan(&existingCount)
-		if err == nil && existingCount > 0 {
-			return View{}, ErrLeadAlreadyHasOrder
-		}
 	}
 
 	var courseID pgtype.UUID
@@ -91,18 +71,6 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 		if err != nil {
 			return View{}, fmt.Errorf("invalid class ID: %w", err)
 		}
-		// Validate that the target class has not yet reached its start date
-		classRow, err := s.queries.GetAdminClass(ctx, classID)
-		if err != nil {
-			return View{}, fmt.Errorf("read target class: %w", err)
-		}
-		if classRow.StartDate.Valid {
-			today := time.Now().UTC().Truncate(24 * time.Hour)
-			classStart := classRow.StartDate.Time.UTC().Truncate(24 * time.Hour)
-			if !classStart.After(today) {
-				return View{}, ErrClassAlreadyStarted
-			}
-		}
 	}
 
 	amountNum, err := data.Numeric(input.Amount)
@@ -118,6 +86,9 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 		return View{}, fmt.Errorf("invalid final amount: %w", err)
 	}
 
+	claims, _ := auth.ClaimsFrom(ctx)
+	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin, auth.RoleAcademicAdmin, auth.RoleSaleAdmin)
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return View{}, fmt.Errorf("begin create order: %w", err)
@@ -125,6 +96,80 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	q := s.queries.WithTx(tx)
+
+	if leadID.Valid {
+		lead, err := q.GetLeadForUpdate(ctx, leadID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return View{}, ErrOrderNotFound
+		}
+		if err != nil {
+			return View{}, fmt.Errorf("get lead for update: %w", err)
+		}
+		if !isAdmin && (!lead.AssignedTo.Valid || data.UUIDString(lead.AssignedTo) != actorID) {
+			return View{}, ErrForbiddenOrderAccess
+		}
+		if !lead.ConvertedStudentID.Valid {
+			return View{}, ErrLeadNotConverted
+		}
+		studentID = lead.ConvertedStudentID
+	} else if studentID.Valid {
+		if !isAdmin {
+			allowed, err := auth.CanAccessStudentProfile(ctx, q, claims, studentID)
+			if err != nil {
+				return View{}, fmt.Errorf("check student access: %w", err)
+			}
+			if !allowed {
+				return View{}, ErrForbiddenOrderAccess
+			}
+		}
+	} else {
+		return View{}, ErrLeadNotConverted
+	}
+
+	// Must be a converted student with student_id to create registration order
+	if !studentID.Valid {
+		return View{}, ErrLeadNotConverted
+	}
+
+	if classID.Valid {
+		classRow, err := q.GetAdminClass(ctx, classID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return View{}, ErrOrderNotFound
+		}
+		if err != nil {
+			return View{}, fmt.Errorf("read target class: %w", err)
+		}
+
+		if !courseID.Valid && classRow.CourseID.Valid {
+			courseID = classRow.CourseID
+		}
+
+		// Validate that the target class has not yet reached its start date
+		// Allow registration on start date itself (startDateStr == today), only block if startDateStr < today
+		if classRow.StartDate.Valid {
+			vnLoc, err := time.LoadLocation("Asia/Ho_Chi_Minh")
+			if err != nil {
+				vnLoc = time.FixedZone("ICT", 7*3600)
+			}
+			today := time.Now().In(vnLoc).Format("2006-01-02")
+			startDateStr := classRow.StartDate.Time.In(vnLoc).Format("2006-01-02")
+			if startDateStr < today {
+				return View{}, ErrClassAlreadyStarted
+			}
+		}
+
+		// Validate that student does not already have an active registration order for this class
+		hasActiveOrder, err := q.HasActiveOrderForStudentClass(ctx, db.HasActiveOrderForStudentClassParams{
+			StudentID: studentID,
+			ClassID:   classID,
+		})
+		if err != nil {
+			return View{}, fmt.Errorf("check active order for student class: %w", err)
+		}
+		if hasActiveOrder {
+			return View{}, ErrLeadAlreadyHasOrder
+		}
+	}
 
 	order, err := q.CreateOrder(ctx, db.CreateOrderParams{
 		OrderCode:      "", // auto-generated sequence
@@ -169,7 +214,7 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateInput)
 
 	view := viewFromGetRow(getOrder)
 	if err := audit.Write(ctx, q, actorID, "order.create", "order", order.ID, nil, view); err != nil {
-		return View{}, err
+		return View{}, fmt.Errorf("write order audit log: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -377,6 +422,16 @@ func (s *Service) RevenueReport(ctx context.Context) (RevenueReportView, error) 
 		return RevenueReportView{}, fmt.Errorf("get revenue by month: %w", err)
 	}
 
+	weeklyRows, err := s.queries.GetRevenueByWeek(ctx)
+	if err != nil {
+		return RevenueReportView{}, fmt.Errorf("get revenue by week: %w", err)
+	}
+
+	yearlyRows, err := s.queries.GetRevenueByYear(ctx)
+	if err != nil {
+		return RevenueReportView{}, fmt.Errorf("get revenue by year: %w", err)
+	}
+
 	sourceRows, err := s.queries.GetRevenueBySource(ctx)
 	if err != nil {
 		return RevenueReportView{}, fmt.Errorf("get revenue by source: %w", err)
@@ -392,12 +447,61 @@ func (s *Service) RevenueReport(ctx context.Context) (RevenueReportView, error) 
 		})
 	}
 
+	byWeek := make([]WeeklyRevenue, 0, len(weeklyRows))
+	for _, w := range weeklyRows {
+		byWeek = append(byWeek, WeeklyRevenue{
+			Week:         w.Week,
+			TotalOrders:  w.TotalOrders,
+			PaidOrders:   w.PaidOrders,
+			TotalRevenue: data.NumericFloat(w.TotalRevenue),
+		})
+	}
+
+	byYear := make([]YearlyRevenue, 0, len(yearlyRows))
+	for _, y := range yearlyRows {
+		byYear = append(byYear, YearlyRevenue{
+			Year:         y.Year,
+			TotalOrders:  y.TotalOrders,
+			PaidOrders:   y.PaidOrders,
+			TotalRevenue: data.NumericFloat(y.TotalRevenue),
+		})
+	}
+
 	bySource := make([]SourceRevenue, 0, len(sourceRows))
 	for _, sr := range sourceRows {
 		bySource = append(bySource, SourceRevenue{
 			Source:      string(sr.Source),
 			TotalOrders: sr.TotalOrders,
 			Revenue:     data.NumericFloat(sr.Revenue),
+		})
+	}
+
+	dailyRows, err := s.queries.GetDailyRevenueTrend(ctx)
+	if err != nil {
+		return RevenueReportView{}, fmt.Errorf("get daily revenue trend: %w", err)
+	}
+	dailyRevenueTrend := make([]DailyRevenueTrendPoint, 0, len(dailyRows))
+	for _, dr := range dailyRows {
+		dailyRevenueTrend = append(dailyRevenueTrend, DailyRevenueTrendPoint{
+			Day:        dr.Day,
+			PaidOrders: dr.PaidOrders,
+			Revenue:    data.NumericFloat(dr.Revenue),
+		})
+	}
+
+	courseRows, err := s.queries.GetTopCoursesRevenue(ctx)
+	if err != nil {
+		return RevenueReportView{}, fmt.Errorf("get top courses revenue: %w", err)
+	}
+	topCourses := make([]TopCourseStat, 0, len(courseRows))
+	for _, cr := range courseRows {
+		topCourses = append(topCourses, TopCourseStat{
+			CourseID:    data.UUIDString(cr.CourseID),
+			CourseCode:  cr.CourseCode,
+			CourseName:  cr.CourseName,
+			TotalOrders: cr.TotalOrders,
+			PaidOrders:  cr.PaidOrders,
+			Revenue:     data.NumericFloat(cr.Revenue),
 		})
 	}
 
@@ -408,8 +512,12 @@ func (s *Service) RevenueReport(ctx context.Context) (RevenueReportView, error) 
 			MonthOrders:     summaryRow.MonthOrders,
 			MonthPaidOrders: summaryRow.MonthPaidOrders,
 		},
-		ByMonth:  byMonth,
-		BySource: bySource,
+		ByMonth:           byMonth,
+		ByWeek:            byWeek,
+		ByYear:            byYear,
+		BySource:          bySource,
+		DailyRevenueTrend: dailyRevenueTrend,
+		TopCourses:        topCourses,
 	}, nil
 }
 

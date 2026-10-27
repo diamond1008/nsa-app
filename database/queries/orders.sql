@@ -167,6 +167,29 @@ GROUP BY DATE_TRUNC('month', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
 ORDER BY month DESC
 LIMIT 12;
 
+-- name: GetRevenueByWeek :many
+SELECT
+  TO_CHAR(DATE_TRUNC('week', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-"W"IW') AS week,
+  COUNT(*)::bigint AS total_orders,
+  COUNT(*) FILTER (WHERE status = 'paid')::bigint AS paid_orders,
+  COALESCE(SUM(final_amount) FILTER (WHERE status = 'paid'), 0)::numeric AS total_revenue
+FROM orders
+WHERE deleted_at IS NULL
+  AND created_at >= NOW() - INTERVAL '12 weeks'
+GROUP BY DATE_TRUNC('week', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
+ORDER BY week ASC;
+
+-- name: GetRevenueByYear :many
+SELECT
+  TO_CHAR(DATE_TRUNC('year', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY') AS year,
+  COUNT(*)::bigint AS total_orders,
+  COUNT(*) FILTER (WHERE status = 'paid')::bigint AS paid_orders,
+  COALESCE(SUM(final_amount) FILTER (WHERE status = 'paid'), 0)::numeric AS total_revenue
+FROM orders
+WHERE deleted_at IS NULL
+GROUP BY DATE_TRUNC('year', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')
+ORDER BY year ASC;
+
 -- name: GetRevenueBySource :many
 SELECT
   l.source,
@@ -256,4 +279,46 @@ ORDER BY o.created_at DESC;
 UPDATE orders
 SET deleted_at = NOW()
 WHERE id = $1;
+
+-- name: HasActiveOrderForStudentClass :one
+SELECT EXISTS (
+    SELECT 1
+    FROM orders
+    WHERE student_id = $1
+      AND class_id = $2
+      AND status NOT IN ('cancelled', 'refunded')
+) AS exists;
+
+-- name: GetDailyRevenueTrend :many
+SELECT
+  TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS day,
+  COUNT(*)::bigint AS paid_orders,
+  COALESCE(SUM(final_amount), 0)::numeric AS revenue
+FROM orders
+WHERE deleted_at IS NULL
+  AND status = 'paid'
+  AND created_at >= NOW() - INTERVAL '30 days'
+GROUP BY TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')
+ORDER BY day ASC;
+
+-- name: GetTopCoursesRevenue :many
+SELECT
+  c.id AS course_id,
+  c.code AS course_code,
+  c.name AS course_name,
+  COUNT(o.id)::bigint AS total_orders,
+  COUNT(o.id) FILTER (WHERE o.status = 'paid')::bigint AS paid_orders,
+  COALESCE(SUM(o.final_amount) FILTER (WHERE o.status = 'paid'), 0)::numeric AS revenue
+FROM courses c
+LEFT JOIN orders o ON o.course_id = c.id AND o.deleted_at IS NULL
+WHERE c.status = 'active'
+GROUP BY c.id, c.code, c.name
+ORDER BY revenue DESC, paid_orders DESC, total_orders DESC
+LIMIT 5;
+
+-- name: CountPendingOrders :one
+SELECT COUNT(*)::bigint AS count
+FROM orders
+WHERE status = 'pending' AND deleted_at IS NULL;
+
 

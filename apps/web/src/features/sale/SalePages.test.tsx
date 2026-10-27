@@ -10,14 +10,17 @@ import { SaleDashboardPage } from "./SaleDashboardPage";
 import { SaleStudentsPage } from "./SaleStudentsPage";
 import { SaleRegistrationOrdersPage } from "./SaleRegistrationOrdersPage";
 import { SaleReceiptsPage } from "./SaleReceiptsPage";
+import { formatVND } from "./saleShared";
+
+const mockAuth = {
+  user: { id: "user-1", email: "admin@nsa.local", roles: ["ADMIN"] },
+  token: "mock-token",
+  isAuthenticated: true,
+  hasRole: vi.fn((...roles: string[]) => roles.includes("ADMIN")),
+};
 
 vi.mock("../auth/AuthContext", () => ({
-  useAuth: () => ({
-    user: { id: "user-1", email: "admin@nsa.local", roles: ["ADMIN"] },
-    token: "mock-token",
-    isAuthenticated: true,
-    hasRole: (...roles: string[]) => roles.includes("ADMIN"),
-  }),
+  useAuth: () => mockAuth,
 }));
 
 vi.mock("./saleApi", () => ({
@@ -35,6 +38,8 @@ vi.mock("./saleApi", () => ({
     createOrder: vi.fn(),
     exportOrders: vi.fn(),
     getLead: vi.fn(),
+    getOverview: vi.fn(),
+    getRevenueReport: vi.fn(),
     listInteractions: vi.fn().mockResolvedValue([]),
     listTasksByLead: vi.fn().mockResolvedValue([]),
     listPipelineHistory: vi.fn().mockResolvedValue([]),
@@ -64,9 +69,14 @@ function renderWithClient(ui: React.ReactElement) {
 describe("Sale feature pages", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuth.user = { id: "user-1", email: "admin@nsa.local", roles: ["ADMIN"] };
+    mockAuth.hasRole.mockImplementation((...roles: string[]) => roles.includes("ADMIN"));
   });
 
-  it("renders SaleDashboardPage with KPIs and task lists", async () => {
+  it("renders SaleDashboardPage for personal sale staff with KPIs and task lists", async () => {
+    mockAuth.user = { id: "user-1", email: "sale@nsa.local", roles: ["SALE"] };
+    mockAuth.hasRole.mockReturnValue(false);
+
     vi.mocked(saleApi.getMyStats).mockResolvedValue({
       assigned_leads: 12,
       new_leads_today: 4,
@@ -122,6 +132,82 @@ describe("Sale feature pages", () => {
       expect(screen.getByText("4")).toBeInTheDocument();
       expect(screen.getByText("Gọi điện tư vấn khóa ô tô")).toBeInTheDocument();
       expect(screen.getByText("Nguyễn Văn Test")).toBeInTheDocument();
+    });
+  });
+
+  it("renders SaleDashboardPage for admin/sale admin with ExecutiveSalesDashboard", async () => {
+    mockAuth.hasRole.mockImplementation((...roles: string[]) => roles.includes("ADMIN"));
+
+    vi.mocked(saleApi.getOverview).mockResolvedValue({
+      by_status: { data_moi: 20, hen_lich: 10, da_dang_ky: 20 },
+      by_source: { facebook: 30, zalo: 20 },
+      by_assignee: [
+        {
+          user_id: "staff-1",
+          email: "staff1@nsa.local",
+          total_leads: 25,
+          converted_leads: 15,
+          month_revenue: 50000000,
+        },
+      ],
+    });
+    vi.mocked(saleApi.getRevenueReport).mockResolvedValue({
+      summary: {
+        total_revenue: 250000000,
+        month_revenue: 85000000,
+        month_orders: 8,
+        month_paid_orders: 6,
+      },
+      by_month: [
+        { month: "2026-09", total_orders: 5, paid_orders: 4, total_revenue: 60000000 },
+        { month: "2026-10", total_orders: 8, paid_orders: 6, total_revenue: 85000000 },
+      ],
+      by_source: [
+        { source: "facebook", total_orders: 5, revenue: 50000000 },
+        { source: "zalo", total_orders: 3, revenue: 35000000 },
+      ],
+    });
+    vi.mocked(saleApi.getMyStats).mockResolvedValue({
+      assigned_leads: 10,
+      new_leads_today: 2,
+      overdue_tasks: 0,
+      today_tasks: 1,
+      converted_this_month: 5,
+      total_this_month: 20,
+      conversion_rate: 25,
+      team_month_revenue: 85000000,
+    });
+    vi.mocked(saleApi.listOrders).mockResolvedValue({
+      items: [
+        {
+          id: "order-exec-1",
+          order_code: "ORD-EXEC-001",
+          amount: 15000000,
+          discount_amount: 0,
+          final_amount: 15000000,
+          status: "paid",
+          course_name: "Kỹ thuật Ô tô",
+          student_name: "Lê Văn Executive",
+          created_by: "staff-1",
+          created_at: "2026-10-10T10:00:00Z",
+          updated_at: "2026-10-10T10:00:00Z",
+        },
+      ],
+      meta: {
+        page: 1,
+        per_page: 8,
+        total: 1,
+        total_pages: 1,
+      },
+    });
+
+    renderWithClient(<SaleDashboardPage />);
+
+    expect(screen.getByText("Tổng quan Phòng Tuyển sinh")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(formatVND(85000000))[0]).toBeInTheDocument();
+      expect(screen.getByText("ORD-EXEC-001")).toBeInTheDocument();
     });
   });
 

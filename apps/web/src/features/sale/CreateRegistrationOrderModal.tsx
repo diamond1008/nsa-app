@@ -69,10 +69,14 @@ export function CreateRegistrationOrderModal({
   const createOrderMutation = useMutation({
     mutationFn: (data: CreateOrderInput) => saleApi.createOrder(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: saleKeys.orders.all() });
+      queryClient.invalidateQueries({ queryKey: ["sale", "orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+      if (selectedLeadId) {
+        queryClient.invalidateQueries({ queryKey: ["sale", "lead-orders", selectedLeadId] });
+        queryClient.invalidateQueries({ queryKey: ["sale", "lead", selectedLeadId] });
+      }
       queryClient.invalidateQueries({ queryKey: saleKeys.receipts.all() });
       queryClient.invalidateQueries({ queryKey: saleKeys.dashboard() });
-      queryClient.invalidateQueries({ queryKey: saleKeys.leads.all() });
       onClose();
       onSuccess?.();
     },

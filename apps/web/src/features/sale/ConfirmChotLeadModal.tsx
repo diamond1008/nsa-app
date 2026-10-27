@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Icon } from "../../components/icons";
 import { Button, ErrorBanner, Input, Modal } from "../../components/ui";
@@ -21,6 +21,8 @@ export function ConfirmChotLeadModal({
   onClose,
   onSuccess,
 }: ConfirmChotLeadModalProps) {
+  const queryClient = useQueryClient();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -30,6 +32,16 @@ export function ConfirmChotLeadModal({
   const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState(false);
   const [successResult, setSuccessResult] = useState<ConvertResult | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
+
+  // Clean up copy timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   // Initialize or reset form state whenever lead changes or modal opens
   useEffect(() => {
@@ -50,6 +62,10 @@ export function ConfirmChotLeadModal({
       saleApi.convertLead(lead!.id, data),
     onSuccess: (result) => {
       setSuccessResult(result);
+      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+      if (lead?.id) {
+        queryClient.invalidateQueries({ queryKey: ["sale", "lead", lead.id] });
+      }
     },
     onError: (err: unknown) => {
       setFormError(mutationMessage(err));
@@ -60,16 +76,27 @@ export function ConfirmChotLeadModal({
     setPassword(generateStudentPassword());
   };
 
-  const handleCopyAccountInfo = () => {
+  const handleCopyAccountInfo = async () => {
+    const actualPassword = successResult?.initial_password || password;
     const infoText = `Thông tin tài khoản Học viện NSA:
 - Họ và tên: ${fullName}
 - Tên đăng nhập (Email): ${email || "Chưa có email"}
-- Mật khẩu: ${password}
+- Mật khẩu: ${actualPassword}
 - Link đăng nhập: ${window.location.origin}/login`;
 
-    navigator.clipboard.writeText(infoText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    try {
+      await navigator.clipboard.writeText(infoText);
+      setCopied(true);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copyTimerRef.current = null;
+      }, 3000);
+    } catch (err) {
+      console.error("Failed to copy account info:", err);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -154,7 +181,7 @@ export function ConfirmChotLeadModal({
               <button
                 type="button"
                 onClick={handleCopyAccountInfo}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#0532e6] hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer active:scale-95"
               >
                 <Icon name="check" className="h-3.5 w-3.5" />
                 {copied ? "Đã copy!" : "Sao chép thông tin"}
@@ -275,7 +302,7 @@ export function ConfirmChotLeadModal({
               <button
                 type="button"
                 onClick={handleCopyAccountInfo}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0532e6] hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer active:scale-95"
               >
                 <Icon name="check" className="h-3 w-3" />
                 {copied ? "Đã copy thông tin!" : "Sao chép tài khoản"}

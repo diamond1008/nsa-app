@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
@@ -237,6 +237,28 @@ export default function AppLayout() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+
+  const handleMainScroll = useCallback(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    el.classList.add("is-scrolling");
+    if (scrollTimerRef.current !== null) {
+      window.clearTimeout(scrollTimerRef.current);
+    }
+    scrollTimerRef.current = window.setTimeout(() => {
+      el.classList.remove("is-scrolling");
+    }, 900);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current !== null) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -849,11 +871,11 @@ export default function AppLayout() {
 
   return (
     <div className="relative flex h-dvh w-full max-w-full overflow-hidden bg-[#f8fafc] select-none">
-      {/* Soft ambient lighting halos matching new theme */}
-      <div className="pointer-events-none fixed -top-32 -left-32 h-[560px] w-[560px] rounded-full bg-[#0532e6]/8 blur-[140px]" />
-      <div className="pointer-events-none fixed top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-[#C4A35A]/10 blur-[150px]" />
-      <div className="pointer-events-none fixed -bottom-32 left-1/4 h-[480px] w-[480px] rounded-full bg-[#001258]/6 blur-[130px]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(#0012580a_1px,transparent_1px)] [background-size:24px_24px] opacity-70" />
+      {/* Soft ambient lighting halos matching oceanic blue theme */}
+      <div className="pointer-events-none fixed -top-32 -left-32 h-[560px] w-[560px] rounded-full bg-[#0532e6]/10 blur-[140px]" />
+      <div className="pointer-events-none fixed top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-[#0ea5e9]/12 blur-[150px]" />
+      <div className="pointer-events-none fixed -bottom-32 left-1/4 h-[480px] w-[480px] rounded-full bg-[#2563eb]/8 blur-[140px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(#0532e60a_1px,transparent_1px)] [background-size:24px_24px] opacity-80" />
 
       <a
         href="#main-content"
@@ -886,9 +908,15 @@ export default function AppLayout() {
         </div>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col relative z-10">
-        <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
+        <main
+          id="main-content"
+          ref={mainScrollRef}
+          onScroll={handleMainScroll}
+          tabIndex={-1}
+          className="min-h-0 flex-1 overflow-y-auto app-custom-scroll"
+        >
           <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 lg:p-8">
-            <div className="flex items-center justify-between lg:justify-end pb-3">
+            <div className="flex items-center justify-between pb-3 gap-3">
               <button
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all"
                 aria-label="Mở menu"
@@ -896,7 +924,8 @@ export default function AppLayout() {
               >
                 <Icon name="menu" />
               </button>
-              <div className="relative" ref={notificationRef}>
+              <div id="app-top-header-slot" className="flex items-center gap-3 min-w-0 flex-1" />
+              <div className="relative shrink-0" ref={notificationRef}>
                 <button
                   className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-navy/80 transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-navy shadow-2xs"
                   aria-label="Thông báo"
