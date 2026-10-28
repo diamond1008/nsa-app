@@ -63,9 +63,9 @@ export function PersonalSalesDashboard() {
   });
 
   const stats = statsQuery.data;
-  const tasks = tasksQuery.data ?? [];
-  const recentLeads = leadsQuery.data?.items ?? [];
-  const myOrders = ordersQuery.data?.items ?? [];
+  const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const recentLeads = useMemo(() => leadsQuery.data?.items ?? [], [leadsQuery.data?.items]);
+  const myOrders = useMemo(() => ordersQuery.data?.items ?? [], [ordersQuery.data?.items]);
 
   // Personal Monthly Target Calculation (Default target: 50.000.000 đ)
   const personalTarget = 50_000_000;
@@ -73,8 +73,8 @@ export function PersonalSalesDashboard() {
   const targetPct = personalTarget > 0 ? Math.min(100, Math.round((monthRevenue / personalTarget) * 100)) : 100;
   const remainingTarget = Math.max(0, personalTarget - monthRevenue);
 
-  const now = new Date();
-  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const now = useMemo(() => new Date(), []);
+  const lastDayOfMonth = useMemo(() => new Date(now.getFullYear(), now.getMonth() + 1, 0), [now]);
   const daysLeft = Math.max(0, lastDayOfMonth.getDate() - now.getDate());
 
   // Task filtering

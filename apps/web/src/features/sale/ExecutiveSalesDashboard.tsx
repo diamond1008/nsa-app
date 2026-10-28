@@ -220,13 +220,17 @@ export function ExecutiveSalesDashboard() {
   const totalSourceCount = sourcesData.reduce((sum, s) => sum + s.count, 0) || 1;
 
   // Filter recent orders
-  const allOrders = ordersQuery.data?.items ?? [];
-  const filteredOrders = selectedStaffEmail
-    ? allOrders.filter(
-        (o) => o.created_by_email?.toLowerCase() === selectedStaffEmail.toLowerCase(),
-      )
-    : allOrders;
-  const displayedOrders = filteredOrders.slice(0, 8);
+  const allOrders = useMemo(() => ordersQuery.data?.items ?? [], [ordersQuery.data?.items]);
+  const filteredOrders = useMemo(
+    () =>
+      selectedStaffEmail
+        ? allOrders.filter(
+            (o) => o.created_by_email?.toLowerCase() === selectedStaffEmail.toLowerCase(),
+          )
+        : allOrders,
+    [allOrders, selectedStaffEmail],
+  );
+  const displayedOrders = useMemo(() => filteredOrders.slice(0, 8), [filteredOrders]);
 
   // Helper to format ISO date "YYYY-MM-DD"
   const formatDateKey = (d: Date) => {
