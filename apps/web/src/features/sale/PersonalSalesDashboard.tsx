@@ -70,7 +70,8 @@ export function PersonalSalesDashboard() {
   // Personal Monthly Target Calculation (Default target: 50.000.000 đ)
   const personalTarget = 50_000_000;
   const monthRevenue = stats?.month_revenue ?? 0;
-  const targetPct = personalTarget > 0 ? Math.min(100, Math.round((monthRevenue / personalTarget) * 100)) : 100;
+  const targetPct =
+    personalTarget > 0 ? Math.min(100, Math.round((monthRevenue / personalTarget) * 100)) : 100;
   const remainingTarget = Math.max(0, personalTarget - monthRevenue);
 
   const now = useMemo(() => new Date(), []);
@@ -180,7 +181,11 @@ export function PersonalSalesDashboard() {
                 </div>
                 <div className="flex items-center justify-between text-xs sm:text-sm text-slate-500 font-medium">
                   <span>Mục tiêu: {formatVND(personalTarget)}</span>
-                  <span>{remainingTarget > 0 ? `Thiếu ${formatVND(remainingTarget)}` : `Đạt 100% · Còn ${daysLeft} ngày`}</span>
+                  <span>
+                    {remainingTarget > 0
+                      ? `Thiếu ${formatVND(remainingTarget)}`
+                      : `Đạt 100% · Còn ${daysLeft} ngày`}
+                  </span>
                 </div>
               </div>
             </div>
@@ -189,7 +194,9 @@ export function PersonalSalesDashboard() {
             <div className="mt-5 grid grid-cols-3 gap-2 border-t border-blue-100/80 pt-3.5 text-xs sm:text-sm">
               <div>
                 <span className="text-xs text-slate-500 font-medium block">Đã chốt</span>
-                <span className="font-bold text-navy text-base sm:text-lg font-number">{stats?.converted_this_month ?? 0}</span>
+                <span className="font-bold text-navy text-base sm:text-lg font-number">
+                  {stats?.converted_this_month ?? 0}
+                </span>
                 <span className="text-xs text-slate-500 font-medium"> học viên</span>
               </div>
               <div className="border-x border-blue-100/70 px-2 text-center">
@@ -200,7 +207,9 @@ export function PersonalSalesDashboard() {
               </div>
               <div className="text-right">
                 <span className="text-xs text-slate-500 font-medium block">Chờ nộp tiền</span>
-                <span className="font-bold text-amber-600 text-base sm:text-lg font-number">{pendingPaymentOrdersCount}</span>
+                <span className="font-bold text-amber-600 text-base sm:text-lg font-number">
+                  {pendingPaymentOrdersCount}
+                </span>
                 <span className="text-xs text-slate-500 font-medium"> đơn</span>
               </div>
             </div>
@@ -232,13 +241,17 @@ export function PersonalSalesDashboard() {
                   </div>
                   <div className="mt-2 text-xs sm:text-sm font-medium text-slate-600">
                     <span>Mới hôm nay: </span>
-                    <span className="font-bold text-blue-600 font-number">{stats?.new_leads_today ?? 0}</span>
+                    <span className="font-bold text-blue-600 font-number">
+                      {stats?.new_leads_today ?? 0}
+                    </span>
                   </div>
                 </div>
 
                 {/* Hub 2: Nhắc việc & Quá hạn */}
                 <div className="rounded-2xl border border-white/90 bg-white/75 p-4 shadow-2xs backdrop-blur-md">
-                  <span className="text-xs font-semibold text-slate-500 block">Lịch hẹn hôm nay</span>
+                  <span className="text-xs font-semibold text-slate-500 block">
+                    Lịch hẹn hôm nay
+                  </span>
                   <div className="mt-1 flex items-baseline gap-1.5">
                     <span className="text-3xl sm:text-4xl font-black text-navy font-number">
                       {stats?.today_tasks ?? 0}
@@ -271,7 +284,9 @@ export function PersonalSalesDashboard() {
                 className="group inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-700 transition-colors text-xs sm:text-sm"
               >
                 <span>Thêm Lead</span>
-                <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
               </Link>
             </div>
           </div>
@@ -286,7 +301,9 @@ export function PersonalSalesDashboard() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-base font-bold text-navy">Nhiệm vụ & Lịch chăm sóc cần làm</h2>
-                <p className="text-xs text-slate-500">Các cuộc hẹn gọi điện, tư vấn và lịch nhắc việc</p>
+                <p className="text-xs text-slate-500">
+                  Các cuộc hẹn gọi điện, tư vấn và lịch nhắc việc
+                </p>
               </div>
 
               {/* Task Filter Tabs */}
@@ -354,9 +371,7 @@ export function PersonalSalesDashboard() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-navy text-sm">
-                            {task.title}
-                          </span>
+                          <span className="font-bold text-navy text-sm">{task.title}</span>
                           {isOverdue && <Badge tone="red">Quá hạn</Badge>}
                           {isToday && !isOverdue && <Badge tone="gold">Hôm nay</Badge>}
                         </div>
@@ -422,14 +437,18 @@ export function PersonalSalesDashboard() {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-navy">Khách mới tiếp nhận</h2>
-                <p className="text-xs text-slate-500">Danh sách khách hàng được phân công gần đây</p>
+                <p className="text-xs text-slate-500">
+                  Danh sách khách hàng được phân công gần đây
+                </p>
               </div>
               <Link
                 to="/sale/leads"
                 className="group inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-blue-600 transition-colors duration-150 hover:text-blue-700"
               >
                 <span>Xem tất cả</span>
-                <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
               </Link>
             </div>
 
@@ -496,7 +515,9 @@ export function PersonalSalesDashboard() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-navy">Học viên vừa chốt & Đơn hàng của tôi</h2>
-            <p className="text-xs text-slate-500">Danh sách các phiếu thu và khóa học bạn đã đăng ký cho học viên</p>
+            <p className="text-xs text-slate-500">
+              Danh sách các phiếu thu và khóa học bạn đã đăng ký cho học viên
+            </p>
           </div>
           <Link
             to="/sale/phieu-thu"
@@ -538,9 +559,7 @@ export function PersonalSalesDashboard() {
                     <tr key={order.id} className="transition-colors duration-150 hover:bg-white/80">
                       <td className="px-4 py-3.5">
                         <div className="font-bold text-navy text-sm">{studentName}</div>
-                        <div className="text-xs font-mono text-slate-500">
-                          {order.order_code}
-                        </div>
+                        <div className="text-xs font-mono text-slate-500">{order.order_code}</div>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="font-medium text-navy text-sm line-clamp-1">

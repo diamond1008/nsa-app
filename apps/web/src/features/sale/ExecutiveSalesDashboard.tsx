@@ -108,7 +108,7 @@ export function ExecutiveSalesDashboard() {
       : (overview?.by_assignee ?? []).reduce((sum, a) => sum + a.total_leads, 0);
 
   const totalConverted =
-    ((overview?.by_status?.["da_dang_ky"] ?? 0) + (overview?.by_status?.["dang_hoc"] ?? 0)) ||
+    (overview?.by_status?.["da_dang_ky"] ?? 0) + (overview?.by_status?.["dang_hoc"] ?? 0) ||
     (overview?.by_assignee ?? []).reduce((sum, a) => sum + a.converted_leads, 0);
 
   const conversionRate = totalLeads > 0 ? Math.round((totalConverted / totalLeads) * 100) : 0;
@@ -154,7 +154,8 @@ export function ExecutiveSalesDashboard() {
         key: "knm_thue_bao",
         label: "Chưa liên hệ / Hẹn gọi",
         count:
-          (overview?.by_status?.["knm_thue_bao"] ?? 0) + (overview?.by_status?.["goi_lai_sau"] ?? 0),
+          (overview?.by_status?.["knm_thue_bao"] ?? 0) +
+          (overview?.by_status?.["goi_lai_sau"] ?? 0),
         color: "bg-amber-500",
         hexColor: "#f59e0b",
       },
@@ -176,8 +177,7 @@ export function ExecutiveSalesDashboard() {
       {
         key: "tu_choi",
         label: "Tạm dừng / Chưa phù hợp",
-        count:
-          (overview?.by_status?.["tu_choi"] ?? 0) + (overview?.by_status?.["ket_thuc"] ?? 0),
+        count: (overview?.by_status?.["tu_choi"] ?? 0) + (overview?.by_status?.["ket_thuc"] ?? 0),
         color: "bg-slate-400",
         hexColor: "#94a3b8",
       },
@@ -204,9 +204,7 @@ export function ExecutiveSalesDashboard() {
     });
   }, [statusStages, totalLeads, pieCircumference]);
 
-  const activeSliceStage = hoveredSlice
-    ? statusStages.find((s) => s.key === hoveredSlice)
-    : null;
+  const activeSliceStage = hoveredSlice ? statusStages.find((s) => s.key === hoveredSlice) : null;
 
   // Lead Sources breakdown
   const sourcesData = Object.entries(overview?.by_source ?? {})
@@ -269,9 +267,7 @@ export function ExecutiveSalesDashboard() {
         const nextHourStr = String(Math.min(23, h + 1)).padStart(2, "0");
 
         if (metricType === "revenue") {
-          const matched = todayPaidOrders.filter(
-            (o) => new Date(o.created_at).getHours() === h,
-          );
+          const matched = todayPaidOrders.filter((o) => new Date(o.created_at).getHours() === h);
           const rev = matched.reduce((sum, o) => sum + o.final_amount, 0);
 
           points.push({
@@ -282,9 +278,7 @@ export function ExecutiveSalesDashboard() {
             count: matched.length,
           });
         } else {
-          const matched = todayPaidOrders.filter(
-            (o) => new Date(o.created_at).getHours() === h,
-          );
+          const matched = todayPaidOrders.filter((o) => new Date(o.created_at).getHours() === h);
           points.push({
             key: `hour-${h}`,
             label: `${hourStr}:00`,
@@ -514,7 +508,16 @@ export function ExecutiveSalesDashboard() {
       amountText: `${totalLeads} khách`,
       subText: `Năm ${today.getFullYear()} (T1 - T${today.getMonth() + 1}) · ${totalConverted} đã chốt`,
     };
-  }, [metricType, timeframe, chartData, monthRevenue, monthPaidOrders, totalRevenue, totalLeads, totalConverted]);
+  }, [
+    metricType,
+    timeframe,
+    chartData,
+    monthRevenue,
+    monthPaidOrders,
+    totalRevenue,
+    totalLeads,
+    totalConverted,
+  ]);
 
   // Chart Geometry (Taller Canvas: 360px height instead of 240px to eliminate "lùn" look)
   const chartWidth = 1000;
@@ -569,7 +572,8 @@ export function ExecutiveSalesDashboard() {
     setHoveredIndex(null);
   };
 
-  const activePoint = hoveredIndex !== null && chartData[hoveredIndex] ? chartData[hoveredIndex] : null;
+  const activePoint =
+    hoveredIndex !== null && chartData[hoveredIndex] ? chartData[hoveredIndex] : null;
   const activeCoord = hoveredIndex !== null && coords[hoveredIndex] ? coords[hoveredIndex] : null;
 
   return (
@@ -583,907 +587,952 @@ export function ExecutiveSalesDashboard() {
 
       <div className="space-y-6">
         {/* 1. Header & Actions (Synchronized PageHeader) */}
-      <PageHeader
-        title="Tổng quan Phòng Tuyển sinh"
-        subtitle="Báo cáo doanh số phòng, hiệu suất đội ngũ tư vấn, tiến độ chuyển đổi và học viên mới."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link to="/sale/leads?action=create">
-              <Button
-                variant="primary"
-                className="shadow-xs transition-all duration-200 hover:shadow-md active:scale-95"
-              >
-                <Icon name="plus" className="h-4 w-4" />
-                <span>Khách mới</span>
-              </Button>
-            </Link>
-            <Link to="/sale/leads">
-              <Button
-                variant="soft"
-                className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
-              >
-                <Icon name="users" className="h-4 w-4" />
-                <span>Danh sách Lead</span>
-              </Button>
-            </Link>
-            <Link to="/sale/bao-cao">
-              <Button
-                variant="soft"
-                className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
-              >
-                <Icon name="chart" className="h-4 w-4" />
-                <span>Báo cáo</span>
-              </Button>
-            </Link>
-            <Link to="/sale/doi-ngu">
-              <Button
-                variant="soft"
-                className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
-              >
-                <Icon name="award" className="h-4 w-4" />
-                <span>Đội ngũ</span>
-              </Button>
-            </Link>
-          </div>
-        }
-      />
+        <PageHeader
+          title="Tổng quan Phòng Tuyển sinh"
+          subtitle="Báo cáo doanh số phòng, hiệu suất đội ngũ tư vấn, tiến độ chuyển đổi và học viên mới."
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/sale/leads?action=create">
+                <Button
+                  variant="primary"
+                  className="shadow-xs transition-all duration-200 hover:shadow-md active:scale-95"
+                >
+                  <Icon name="plus" className="h-4 w-4" />
+                  <span>Khách mới</span>
+                </Button>
+              </Link>
+              <Link to="/sale/leads">
+                <Button
+                  variant="soft"
+                  className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
+                >
+                  <Icon name="users" className="h-4 w-4" />
+                  <span>Danh sách Lead</span>
+                </Button>
+              </Link>
+              <Link to="/sale/bao-cao">
+                <Button
+                  variant="soft"
+                  className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
+                >
+                  <Icon name="chart" className="h-4 w-4" />
+                  <span>Báo cáo</span>
+                </Button>
+              </Link>
+              <Link to="/sale/doi-ngu">
+                <Button
+                  variant="soft"
+                  className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
+                >
+                  <Icon name="award" className="h-4 w-4" />
+                  <span>Đội ngũ</span>
+                </Button>
+              </Link>
+            </div>
+          }
+        />
 
-      {/* 2. Top 4 Thẻ KPI Cốt lõi (Synchronized with Personal Cards) */}
-      <QueryState
-        loading={revenueQuery.isLoading || overviewQuery.isLoading || statsQuery.isLoading}
-        error={revenueQuery.error || overviewQuery.error || statsQuery.error}
-        empty={false}
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
-                <span>Doanh số tháng</span>
-                <Icon name="shopping-bag" className="h-4 w-4 text-blue-600 shrink-0" />
+        {/* 2. Top 4 Thẻ KPI Cốt lõi (Synchronized with Personal Cards) */}
+        <QueryState
+          loading={revenueQuery.isLoading || overviewQuery.isLoading || statsQuery.isLoading}
+          error={revenueQuery.error || overviewQuery.error || statsQuery.error}
+          empty={false}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
+                  <span>Doanh số tháng</span>
+                  <Icon name="shopping-bag" className="h-4 w-4 text-blue-600 shrink-0" />
+                </div>
+                <div className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
+                  {formatVND(monthRevenue)}
+                </div>
               </div>
-              <div className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
-                {formatVND(monthRevenue)}
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
+                <span className="font-semibold text-blue-600 font-number">
+                  {monthPaidOrders} đơn đã thu
+                </span>
+                <span className="text-xs text-slate-500 font-medium">Toàn phòng</span>
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
-              <span className="font-semibold text-blue-600 font-number">{monthPaidOrders} đơn đã thu</span>
-              <span className="text-xs text-slate-500 font-medium">Toàn phòng</span>
+
+            <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
+                  <span>Học viên mới</span>
+                  <Icon name="award" className="h-4 w-4 text-indigo-600 shrink-0" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-1.5">
+                  <span className="text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
+                    {totalConverted}
+                  </span>
+                  <span className="text-sm text-slate-500 font-medium">học viên</span>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
+                <span className="font-semibold text-indigo-600 font-number">
+                  Tỷ lệ chốt: {conversionRate}%
+                </span>
+                <span className="text-xs text-slate-500 font-medium">Tháng này</span>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
+                  <span>Tổng khách hàng</span>
+                  <Icon name="users" className="h-4 w-4 text-sky-600 shrink-0" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-1.5">
+                  <span className="text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
+                    {totalLeads}
+                  </span>
+                  <span className="text-sm text-slate-500 font-medium">khách</span>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
+                <span className="font-semibold text-sky-600 font-number">
+                  +{stats?.new_leads_today ?? 0} hôm nay
+                </span>
+                <span className="text-xs text-slate-500 font-medium">Đang chăm sóc</span>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
+                  <span>Đơn trung bình</span>
+                  <Icon name="calendar" className="h-4 w-4 text-blue-700 shrink-0" />
+                </div>
+                <div className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
+                  {formatVND(aov)}
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
+                <span className="font-semibold text-slate-600 font-number">
+                  Lũy kế: {formatVND(totalRevenue)}
+                </span>
+                <span className="text-xs text-slate-500 font-medium">Toàn viện</span>
+              </div>
             </div>
           </div>
+        </QueryState>
 
-          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
+        {/* 3. Chỉ tiêu & Cảnh báo nhanh */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          <div className="lg:col-span-5 rounded-3xl border border-blue-200/80 bg-gradient-to-br from-white/95 via-blue-50/40 to-indigo-50/50 p-5 shadow-2xs backdrop-blur-xl flex flex-col justify-between transition-all duration-300 hover:shadow-card">
             <div>
-              <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
-                <span>Học viên mới</span>
-                <Icon name="award" className="h-4 w-4 text-indigo-600 shrink-0" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-900">
+                  Chỉ tiêu toàn phòng tháng
+                </span>
+                <span className="text-sm font-black text-blue-600 font-number">{targetPct}%</span>
               </div>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
-                  {totalConverted}
+                <span className="text-2xl sm:text-3xl font-black text-navy font-number">
+                  {formatVND(monthRevenue)}
                 </span>
-                <span className="text-sm text-slate-500 font-medium">học viên</span>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
-              <span className="font-semibold text-indigo-600 font-number">Tỷ lệ chốt: {conversionRate}%</span>
-              <span className="text-xs text-slate-500 font-medium">Tháng này</span>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
-                <span>Tổng khách hàng</span>
-                <Icon name="users" className="h-4 w-4 text-sky-600 shrink-0" />
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
-                  {totalLeads}
+                <span className="text-sm text-slate-500 font-medium">
+                  / {formatVND(targetRevenue)}
                 </span>
-                <span className="text-sm text-slate-500 font-medium">khách</span>
+              </div>
+              <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-200/60 p-0.5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-sky-400 transition-all duration-500"
+                  style={{ width: `${Math.max(4, targetPct)}%` }}
+                />
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
-              <span className="font-semibold text-sky-600 font-number">+{stats?.new_leads_today ?? 0} hôm nay</span>
-              <span className="text-xs text-slate-500 font-medium">Đang chăm sóc</span>
+            <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-slate-500 border-t border-blue-100/80 pt-2.5 font-medium">
+              <span>Còn {daysLeft} ngày trong tháng</span>
+              <Link
+                to="/sale/bao-cao"
+                className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
+              >
+                <span>Xem báo cáo</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
-                <span>Đơn trung bình</span>
-                <Icon name="calendar" className="h-4 w-4 text-blue-700 shrink-0" />
-              </div>
-              <div className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-navy font-number">
-                {formatVND(aov)}
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs sm:text-sm">
-              <span className="font-semibold text-slate-600 font-number">Lũy kế: {formatVND(totalRevenue)}</span>
-              <span className="text-xs text-slate-500 font-medium">Toàn viện</span>
-            </div>
-          </div>
-        </div>
-      </QueryState>
-
-      {/* 3. Chỉ tiêu & Cảnh báo nhanh */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-5 rounded-3xl border border-blue-200/80 bg-gradient-to-br from-white/95 via-blue-50/40 to-indigo-50/50 p-5 shadow-2xs backdrop-blur-xl flex flex-col justify-between transition-all duration-300 hover:shadow-card">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-900">Chỉ tiêu toàn phòng tháng</span>
-              <span className="text-sm font-black text-blue-600 font-number">{targetPct}%</span>
-            </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-navy font-number">{formatVND(monthRevenue)}</span>
-              <span className="text-sm text-slate-500 font-medium">/ {formatVND(targetRevenue)}</span>
-            </div>
-            <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-200/60 p-0.5">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-sky-400 transition-all duration-500"
-                style={{ width: `${Math.max(4, targetPct)}%` }}
-              />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-slate-500 border-t border-blue-100/80 pt-2.5 font-medium">
-            <span>Còn {daysLeft} ngày trong tháng</span>
+          <div className="grid grid-cols-3 gap-3 lg:col-span-7">
             <Link
-              to="/sale/bao-cao"
-              className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
+              to="/sale/leads"
+              className="group rounded-3xl border border-amber-200/60 bg-white/70 p-4 shadow-2xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:scale-95 flex flex-col justify-between"
             >
-              <span>Xem báo cáo</span>
-              <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+              <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-amber-800">
+                <span>Chưa phân công</span>
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+              </div>
+              <div className="mt-2 text-3xl sm:text-4xl font-black text-navy font-number transition-transform duration-200 group-hover:scale-105">
+                {alerts.unassigned_leads}
+              </div>
+              <span className="text-xs text-slate-500 mt-1 block font-medium">Lead chờ xử lý</span>
+            </Link>
+
+            <Link
+              to="/sale/leads"
+              className="group rounded-3xl border border-rose-200/60 bg-white/70 p-4 shadow-2xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:scale-95 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-rose-800">
+                <span>Trễ hẹn gọi</span>
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+              </div>
+              <div className="mt-2 text-3xl sm:text-4xl font-black text-rose-600 font-number transition-transform duration-200 group-hover:scale-105">
+                {alerts.overdue_tasks}
+              </div>
+              <span className="text-xs text-slate-500 mt-1 block font-medium">Cần hỗ trợ gấp</span>
+            </Link>
+
+            <Link
+              to="/sale/phieu-dang-ky"
+              className="group rounded-3xl border border-blue-200/60 bg-white/70 p-4 shadow-2xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:scale-95 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-blue-800">
+                <span>Chưa thu tiền</span>
+                <span className="h-2 w-2 rounded-full bg-blue-500" />
+              </div>
+              <div className="mt-2 text-3xl sm:text-4xl font-black text-navy font-number transition-transform duration-200 group-hover:scale-105">
+                {alerts.pending_orders}
+              </div>
+              <span className="text-xs text-slate-500 mt-1 block font-medium">
+                Đơn hàng chờ thu
+              </span>
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 lg:col-span-7">
-          <Link
-            to="/sale/leads"
-            className="group rounded-3xl border border-amber-200/60 bg-white/70 p-4 shadow-2xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:scale-95 flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-amber-800">
-              <span>Chưa phân công</span>
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-            </div>
-            <div className="mt-2 text-3xl sm:text-4xl font-black text-navy font-number transition-transform duration-200 group-hover:scale-105">
-              {alerts.unassigned_leads}
-            </div>
-            <span className="text-xs text-slate-500 mt-1 block font-medium">Lead chờ xử lý</span>
-          </Link>
-
-          <Link
-            to="/sale/leads"
-            className="group rounded-3xl border border-rose-200/60 bg-white/70 p-4 shadow-2xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:scale-95 flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-rose-800">
-              <span>Trễ hẹn gọi</span>
-              <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-            </div>
-            <div className="mt-2 text-3xl sm:text-4xl font-black text-rose-600 font-number transition-transform duration-200 group-hover:scale-105">
-              {alerts.overdue_tasks}
-            </div>
-            <span className="text-xs text-slate-500 mt-1 block font-medium">Cần hỗ trợ gấp</span>
-          </Link>
-
-          <Link
-            to="/sale/phieu-dang-ky"
-            className="group rounded-3xl border border-blue-200/60 bg-white/70 p-4 shadow-2xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:scale-95 flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-blue-800">
-              <span>Chưa thu tiền</span>
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-            </div>
-            <div className="mt-2 text-3xl sm:text-4xl font-black text-navy font-number transition-transform duration-200 group-hover:scale-105">
-              {alerts.pending_orders}
-            </div>
-            <span className="text-xs text-slate-500 mt-1 block font-medium">Đơn hàng chờ thu</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* 4. Doanh thu Tuyển sinh (Liquid Glass Stock Chart) */}
-      <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-navy">
-              {metricType === "revenue" ? "Doanh thu Tuyển sinh" : "Lượng khách Tuyển sinh"}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {timeframe === "day"
-                ? "Đếm theo từng giờ hôm nay (tới giờ hiện tại)"
-                : timeframe === "week"
-                ? "Theo các ngày trong tuần này (tới hôm nay)"
-                : timeframe === "month"
-                ? "Theo các tuần trong tháng này (tới tuần hiện tại)"
-                : "Theo các tháng trong năm nay (tới tháng hiện tại)"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Metric Switcher */}
-            <div className="flex items-center rounded-xl border border-white/60 bg-slate-100/60 p-0.5 backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => setMetricType("revenue")}
-                className={clsx(
-                  "rounded-lg px-3 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
-                  metricType === "revenue"
-                    ? "bg-white text-navy shadow-xs border border-white/80"
-                    : "text-slate-500 hover:text-navy",
-                )}
-              >
-                Doanh thu
-              </button>
-              <button
-                type="button"
-                onClick={() => setMetricType("leads")}
-                className={clsx(
-                  "rounded-lg px-3 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
-                  metricType === "leads"
-                    ? "bg-white text-navy shadow-xs border border-white/80"
-                    : "text-slate-500 hover:text-navy",
-                )}
-              >
-                Lượng khách
-              </button>
+        {/* 4. Doanh thu Tuyển sinh (Liquid Glass Stock Chart) */}
+        <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-navy">
+                {metricType === "revenue" ? "Doanh thu Tuyển sinh" : "Lượng khách Tuyển sinh"}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {timeframe === "day"
+                  ? "Đếm theo từng giờ hôm nay (tới giờ hiện tại)"
+                  : timeframe === "week"
+                    ? "Theo các ngày trong tuần này (tới hôm nay)"
+                    : timeframe === "month"
+                      ? "Theo các tuần trong tháng này (tới tuần hiện tại)"
+                      : "Theo các tháng trong năm nay (tới tháng hiện tại)"}
+              </p>
             </div>
 
-            {/* Timeframe Switcher (Ngày, Tuần, Tháng, Năm) */}
-            <div className="flex items-center rounded-xl border border-white/60 bg-slate-100/60 p-0.5 backdrop-blur-md">
-              {(
-                [
-                  { key: "day", label: "Ngày" },
-                  { key: "week", label: "Tuần" },
-                  { key: "month", label: "Tháng" },
-                  { key: "year", label: "Năm" },
-                ] as const
-              ).map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setTimeframe(t.key)}
-                  className={clsx(
-                    "rounded-lg px-3 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
-                    timeframe === t.key
-                      ? "bg-blue-600 text-white shadow-xs"
-                      : "text-slate-500 hover:text-navy",
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Minimal Number Display */}
-        <div className="mb-2 flex items-baseline gap-2">
-          <span className="text-3xl sm:text-4xl font-black text-navy tracking-tight font-number">
-            {activePoint
-              ? metricType === "revenue"
-                ? formatVND(activePoint.value)
-                : `${activePoint.value} khách`
-              : defaultMetricDisplay.amountText}
-          </span>
-          <span className="text-sm font-semibold text-slate-500 font-number">
-            {activePoint ? activePoint.fullLabel : defaultMetricDisplay.subText}
-          </span>
-        </div>
-
-        {/* Liquid Glass Canvas (Taller height: 380px-400px to eliminate "lùn" look) */}
-        <div className="relative h-80 sm:h-96 md:h-[400px] w-full overflow-hidden rounded-2xl border border-white/60 bg-white/40 p-2 backdrop-blur-md">
-          {chartData.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-xs text-slate-400">
-              Chưa có dữ liệu giao dịch
-            </div>
-          ) : (
-            <svg
-              ref={svgRef}
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              className="h-full w-full cursor-crosshair select-none"
-              preserveAspectRatio="none"
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-            >
-              <defs>
-                <linearGradient id="liquidAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
-                </linearGradient>
-
-                <filter id="liquidLineGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#2563eb" floodOpacity="0.25" />
-                </filter>
-              </defs>
-
-              {/* Gridlines */}
-              {[1.0, 0.75, 0.5, 0.25, 0.0].map((ratio) => {
-                const y = padTop + usableH - ratio * usableH;
-                const valueAtLine = ratio * ceilingVal;
-                return (
-                  <g key={ratio}>
-                    <line
-                      x1={padLeft}
-                      y1={y}
-                      x2={chartWidth - padRight}
-                      y2={y}
-                      stroke="#e2e8f0"
-                      strokeDasharray="4 4"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={chartWidth - padRight + 8}
-                      y={y + 3.5}
-                      fontSize="11"
-                      fill="#64748b"
-                      fontWeight="600"
-                    >
-                      {metricType === "revenue"
-                        ? formatCompactVND(valueAtLine)
-                        : `${Math.round(valueAtLine)}`}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Area */}
-              {splineAreaPath && (
-                <path d={splineAreaPath} fill="url(#liquidAreaGradient)" />
-              )}
-
-              {/* Curve Line */}
-              {splineLinePath && (
-                <path
-                  d={splineLinePath}
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="2.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  filter="url(#liquidLineGlow)"
-                />
-              )}
-
-              {/* Points */}
-              {coords.map((c, idx) => (
-                <circle
-                  key={idx}
-                  cx={c.x}
-                  cy={c.y}
-                  r="3"
-                  fill="#ffffff"
-                  stroke="#2563eb"
-                  strokeWidth="2"
-                />
-              ))}
-
-              {/* X-Axis Labels */}
-              {chartData.map((d, idx) => {
-                const c = coords[idx];
-                if (!c) return null;
-                const isHovered = hoveredIndex === idx;
-                const showLabel =
-                  chartData.length <= 12 ||
-                  idx === 0 ||
-                  idx === chartData.length - 1 ||
-                  idx % 2 === 0 ||
-                  isHovered;
-
-                if (!showLabel) return null;
-
-                return (
-                  <text
-                    key={d.key}
-                    x={c.x}
-                    y={chartHeight - 8}
-                    fontSize="11"
-                    fill={isHovered ? "#1d4ed8" : "#64748b"}
-                    fontWeight={isHovered ? "700" : "600"}
-                    textAnchor="middle"
-                  >
-                    {d.label}
-                  </text>
-                );
-              })}
-
-              {/* Crosshair */}
-              {activeCoord && activePoint && (
-                <g>
-                  <line
-                    x1={activeCoord.x}
-                    y1={padTop}
-                    x2={activeCoord.x}
-                    y2={padTop + usableH}
-                    stroke="#2563eb"
-                    strokeWidth="1.25"
-                    strokeDasharray="3 3"
-                    opacity="0.8"
-                  />
-                  <circle
-                    cx={activeCoord.x}
-                    cy={activeCoord.y}
-                    r="8"
-                    fill="#2563eb"
-                    opacity="0.25"
-                  />
-                  <circle
-                    cx={activeCoord.x}
-                    cy={activeCoord.y}
-                    r="4.5"
-                    fill="#2563eb"
-                    stroke="#ffffff"
-                    strokeWidth="2"
-                  />
-                </g>
-              )}
-            </svg>
-          )}
-        </div>
-      </div>
-
-      {/* 5. Middle Section (3 Cột Cân Đối Bằng Nhau) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-stretch">
-        {/* Cột 1: Xếp hạng Doanh số */}
-        <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl lg:col-span-5 h-full flex flex-col justify-between transition-all duration-300 hover:shadow-card">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-navy">Xếp hạng Doanh số</h2>
-                <p className="text-xs text-slate-500">Theo doanh thu tháng này</p>
-              </div>
-              {selectedStaffEmail && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedStaffEmail(null)}
-                  className="text-xs text-blue-600 font-semibold transition-colors hover:text-blue-700 active:scale-95"
-                >
-                  Bỏ lọc
-                </button>
-              )}
-            </div>
-
-            <QueryState
-              loading={overviewQuery.isLoading}
-              error={overviewQuery.error}
-              empty={sortedStaff.length === 0}
-              emptyTitle="Chưa có dữ liệu"
-            >
-              <div className="overflow-hidden no-scrollbar rounded-2xl border border-white/70 bg-white/40">
-                <table className="w-full table-fixed divide-y divide-slate-100 text-left text-sm">
-                  <thead className="bg-slate-50/50 text-xs font-bold uppercase text-slate-500 tracking-wider">
-                    <tr>
-                      <th className="w-[42%] px-3.5 py-3">Nhân viên</th>
-                      <th className="w-[16%] px-2 py-3 text-right">Khách</th>
-                      <th className="w-[14%] px-2 py-3 text-right">Chốt</th>
-                      <th className="w-[28%] px-3.5 py-3 text-right">Doanh số</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100/60">
-                    {sortedStaff.map((staff, index) => {
-                      const isSelected = selectedStaffEmail === staff.email;
-
-                      return (
-                        <tr
-                          key={staff.user_id}
-                          onClick={() => setSelectedStaffEmail(isSelected ? null : staff.email)}
-                          className={clsx(
-                            "cursor-pointer transition-colors duration-150",
-                            isSelected
-                              ? "bg-blue-50/80 font-semibold"
-                              : "hover:bg-white/80",
-                          )}
-                        >
-                          <td className="px-3.5 py-3">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200/70 text-xs font-bold text-slate-700 font-number">
-                                {index + 1}
-                              </span>
-                              <span className="truncate font-semibold text-navy text-sm" title={staff.email}>
-                                {staff.email.split("@")[0]}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-2 py-3 text-right text-slate-600 font-medium font-number text-sm">
-                            {staff.total_leads}
-                          </td>
-                          <td className="px-2 py-3 text-right font-bold text-navy font-number text-sm">
-                            {staff.converted_leads}
-                          </td>
-                          <td className="px-3.5 py-3 text-right font-bold text-blue-700 font-number text-sm">
-                            {formatVND(staff.month_revenue ?? 0)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </QueryState>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
-            <span>{sortedStaff.length} chuyên viên</span>
-            <Link
-              to="/sale/doi-ngu"
-              className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
-            >
-              <span>Đội ngũ</span>
-              <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Cột 2: Tiến độ Tư vấn & Nguồn (Có Option Biểu Đồ Tròn!) */}
-        <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl lg:col-span-4 h-full flex flex-col justify-between transition-all duration-300 hover:shadow-card">
-          <div>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base font-bold text-navy">Tiến độ Tư vấn & Nguồn</h2>
-                <p className="text-xs text-slate-500">Tỷ lệ xử lý và kênh tiếp nhận</p>
-              </div>
-
-              {/* 3 Tabs: Tiến độ, Biểu đồ tròn, Nguồn */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Metric Switcher */}
               <div className="flex items-center rounded-xl border border-white/60 bg-slate-100/60 p-0.5 backdrop-blur-md">
                 <button
                   type="button"
-                  onClick={() => setMiddleTab("status")}
+                  onClick={() => setMetricType("revenue")}
                   className={clsx(
-                    "rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
-                    middleTab === "status"
+                    "rounded-lg px-3 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
+                    metricType === "revenue"
                       ? "bg-white text-navy shadow-xs border border-white/80"
                       : "text-slate-500 hover:text-navy",
                   )}
                 >
-                  Tiến độ
+                  Doanh thu
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMiddleTab("pie")}
+                  onClick={() => setMetricType("leads")}
                   className={clsx(
-                    "rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
-                    middleTab === "pie"
+                    "rounded-lg px-3 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
+                    metricType === "leads"
                       ? "bg-white text-navy shadow-xs border border-white/80"
                       : "text-slate-500 hover:text-navy",
                   )}
                 >
-                  Biểu đồ tròn
+                  Lượng khách
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setMiddleTab("sources")}
-                  className={clsx(
-                    "rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
-                    middleTab === "sources"
-                      ? "bg-white text-navy shadow-xs border border-white/80"
-                      : "text-slate-500 hover:text-navy",
-                  )}
-                >
-                  Nguồn
-                </button>
+              </div>
+
+              {/* Timeframe Switcher (Ngày, Tuần, Tháng, Năm) */}
+              <div className="flex items-center rounded-xl border border-white/60 bg-slate-100/60 p-0.5 backdrop-blur-md">
+                {(
+                  [
+                    { key: "day", label: "Ngày" },
+                    { key: "week", label: "Tuần" },
+                    { key: "month", label: "Tháng" },
+                    { key: "year", label: "Năm" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setTimeframe(t.key)}
+                    className={clsx(
+                      "rounded-lg px-3 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
+                      timeframe === t.key
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "text-slate-500 hover:text-navy",
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
+          </div>
 
-            {/* View 1: Thanh tiến trình */}
-            {middleTab === "status" && (
-              <div className="space-y-3.5 pt-1">
-                {statusStages.map((stage) => {
-                  const pct = totalLeads > 0 ? Math.round((stage.count / totalLeads) * 100) : 0;
+          {/* Minimal Number Display */}
+          <div className="mb-2 flex items-baseline gap-2">
+            <span className="text-3xl sm:text-4xl font-black text-navy tracking-tight font-number">
+              {activePoint
+                ? metricType === "revenue"
+                  ? formatVND(activePoint.value)
+                  : `${activePoint.value} khách`
+                : defaultMetricDisplay.amountText}
+            </span>
+            <span className="text-sm font-semibold text-slate-500 font-number">
+              {activePoint ? activePoint.fullLabel : defaultMetricDisplay.subText}
+            </span>
+          </div>
+
+          {/* Liquid Glass Canvas (Taller height: 380px-400px to eliminate "lùn" look) */}
+          <div className="relative h-80 sm:h-96 md:h-[400px] w-full overflow-hidden rounded-2xl border border-white/60 bg-white/40 p-2 backdrop-blur-md">
+            {chartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-xs text-slate-400">
+                Chưa có dữ liệu giao dịch
+              </div>
+            ) : (
+              <svg
+                ref={svgRef}
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                className="h-full w-full cursor-crosshair select-none"
+                preserveAspectRatio="none"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+              >
+                <defs>
+                  <linearGradient id="liquidAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+                  </linearGradient>
+
+                  <filter id="liquidLineGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="2"
+                      stdDeviation="3"
+                      floodColor="#2563eb"
+                      floodOpacity="0.25"
+                    />
+                  </filter>
+                </defs>
+
+                {/* Gridlines */}
+                {[1.0, 0.75, 0.5, 0.25, 0.0].map((ratio) => {
+                  const y = padTop + usableH - ratio * usableH;
+                  const valueAtLine = ratio * ceilingVal;
                   return (
-                    <div key={stage.key} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-semibold text-navy">{stage.label}</span>
-                        <span className="text-slate-700 font-bold font-number">
-                          {stage.count} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/50">
-                        <div
-                          className={clsx("h-full rounded-full transition-all duration-500", stage.color)}
-                          style={{ width: `${Math.max(4, pct)}%` }}
-                        />
-                      </div>
-                    </div>
+                    <g key={ratio}>
+                      <line
+                        x1={padLeft}
+                        y1={y}
+                        x2={chartWidth - padRight}
+                        y2={y}
+                        stroke="#e2e8f0"
+                        strokeDasharray="4 4"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={chartWidth - padRight + 8}
+                        y={y + 3.5}
+                        fontSize="11"
+                        fill="#64748b"
+                        fontWeight="600"
+                      >
+                        {metricType === "revenue"
+                          ? formatCompactVND(valueAtLine)
+                          : `${Math.round(valueAtLine)}`}
+                      </text>
+                    </g>
                   );
                 })}
-              </div>
+
+                {/* Area */}
+                {splineAreaPath && <path d={splineAreaPath} fill="url(#liquidAreaGradient)" />}
+
+                {/* Curve Line */}
+                {splineLinePath && (
+                  <path
+                    d={splineLinePath}
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#liquidLineGlow)"
+                  />
+                )}
+
+                {/* Points */}
+                {coords.map((c, idx) => (
+                  <circle
+                    key={idx}
+                    cx={c.x}
+                    cy={c.y}
+                    r="3"
+                    fill="#ffffff"
+                    stroke="#2563eb"
+                    strokeWidth="2"
+                  />
+                ))}
+
+                {/* X-Axis Labels */}
+                {chartData.map((d, idx) => {
+                  const c = coords[idx];
+                  if (!c) return null;
+                  const isHovered = hoveredIndex === idx;
+                  const showLabel =
+                    chartData.length <= 12 ||
+                    idx === 0 ||
+                    idx === chartData.length - 1 ||
+                    idx % 2 === 0 ||
+                    isHovered;
+
+                  if (!showLabel) return null;
+
+                  return (
+                    <text
+                      key={d.key}
+                      x={c.x}
+                      y={chartHeight - 8}
+                      fontSize="11"
+                      fill={isHovered ? "#1d4ed8" : "#64748b"}
+                      fontWeight={isHovered ? "700" : "600"}
+                      textAnchor="middle"
+                    >
+                      {d.label}
+                    </text>
+                  );
+                })}
+
+                {/* Crosshair */}
+                {activeCoord && activePoint && (
+                  <g>
+                    <line
+                      x1={activeCoord.x}
+                      y1={padTop}
+                      x2={activeCoord.x}
+                      y2={padTop + usableH}
+                      stroke="#2563eb"
+                      strokeWidth="1.25"
+                      strokeDasharray="3 3"
+                      opacity="0.8"
+                    />
+                    <circle
+                      cx={activeCoord.x}
+                      cy={activeCoord.y}
+                      r="8"
+                      fill="#2563eb"
+                      opacity="0.25"
+                    />
+                    <circle
+                      cx={activeCoord.x}
+                      cy={activeCoord.y}
+                      r="4.5"
+                      fill="#2563eb"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                    />
+                  </g>
+                )}
+              </svg>
             )}
+          </div>
+        </div>
 
-            {/* View 2: Biểu đồ tròn (Donut Chart SVG - Kích thước lớn, nổi bật) */}
-            {middleTab === "pie" && (
-              <div className="flex flex-col items-center justify-between gap-3 pt-1">
-                <div className="relative h-48 w-48 sm:h-56 sm:w-56 md:h-60 md:w-60 my-1">
-                  <svg viewBox="0 0 240 240" className="h-full w-full select-none overflow-visible">
-                    {pieSegments.map((s) => (
-                      <circle
-                        key={s.key}
-                        cx="120"
-                        cy="120"
-                        r={pieRadius}
-                        fill="none"
-                        stroke={s.hexColor}
-                        strokeWidth={hoveredSlice === s.key ? 30 : 22}
-                        strokeDasharray={`${Math.max(0, s.dash - 2).toFixed(2)} ${(pieCircumference - s.dash + 2).toFixed(2)}`}
-                        strokeDashoffset={s.offset.toFixed(2)}
-                        transform="rotate(-90 120 120)"
-                        className="cursor-pointer transition-all duration-300 ease-out hover:opacity-90"
-                        onMouseEnter={() => setHoveredSlice(s.key)}
-                        onMouseLeave={() => setHoveredSlice(null)}
-                      />
-                    ))}
+        {/* 5. Middle Section (3 Cột Cân Đối Bằng Nhau) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-stretch">
+          {/* Cột 1: Xếp hạng Doanh số */}
+          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl lg:col-span-5 h-full flex flex-col justify-between transition-all duration-300 hover:shadow-card">
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-navy">Xếp hạng Doanh số</h2>
+                  <p className="text-xs text-slate-500">Theo doanh thu tháng này</p>
+                </div>
+                {selectedStaffEmail && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStaffEmail(null)}
+                    className="text-xs text-blue-600 font-semibold transition-colors hover:text-blue-700 active:scale-95"
+                  >
+                    Bỏ lọc
+                  </button>
+                )}
+              </div>
 
-                    <text
-                      x="120"
-                      y={activeSliceStage ? "114" : "116"}
-                      textAnchor="middle"
-                      className="fill-navy text-4xl sm:text-5xl font-black tracking-tight font-number"
-                    >
-                      {activeSliceStage ? activeSliceStage.count : totalLeads}
-                    </text>
-                    <text
-                      x="120"
-                      y={activeSliceStage ? "138" : "138"}
-                      textAnchor="middle"
-                      className="fill-slate-500 text-sm font-bold"
-                    >
-                      {activeSliceStage
-                        ? `${activeSliceStage.label} (${Math.round((activeSliceStage.count / totalLeads) * 100)}%)`
-                        : "Tổng khách hàng"}
-                    </text>
-                  </svg>
+              <QueryState
+                loading={overviewQuery.isLoading}
+                error={overviewQuery.error}
+                empty={sortedStaff.length === 0}
+                emptyTitle="Chưa có dữ liệu"
+              >
+                <div className="overflow-hidden no-scrollbar rounded-2xl border border-white/70 bg-white/40">
+                  <table className="w-full table-fixed divide-y divide-slate-100 text-left text-sm">
+                    <thead className="bg-slate-50/50 text-xs font-bold uppercase text-slate-500 tracking-wider">
+                      <tr>
+                        <th className="w-[42%] px-3.5 py-3">Nhân viên</th>
+                        <th className="w-[16%] px-2 py-3 text-right">Khách</th>
+                        <th className="w-[14%] px-2 py-3 text-right">Chốt</th>
+                        <th className="w-[28%] px-3.5 py-3 text-right">Doanh số</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {sortedStaff.map((staff, index) => {
+                        const isSelected = selectedStaffEmail === staff.email;
+
+                        return (
+                          <tr
+                            key={staff.user_id}
+                            onClick={() => setSelectedStaffEmail(isSelected ? null : staff.email)}
+                            className={clsx(
+                              "cursor-pointer transition-colors duration-150",
+                              isSelected ? "bg-blue-50/80 font-semibold" : "hover:bg-white/80",
+                            )}
+                          >
+                            <td className="px-3.5 py-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200/70 text-xs font-bold text-slate-700 font-number">
+                                  {index + 1}
+                                </span>
+                                <span
+                                  className="truncate font-semibold text-navy text-sm"
+                                  title={staff.email}
+                                >
+                                  {staff.email.split("@")[0]}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3 text-right text-slate-600 font-medium font-number text-sm">
+                              {staff.total_leads}
+                            </td>
+                            <td className="px-2 py-3 text-right font-bold text-navy font-number text-sm">
+                              {staff.converted_leads}
+                            </td>
+                            <td className="px-3.5 py-3 text-right font-bold text-blue-700 font-number text-sm">
+                              {formatVND(staff.month_revenue ?? 0)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </QueryState>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
+              <span>{sortedStaff.length} chuyên viên</span>
+              <Link
+                to="/sale/doi-ngu"
+                className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
+              >
+                <span>Đội ngũ</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Cột 2: Tiến độ Tư vấn & Nguồn (Có Option Biểu Đồ Tròn!) */}
+          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl lg:col-span-4 h-full flex flex-col justify-between transition-all duration-300 hover:shadow-card">
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-bold text-navy">Tiến độ Tư vấn & Nguồn</h2>
+                  <p className="text-xs text-slate-500">Tỷ lệ xử lý và kênh tiếp nhận</p>
                 </div>
 
-                {/* Interactive Mini Legend */}
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 w-full text-xs sm:text-sm pt-2.5 border-t border-slate-100/80">
+                {/* 3 Tabs: Tiến độ, Biểu đồ tròn, Nguồn */}
+                <div className="flex items-center rounded-xl border border-white/60 bg-slate-100/60 p-0.5 backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => setMiddleTab("status")}
+                    className={clsx(
+                      "rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
+                      middleTab === "status"
+                        ? "bg-white text-navy shadow-xs border border-white/80"
+                        : "text-slate-500 hover:text-navy",
+                    )}
+                  >
+                    Tiến độ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMiddleTab("pie")}
+                    className={clsx(
+                      "rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
+                      middleTab === "pie"
+                        ? "bg-white text-navy shadow-xs border border-white/80"
+                        : "text-slate-500 hover:text-navy",
+                    )}
+                  >
+                    Biểu đồ tròn
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMiddleTab("sources")}
+                    className={clsx(
+                      "rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold transition-all duration-150",
+                      middleTab === "sources"
+                        ? "bg-white text-navy shadow-xs border border-white/80"
+                        : "text-slate-500 hover:text-navy",
+                    )}
+                  >
+                    Nguồn
+                  </button>
+                </div>
+              </div>
+
+              {/* View 1: Thanh tiến trình */}
+              {middleTab === "status" && (
+                <div className="space-y-3.5 pt-1">
                   {statusStages.map((stage) => {
-                    const isHovered = hoveredSlice === stage.key;
                     const pct = totalLeads > 0 ? Math.round((stage.count / totalLeads) * 100) : 0;
                     return (
-                      <div
-                        key={stage.key}
-                        onMouseEnter={() => setHoveredSlice(stage.key)}
-                        onMouseLeave={() => setHoveredSlice(null)}
-                        className={clsx(
-                          "flex items-center justify-between rounded-xl px-2 py-1 cursor-pointer transition-all duration-200",
-                          isHovered ? "bg-slate-100/90 font-semibold scale-[1.02]" : "hover:bg-slate-50",
-                        )}
-                      >
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className={clsx("h-2.5 w-2.5 rounded-full shrink-0", stage.color)} />
-                          <span className="truncate text-navy font-semibold text-xs sm:text-sm" title={stage.label}>
-                            {stage.label}
+                      <div key={stage.key} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-semibold text-navy">{stage.label}</span>
+                          <span className="text-slate-700 font-bold font-number">
+                            {stage.count} ({pct}%)
                           </span>
                         </div>
-                        <span className="text-slate-500 shrink-0 ml-1.5 text-xs font-bold font-number">
-                          {pct}%
-                        </span>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/50">
+                          <div
+                            className={clsx(
+                              "h-full rounded-full transition-all duration-500",
+                              stage.color,
+                            )}
+                            style={{ width: `${Math.max(4, pct)}%` }}
+                          />
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* View 3: Nguồn khách */}
-            {middleTab === "sources" && (
-              <div className="space-y-3 pt-1">
-                {sourcesData.slice(0, 6).map((source) => {
-                  const pct = Math.round((source.count / totalSourceCount) * 100);
-                  return (
-                    <div key={source.key} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-semibold text-navy truncate max-w-[140px]">
-                          {source.label}
-                        </span>
-                        <span className="text-slate-700 text-xs font-bold font-number">
-                          {source.count} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/50">
-                        <div
-                          className="h-full rounded-full bg-blue-600 transition-all duration-500"
-                          style={{ width: `${Math.max(4, pct)}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
-            <span>Tổng: {totalLeads} khách</span>
-            <Link
-              to="/sale/leads"
-              className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
-            >
-              <span>Danh sách</span>
-              <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Cột 3: Khóa học Hàng đầu */}
-        <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl lg:col-span-3 h-full flex flex-col justify-between transition-all duration-300 hover:shadow-card">
-          <div>
-            <div className="mb-3">
-              <h2 className="text-base font-bold text-navy">Khóa học Hàng đầu</h2>
-              <p className="text-xs text-slate-500">Theo doanh thu đào tạo</p>
-            </div>
-
-            {topCourses.length === 0 ? (
-              <div className="flex h-36 items-center justify-center text-xs text-slate-400">
-                Chưa có dữ liệu
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {topCourses.slice(0, 5).map((c, idx) => {
-                  const sharePct = Math.round((c.revenue / maxCourseRevenue) * 100);
-
-                  return (
-                    <div
-                      key={c.course_id}
-                      className="rounded-2xl border border-white/70 bg-white/50 p-2.5 transition-all duration-200 hover:scale-[1.02] hover:bg-white/80 hover:shadow-2xs active:scale-100"
+              {/* View 2: Biểu đồ tròn (Donut Chart SVG - Kích thước lớn, nổi bật) */}
+              {middleTab === "pie" && (
+                <div className="flex flex-col items-center justify-between gap-3 pt-1">
+                  <div className="relative h-48 w-48 sm:h-56 sm:w-56 md:h-60 md:w-60 my-1">
+                    <svg
+                      viewBox="0 0 240 240"
+                      className="h-full w-full select-none overflow-visible"
                     >
-                      <div className="truncate text-sm font-bold text-navy" title={c.course_name}>
-                        #{idx + 1} {c.course_name}
-                      </div>
-                      <div className="mt-1 flex items-baseline justify-between text-sm">
-                        <span className="font-bold text-navy font-number">{formatVND(c.revenue)}</span>
-                        <span className="text-xs text-slate-500 font-medium font-number">
-                          {c.paid_orders} học viên
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200/50">
-                        <div
-                          className="h-full rounded-full bg-blue-600 transition-all duration-500"
-                          style={{ width: `${Math.max(5, sharePct)}%` }}
+                      {pieSegments.map((s) => (
+                        <circle
+                          key={s.key}
+                          cx="120"
+                          cy="120"
+                          r={pieRadius}
+                          fill="none"
+                          stroke={s.hexColor}
+                          strokeWidth={hoveredSlice === s.key ? 30 : 22}
+                          strokeDasharray={`${Math.max(0, s.dash - 2).toFixed(2)} ${(pieCircumference - s.dash + 2).toFixed(2)}`}
+                          strokeDashoffset={s.offset.toFixed(2)}
+                          transform="rotate(-90 120 120)"
+                          className="cursor-pointer transition-all duration-300 ease-out hover:opacity-90"
+                          onMouseEnter={() => setHoveredSlice(s.key)}
+                          onMouseLeave={() => setHoveredSlice(null)}
                         />
+                      ))}
+
+                      <text
+                        x="120"
+                        y={activeSliceStage ? "114" : "116"}
+                        textAnchor="middle"
+                        className="fill-navy text-4xl sm:text-5xl font-black tracking-tight font-number"
+                      >
+                        {activeSliceStage ? activeSliceStage.count : totalLeads}
+                      </text>
+                      <text
+                        x="120"
+                        y={activeSliceStage ? "138" : "138"}
+                        textAnchor="middle"
+                        className="fill-slate-500 text-sm font-bold"
+                      >
+                        {activeSliceStage
+                          ? `${activeSliceStage.label} (${Math.round((activeSliceStage.count / totalLeads) * 100)}%)`
+                          : "Tổng khách hàng"}
+                      </text>
+                    </svg>
+                  </div>
+
+                  {/* Interactive Mini Legend */}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 w-full text-xs sm:text-sm pt-2.5 border-t border-slate-100/80">
+                    {statusStages.map((stage) => {
+                      const isHovered = hoveredSlice === stage.key;
+                      const pct = totalLeads > 0 ? Math.round((stage.count / totalLeads) * 100) : 0;
+                      return (
+                        <div
+                          key={stage.key}
+                          onMouseEnter={() => setHoveredSlice(stage.key)}
+                          onMouseLeave={() => setHoveredSlice(null)}
+                          className={clsx(
+                            "flex items-center justify-between rounded-xl px-2 py-1 cursor-pointer transition-all duration-200",
+                            isHovered
+                              ? "bg-slate-100/90 font-semibold scale-[1.02]"
+                              : "hover:bg-slate-50",
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span
+                              className={clsx("h-2.5 w-2.5 rounded-full shrink-0", stage.color)}
+                            />
+                            <span
+                              className="truncate text-navy font-semibold text-xs sm:text-sm"
+                              title={stage.label}
+                            >
+                              {stage.label}
+                            </span>
+                          </div>
+                          <span className="text-slate-500 shrink-0 ml-1.5 text-xs font-bold font-number">
+                            {pct}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* View 3: Nguồn khách */}
+              {middleTab === "sources" && (
+                <div className="space-y-3 pt-1">
+                  {sourcesData.slice(0, 6).map((source) => {
+                    const pct = Math.round((source.count / totalSourceCount) * 100);
+                    return (
+                      <div key={source.key} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-semibold text-navy truncate max-w-[140px]">
+                            {source.label}
+                          </span>
+                          <span className="text-slate-700 text-xs font-bold font-number">
+                            {source.count} ({pct}%)
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/50">
+                          <div
+                            className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                            style={{ width: `${Math.max(4, pct)}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
-            <span>{topCourses.length} khóa học</span>
-            <Link
-              to="/sale/bao-cao"
-              className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
-            >
-              <span>Báo cáo</span>
-              <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* 6. Học viên Vừa chốt & Đơn hàng Mới (Liquid Glass Table) */}
-      <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-navy">Học viên & Đơn hàng Mới</h2>
-              {selectedStaffEmail && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedStaffEmail(null)}
-                  className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs text-blue-600 font-semibold transition-all hover:bg-blue-100 active:scale-95"
-                >
-                  Xóa lọc {selectedStaffEmail.split("@")[0]} ×
-                </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
-            <p className="text-xs text-slate-500">Các giao dịch phát sinh gần nhất</p>
+
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
+              <span>Tổng: {totalLeads} khách</span>
+              <Link
+                to="/sale/leads"
+                className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
+              >
+                <span>Danh sách</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            </div>
           </div>
 
-          <Link
-            to="/sale/phieu-dang-ky"
-            className="group inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
-          >
-            <span>Tất cả phiếu thu</span>
-            <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
-          </Link>
+          {/* Cột 3: Khóa học Hàng đầu */}
+          <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl lg:col-span-3 h-full flex flex-col justify-between transition-all duration-300 hover:shadow-card">
+            <div>
+              <div className="mb-3">
+                <h2 className="text-base font-bold text-navy">Khóa học Hàng đầu</h2>
+                <p className="text-xs text-slate-500">Theo doanh thu đào tạo</p>
+              </div>
+
+              {topCourses.length === 0 ? (
+                <div className="flex h-36 items-center justify-center text-xs text-slate-400">
+                  Chưa có dữ liệu
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {topCourses.slice(0, 5).map((c, idx) => {
+                    const sharePct = Math.round((c.revenue / maxCourseRevenue) * 100);
+
+                    return (
+                      <div
+                        key={c.course_id}
+                        className="rounded-2xl border border-white/70 bg-white/50 p-2.5 transition-all duration-200 hover:scale-[1.02] hover:bg-white/80 hover:shadow-2xs active:scale-100"
+                      >
+                        <div className="truncate text-sm font-bold text-navy" title={c.course_name}>
+                          #{idx + 1} {c.course_name}
+                        </div>
+                        <div className="mt-1 flex items-baseline justify-between text-sm">
+                          <span className="font-bold text-navy font-number">
+                            {formatVND(c.revenue)}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium font-number">
+                            {c.paid_orders} học viên
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200/50">
+                          <div
+                            className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                            style={{ width: `${Math.max(5, sharePct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
+              <span>{topCourses.length} khóa học</span>
+              <Link
+                to="/sale/bao-cao"
+                className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
+              >
+                <span>Báo cáo</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
+            </div>
+          </div>
         </div>
 
-        <QueryState
-          loading={ordersQuery.isLoading}
-          error={ordersQuery.error}
-          empty={displayedOrders.length === 0}
-          emptyTitle="Chưa có phiếu thu nào gần đây"
-        >
-          <div className="overflow-x-auto no-scrollbar rounded-2xl border border-white/70 bg-white/40">
-            <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
-              <thead className="bg-slate-50/50 text-xs font-bold uppercase text-slate-500 tracking-wider">
-                <tr>
-                  <th className="px-4 py-3">Học viên</th>
-                  <th className="px-4 py-3">Khóa học</th>
-                  <th className="px-4 py-3 text-right">Học phí</th>
-                  <th className="px-4 py-3 text-center">Tiến độ</th>
-                  <th className="px-4 py-3">Tư vấn</th>
-                  <th className="px-4 py-3">Thời gian</th>
-                  <th className="px-4 py-3 text-right">Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/60">
-                {displayedOrders.map((order: Order) => {
-                  const plan = parseOrderInstallmentPlan(order);
-                  const isPaid = order.status === "paid";
-                  const isInstallment = plan.total_installments > 1;
-                  const paidCount = plan.installments.filter((i) => i.status === "paid").length;
-                  const totalCount = plan.installments.length;
-                  const studentName = order.lead_name || order.student_name || "Chưa có tên";
+        {/* 6. Học viên Vừa chốt & Đơn hàng Mới (Liquid Glass Table) */}
+        <div className="rounded-3xl border border-white/80 bg-white/65 p-5 shadow-2xs backdrop-blur-xl transition-all duration-300 hover:shadow-card">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-navy">Học viên & Đơn hàng Mới</h2>
+                {selectedStaffEmail && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStaffEmail(null)}
+                    className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs text-blue-600 font-semibold transition-all hover:bg-blue-100 active:scale-95"
+                  >
+                    Xóa lọc {selectedStaffEmail.split("@")[0]} ×
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Các giao dịch phát sinh gần nhất</p>
+            </div>
 
-                  return (
-                    <tr key={order.id} className="transition-colors duration-150 hover:bg-white/70">
-                      <td className="px-4 py-3.5">
-                        <div className="font-bold text-navy text-sm">{studentName}</div>
-                        <div className="text-xs font-mono text-slate-500">
-                          {order.order_code}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="font-medium text-navy text-sm line-clamp-1">
-                          {order.course_name || "Chưa có khóa học"}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-bold text-navy font-number text-sm">
-                        {formatVND(order.final_amount)}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        {isPaid ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Đã thu 100%
-                          </span>
-                        ) : isInstallment ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                            Đợt {paidCount}/{totalCount}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            Chờ thu
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-600 text-sm font-medium">
-                        {(order.created_by_email || "Chưa gán").split("@")[0]}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-500 text-xs">
-                        {formatDateTime(order.created_at)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        {order.student_id ? (
-                          <Link
-                            to={`/sale/hoc-vien/${order.student_id}`}
-                            className="inline-flex items-center gap-1 rounded-xl bg-blue-50/80 px-3 py-1.5 text-xs font-semibold text-blue-600 shadow-2xs backdrop-blur-sm transition-all duration-200 hover:bg-blue-600 hover:text-white hover:shadow-xs active:scale-95"
-                          >
-                            Hồ sơ 360°
-                          </Link>
-                        ) : (
-                          <Link
-                            to={`/sale/phieu-thu?order_id=${order.id}`}
-                            className="inline-flex items-center gap-1 rounded-xl bg-slate-100/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs backdrop-blur-sm transition-all duration-200 hover:bg-navy hover:text-white hover:shadow-xs active:scale-95"
-                          >
-                            Phiếu thu
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <Link
+              to="/sale/phieu-dang-ky"
+              className="group inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+            >
+              <span>Tất cả phiếu thu</span>
+              <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+            </Link>
           </div>
-        </QueryState>
+
+          <QueryState
+            loading={ordersQuery.isLoading}
+            error={ordersQuery.error}
+            empty={displayedOrders.length === 0}
+            emptyTitle="Chưa có phiếu thu nào gần đây"
+          >
+            <div className="overflow-x-auto no-scrollbar rounded-2xl border border-white/70 bg-white/40">
+              <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+                <thead className="bg-slate-50/50 text-xs font-bold uppercase text-slate-500 tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3">Học viên</th>
+                    <th className="px-4 py-3">Khóa học</th>
+                    <th className="px-4 py-3 text-right">Học phí</th>
+                    <th className="px-4 py-3 text-center">Tiến độ</th>
+                    <th className="px-4 py-3">Tư vấn</th>
+                    <th className="px-4 py-3">Thời gian</th>
+                    <th className="px-4 py-3 text-right">Chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {displayedOrders.map((order: Order) => {
+                    const plan = parseOrderInstallmentPlan(order);
+                    const isPaid = order.status === "paid";
+                    const isInstallment = plan.total_installments > 1;
+                    const paidCount = plan.installments.filter((i) => i.status === "paid").length;
+                    const totalCount = plan.installments.length;
+                    const studentName = order.lead_name || order.student_name || "Chưa có tên";
+
+                    return (
+                      <tr
+                        key={order.id}
+                        className="transition-colors duration-150 hover:bg-white/70"
+                      >
+                        <td className="px-4 py-3.5">
+                          <div className="font-bold text-navy text-sm">{studentName}</div>
+                          <div className="text-xs font-mono text-slate-500">{order.order_code}</div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="font-medium text-navy text-sm line-clamp-1">
+                            {order.course_name || "Chưa có khóa học"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-bold text-navy font-number text-sm">
+                          {formatVND(order.final_amount)}
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Đã thu 100%
+                            </span>
+                          ) : isInstallment ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                              Đợt {paidCount}/{totalCount}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                              Chờ thu
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-600 text-sm font-medium">
+                          {(order.created_by_email || "Chưa gán").split("@")[0]}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-500 text-xs">
+                          {formatDateTime(order.created_at)}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          {order.student_id ? (
+                            <Link
+                              to={`/sale/hoc-vien/${order.student_id}`}
+                              className="inline-flex items-center gap-1 rounded-xl bg-blue-50/80 px-3 py-1.5 text-xs font-semibold text-blue-600 shadow-2xs backdrop-blur-sm transition-all duration-200 hover:bg-blue-600 hover:text-white hover:shadow-xs active:scale-95"
+                            >
+                              Hồ sơ 360°
+                            </Link>
+                          ) : (
+                            <Link
+                              to={`/sale/phieu-thu?order_id=${order.id}`}
+                              className="inline-flex items-center gap-1 rounded-xl bg-slate-100/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs backdrop-blur-sm transition-all duration-200 hover:bg-navy hover:text-white hover:shadow-xs active:scale-95"
+                            >
+                              Phiếu thu
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </QueryState>
+        </div>
       </div>
-    </div>
     </>
   );
 }
