@@ -39,6 +39,7 @@ import {
 import { ConfirmChotLeadModal } from "./ConfirmChotLeadModal";
 import { CreateRegistrationOrderModal } from "./CreateRegistrationOrderModal";
 import { LeadOrdersTab } from "./LeadOrdersTab";
+import { LeadAICopilotCard } from "../ai-workflows/LeadAICopilotCard";
 import type { TrainingClass } from "../../lib/domainTypes";
 
 type TabKey = "info" | "activities" | "orders" | "academic";
@@ -470,6 +471,21 @@ export function LeadProfilePage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* AI Copilot Insight & Action Suggestion */}
+        <div className="mt-4">
+          <LeadAICopilotCard
+            leadId={lead.id}
+            onCreateTask={(title, script) => {
+              setStandaloneTaskForm({
+                title,
+                description: script,
+                due_at: new Date(Date.now() + 4 * 3600 * 1000).toISOString().slice(0, 16),
+              });
+              setIsTaskModalOpen(true);
+            }}
+          />
         </div>
 
         {/* Tabs Navigation */}

@@ -415,3 +415,62 @@ body:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb {
 .animate-row-landing {
   animation: rowLandingGlow 0.8s ease-out forwards;
 }
+
+
+/* Gemini Chat Bot bouncy thinking animation */
+@keyframes gemini-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.65);
+    opacity: 0.35;
+  }
+  40% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+
+/* Visible custom horizontal scrollbar for chat tables */
+.chat-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(5, 50, 230, 0.45) #f1f5f9;
+}
+
+.chat-table-scroll::-webkit-scrollbar {
+  height: 8px !important;
+  display: block !important;
+}
+
+.chat-table-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 9999px !important;
+  margin: 0 4px !important;
+}
+
+.chat-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(5, 50, 230, 0.4) !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+}
+
+.chat-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(5, 50, 230, 0.75) !important;
+}
+
+
+/* Smooth Gemini Side-Panel Slide-In from Right */
+@keyframes geminiSlideInRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-gemini-slide-in {
+  animation: geminiSlideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}

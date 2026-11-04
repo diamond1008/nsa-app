@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/aiworkflows"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/assessments"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/attendance"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/auth"
@@ -119,6 +120,7 @@ func run() error {
 	taskHandler := tasks.NewHandler(tasks.NewService(pool), log)
 	orderHandler := orders.NewHandler(orders.NewService(pool), log)
 	userHandler := users.NewHandler(users.NewService(pool, cfg.BcryptCost), log)
+	aiWorkflowHandler := aiworkflows.NewHandler(aiworkflows.NewService(pool), log)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -194,6 +196,7 @@ func run() error {
 			r, tokenService, leadHandler, interactionHandler,
 			taskHandler, orderHandler, courseHandler, classHandler,
 		)
+		mountAIWorkflowRoutes(r, tokenService, aiWorkflowHandler)
 		r.Route("/notifications", func(r chi.Router) {
 			r.Use(auth.Authenticate(tokenService))
 			r.Get("/", notificationHandler.List)
@@ -548,5 +551,26 @@ func mountSaleRoutes(
 			r.Get("/{orderID}", orderHandler.Get)
 			r.Patch("/{orderID}/status", orderHandler.UpdateStatus)
 		})
+	})
+}
+
+// mountAIWorkflowRoutes exposes the Human-in-the-Loop AI workflow engine.
+func mountAIWorkflowRoutes(
+	r chi.Router,
+	tokenService *auth.TokenService,
+	aiHandler *aiworkflows.Handler,
+) {
+	r.Route("/ai-workflows", func(r chi.Router) {
+		r.Use(auth.Authenticate(tokenService))
+		r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleAcademicAdmin, auth.RoleSaleAdmin, auth.RoleSale))
+
+		r.Get("/summary", aiHandler.Summary)
+		r.Get("/proposals", aiHandler.ListProposals)
+		r.Post("/scan", aiHandler.Scan)
+		r.Post("/chat", aiHandler.Chat)
+		r.Get("/proposals/{proposalID}", aiHandler.GetProposal)
+		r.Post("/proposals/{proposalID}/approve", aiHandler.Approve)
+		r.Post("/proposals/{proposalID}/reject", aiHandler.Reject)
+		r.Get("/leads/{leadID}/copilot", aiHandler.LeadCopilot)
 	})
 }

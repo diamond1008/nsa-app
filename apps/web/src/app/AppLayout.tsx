@@ -7,6 +7,8 @@ import { Icon } from "../components/icons";
 import type { IconName } from "../components/icons";
 import { useAuth } from "../features/auth/AuthContext";
 import { notificationApi } from "../features/notifications/notificationApi";
+import { aiWorkflowApi } from "../features/ai-workflows/aiWorkflowApi";
+import { AIWorkflowDrawer, GeminiSparkleStar } from "../features/ai-workflows/AIWorkflowDrawer";
 import type { NotificationList } from "../lib/domainTypes";
 import { formatDateTime } from "../lib/format";
 import type { Role } from "../lib/types";
@@ -38,6 +40,7 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { to: "/sale/phieu-dang-ky", label: "Phiếu đăng ký" },
         { to: "/sale/phieu-thu", label: "Phiếu thu" },
         { to: "/sale/reports", label: "Báo cáo" },
+        { to: "/sale/ai-workflows", label: "Trợ lý Quy trình AI" },
       ],
     },
     {
@@ -76,6 +79,7 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
         { to: "/admin/lich-hoc", label: "Lịch học" },
         { to: "/admin/diem-danh", label: "Điểm danh" },
         { to: "/admin/van-hanh", label: "Vận hành" },
+        { to: "/admin/ai-workflows", label: "Trợ lý Quy trình AI" },
         { to: "/admin/users", label: "Tài khoản Đào tạo" },
       ],
     },
@@ -96,6 +100,7 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { to: "/sale/leads", label: "Quản lý Lead" },
         { to: "/sale/hoc-vien", label: "Học viên" },
+        { to: "/sale/ai-workflows", label: "Trợ lý Quy trình AI" },
         { to: "/sale/reports", label: "Báo cáo" },
         { to: "/sale/users", label: "Đội ngũ Sale" },
       ],
@@ -136,6 +141,7 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { to: "/sale/leads", label: "Quản lý Lead" },
         { to: "/sale/hoc-vien", label: "Học viên" },
+        { to: "/sale/ai-workflows", label: "Trợ lý Quy trình AI" },
       ],
     },
     {
@@ -229,12 +235,13 @@ function isGroupActive(pathname: string, group: NavGroup): boolean {
 }
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isClosingMenu, setIsClosingMenu] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const mainScrollRef = useRef<HTMLElement | null>(null);
@@ -317,6 +324,15 @@ export default function AppLayout() {
   const notifications = useQuery({
     queryKey: ["notifications"],
     queryFn: () => notificationApi.list(),
+    refetchInterval: 60_000,
+  });
+
+  const canAccessAI = hasRole("ADMIN", "ACADEMIC_ADMIN", "SALE_ADMIN", "SALE");
+
+  const aiSummary = useQuery({
+    queryKey: ["ai-workflows", "summary"],
+    queryFn: () => aiWorkflowApi.getSummary(),
+    enabled: canAccessAI,
     refetchInterval: 60_000,
   });
 
@@ -925,6 +941,24 @@ export default function AppLayout() {
                 <Icon name="menu" />
               </button>
               <div id="app-top-header-slot" className="flex items-center gap-3 min-w-0 flex-1" />
+              {canAccessAI && (
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-[#0532e6] transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-[#0532e6] shadow-2xs cursor-pointer"
+                    aria-label="Trợ lý NSA AI"
+                    title="Mở trợ lý NSA AI"
+                    onClick={() => setAiDrawerOpen(true)}
+                  >
+                    <GeminiSparkleStar className="h-5 w-5" />
+                    {!!aiSummary.data?.pending_total && (
+                      <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0532e6] px-1 text-[9px] font-bold text-white shadow-2xs">
+                        {Math.min(aiSummary.data.pending_total, 99)}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
               <div className="relative shrink-0" ref={notificationRef}>
                 <button
                   className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-navy/80 transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-navy shadow-2xs"
@@ -982,6 +1016,9 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
+      {canAccessAI && (
+        <AIWorkflowDrawer isOpen={aiDrawerOpen} onClose={() => setAiDrawerOpen(false)} />
+      )}
     </div>
   );
 }

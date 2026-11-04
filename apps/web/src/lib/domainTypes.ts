@@ -800,3 +800,89 @@ export interface ConvertResult {
   order_code: string;
   initial_password?: string;
 }
+
+// ---------------------------------------------------------------------------
+// AI Workflow Operator Domain Types
+// ---------------------------------------------------------------------------
+
+export type AIWorkflowDomain = "sales_crm" | "revenue_ops" | "training_ops";
+export type AIProposalPriority = "critical" | "high" | "medium" | "low";
+export type AIProposalStatus = "pending" | "executed" | "rejected";
+export type AIActionType =
+  | "assign_lead"
+  | "create_followup_task"
+  | "advance_lead_stage"
+  | "followup_pending_order"
+  | "alert_attendance_risk";
+
+export interface AIWorkflowProposal {
+  id: string;
+  dedup_key: string;
+  workflow_code: string;
+  domain: AIWorkflowDomain;
+  priority: AIProposalPriority;
+  status: AIProposalStatus;
+  target_lead_id?: string;
+  target_lead_name?: string;
+  target_lead_phone?: string;
+  target_lead_pipeline_status?: string;
+  target_order_id?: string;
+  target_order_code?: string;
+  target_order_final_amount?: string;
+  target_order_status?: string;
+  target_student_id?: string;
+  target_student_code?: string;
+  target_student_name?: string;
+  target_class_id?: string;
+  target_class_code?: string;
+  target_class_name?: string;
+  assigned_user_id?: string;
+  assigned_user_name?: string;
+  assigned_user_email?: string;
+  title: string;
+  bottleneck_summary: string;
+  ai_rationale: string;
+  suggested_script: string;
+  action_type: AIActionType;
+  action_payload: Record<string, unknown>;
+  context_snapshot: Record<string, unknown>;
+  decided_by?: string;
+  decided_by_name?: string;
+  decided_by_email?: string;
+  decided_at?: string;
+  decision_note?: string;
+  execution_result?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIWorkflowSummary {
+  pending_total: number;
+  critical_pending: number;
+  sales_pending: number;
+  revenue_pending: number;
+  training_pending: number;
+  executed_today: number;
+}
+
+export interface AIScanResult {
+  scanned_at: string;
+  proposals_created: number;
+  proposals_updated: number;
+  total_pending: number;
+  summary: string;
+}
+
+export interface AILeadCopilotInsight {
+  lead_id: string;
+  full_name: string;
+  lead_score: number;
+  temperature: "hot" | "warm" | "cold";
+  summary: string;
+  bottleneck: string;
+  next_best_action: string;
+  suggested_script: string;
+  recommended_course?: string;
+  confidence: number;
+  tags: string[];
+}

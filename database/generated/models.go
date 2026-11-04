@@ -12,6 +12,181 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AiActionType string
+
+const (
+	AiActionTypeAssignLead           AiActionType = "assign_lead"
+	AiActionTypeCreateFollowupTask   AiActionType = "create_followup_task"
+	AiActionTypeAdvanceLeadStage     AiActionType = "advance_lead_stage"
+	AiActionTypeFollowupPendingOrder AiActionType = "followup_pending_order"
+	AiActionTypeAlertAttendanceRisk  AiActionType = "alert_attendance_risk"
+)
+
+func (e *AiActionType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AiActionType(s)
+	case string:
+		*e = AiActionType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AiActionType: %T", src)
+	}
+	return nil
+}
+
+type NullAiActionType struct {
+	AiActionType AiActionType `json:"ai_action_type"`
+	Valid        bool         `json:"valid"` // Valid is true if AiActionType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAiActionType) Scan(value interface{}) error {
+	if value == nil {
+		ns.AiActionType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AiActionType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAiActionType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AiActionType), nil
+}
+
+type AiProposalPriority string
+
+const (
+	AiProposalPriorityCritical AiProposalPriority = "critical"
+	AiProposalPriorityHigh     AiProposalPriority = "high"
+	AiProposalPriorityMedium   AiProposalPriority = "medium"
+	AiProposalPriorityLow      AiProposalPriority = "low"
+)
+
+func (e *AiProposalPriority) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AiProposalPriority(s)
+	case string:
+		*e = AiProposalPriority(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AiProposalPriority: %T", src)
+	}
+	return nil
+}
+
+type NullAiProposalPriority struct {
+	AiProposalPriority AiProposalPriority `json:"ai_proposal_priority"`
+	Valid              bool               `json:"valid"` // Valid is true if AiProposalPriority is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAiProposalPriority) Scan(value interface{}) error {
+	if value == nil {
+		ns.AiProposalPriority, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AiProposalPriority.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAiProposalPriority) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AiProposalPriority), nil
+}
+
+type AiProposalStatus string
+
+const (
+	AiProposalStatusPending  AiProposalStatus = "pending"
+	AiProposalStatusExecuted AiProposalStatus = "executed"
+	AiProposalStatusRejected AiProposalStatus = "rejected"
+)
+
+func (e *AiProposalStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AiProposalStatus(s)
+	case string:
+		*e = AiProposalStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AiProposalStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAiProposalStatus struct {
+	AiProposalStatus AiProposalStatus `json:"ai_proposal_status"`
+	Valid            bool             `json:"valid"` // Valid is true if AiProposalStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAiProposalStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AiProposalStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AiProposalStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAiProposalStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AiProposalStatus), nil
+}
+
+type AiWorkflowDomain string
+
+const (
+	AiWorkflowDomainSalesCrm    AiWorkflowDomain = "sales_crm"
+	AiWorkflowDomainRevenueOps  AiWorkflowDomain = "revenue_ops"
+	AiWorkflowDomainTrainingOps AiWorkflowDomain = "training_ops"
+)
+
+func (e *AiWorkflowDomain) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AiWorkflowDomain(s)
+	case string:
+		*e = AiWorkflowDomain(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AiWorkflowDomain: %T", src)
+	}
+	return nil
+}
+
+type NullAiWorkflowDomain struct {
+	AiWorkflowDomain AiWorkflowDomain `json:"ai_workflow_domain"`
+	Valid            bool             `json:"valid"` // Valid is true if AiWorkflowDomain is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAiWorkflowDomain) Scan(value interface{}) error {
+	if value == nil {
+		ns.AiWorkflowDomain, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AiWorkflowDomain.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAiWorkflowDomain) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AiWorkflowDomain), nil
+}
+
 type AssessmentStatus string
 
 const (
@@ -812,6 +987,33 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.UserStatus), nil
+}
+
+type AiWorkflowProposal struct {
+	ID                pgtype.UUID        `json:"id"`
+	DedupKey          string             `json:"dedup_key"`
+	WorkflowCode      string             `json:"workflow_code"`
+	Domain            AiWorkflowDomain   `json:"domain"`
+	Priority          AiProposalPriority `json:"priority"`
+	Status            AiProposalStatus   `json:"status"`
+	TargetLeadID      pgtype.UUID        `json:"target_lead_id"`
+	TargetOrderID     pgtype.UUID        `json:"target_order_id"`
+	TargetStudentID   pgtype.UUID        `json:"target_student_id"`
+	TargetClassID     pgtype.UUID        `json:"target_class_id"`
+	AssignedUserID    pgtype.UUID        `json:"assigned_user_id"`
+	Title             string             `json:"title"`
+	BottleneckSummary string             `json:"bottleneck_summary"`
+	AiRationale       string             `json:"ai_rationale"`
+	SuggestedScript   string             `json:"suggested_script"`
+	ActionType        AiActionType       `json:"action_type"`
+	ActionPayload     []byte             `json:"action_payload"`
+	ContextSnapshot   []byte             `json:"context_snapshot"`
+	DecidedBy         pgtype.UUID        `json:"decided_by"`
+	DecidedAt         pgtype.Timestamptz `json:"decided_at"`
+	DecisionNote      pgtype.Text        `json:"decision_note"`
+	ExecutionResult   []byte             `json:"execution_result"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AssessmentItem struct {

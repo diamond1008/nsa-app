@@ -130,6 +130,10 @@ const SaleRegistrationOrdersPage = lazyLoad(
   "SaleRegistrationOrdersPage",
 );
 const SaleReceiptsPage = lazyLoad(() => import("../features/sale/SalePages"), "SaleReceiptsPage");
+const AIWorkflowHubPage = lazyLoad(
+  () => import("../features/ai-workflows/AIWorkflowHubPage"),
+  "AIWorkflowHubPage",
+);
 
 /** Blocks everything until the silent refresh finishes; forces login when anonymous. */
 function RequireAuth({ children }: { children?: ReactNode }) {
@@ -324,6 +328,14 @@ export const router = createBrowserRouter([
               </RequireRole>
             ),
           },
+          {
+            path: "/sale/ai-workflows",
+            element: (
+              <RequireRole roles={["SALE", "SALE_ADMIN", "ADMIN"]}>
+                <AIWorkflowHubPage />
+              </RequireRole>
+            ),
+          },
           // Legacy redirects for Vietnamese routes
           { path: "/sale/don-hang", element: <Navigate to="/sale/phieu-dang-ky" replace /> },
           { path: "/sale/don-hang/:id", element: <Navigate to="/sale/phieu-dang-ky" replace /> },
@@ -426,6 +438,14 @@ export const router = createBrowserRouter([
             element: (
               <RequireRole roles={["ADMIN", "ACADEMIC_ADMIN"]}>
                 <AdminAttendancePage />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "/admin/ai-workflows",
+            element: (
+              <RequireRole roles={["ADMIN", "ACADEMIC_ADMIN"]}>
+                <AIWorkflowHubPage />
               </RequireRole>
             ),
           },
