@@ -88,7 +88,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div className={clsx(!hideLabel && label && "space-y-2")}>
       {label && !hideLabel && (
-        <label htmlFor={inputId} className="block text-sm font-semibold text-navy-heading">
+        <label
+          htmlFor={inputId}
+          className="block text-sm font-semibold text-navy-heading whitespace-nowrap"
+        >
           {label}
         </label>
       )}
@@ -263,7 +266,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   return (
     <div className="space-y-2 relative" ref={containerRef}>
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-semibold text-navy-heading">
+        <label
+          htmlFor={inputId}
+          className="block text-sm font-semibold text-navy-heading whitespace-nowrap"
+        >
           {label}
         </label>
       )}

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/auth"
 )
 
 func TestFormatPipelineStatus(t *testing.T) {
@@ -57,5 +59,48 @@ func TestFormatAmount(t *testing.T) {
 	_ = zero.Scan("0")
 	if formatAmount(zero) != "0" {
 		t.Errorf("expected 0, got %s", formatAmount(zero))
+	}
+}
+
+func TestBuildToolsIncludesListLeadTasks(t *testing.T) {
+	orchestrator := &AgentOrchestrator{}
+
+	saleClaims := &auth.AccessClaims{
+		UserID: "11111111-1111-1111-1111-111111111111",
+		Email:  "sale3@nsa.local",
+		Roles:  []string{auth.RoleSale},
+	}
+	toolsSale := orchestrator.buildTools(saleClaims)
+	toolMap := make(map[string]bool)
+	for _, tool := range toolsSale {
+		toolMap[tool.Function.Name] = true
+	}
+
+	requiredTools := []string{
+		"list_lead_tasks",
+		"complete_lead_task",
+		"add_lead_interaction",
+		"get_lead_details",
+		"create_lead",
+		"list_registration_orders",
+		"list_courses",
+		"list_classes",
+		"create_registration_order",
+		"search_leads",
+		"create_lead_followup_task",
+		"update_lead_pipeline_status",
+		"scan_stale_leads",
+		"get_leads_overview_stats",
+	}
+
+	for _, reqTool := range requiredTools {
+		if !toolMap[reqTool] {
+			t.Fatalf("expected tools for sale to include %s", reqTool)
+		}
+	}
+
+	promptSale := orchestrator.buildSystemPrompt(saleClaims)
+	if !strings.Contains(promptSale, "list_lead_tasks") {
+		t.Fatalf("expected sale system prompt to instruct list_lead_tasks tool")
 	}
 }

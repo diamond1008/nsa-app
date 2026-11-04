@@ -75,9 +75,12 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
       )}
     >
       <div
-        className={clsx("flex items-center gap-3", compact ? "flex-nowrap" : "flex-wrap items-end")}
+        className={clsx(
+          "gap-3",
+          compact ? "flex flex-nowrap items-center" : "flex flex-wrap items-end",
+        )}
       >
-        <div className="flex-1 min-w-0">
+        <div className={clsx("flex-1", compact ? "min-w-0" : "min-w-[220px] sm:min-w-[260px]")}>
           <Input
             label="Tìm kiếm"
             hideLabel={compact}
@@ -125,7 +128,7 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
           <Button
             type="button"
             variant={advancedOpen ? "soft" : "ghost"}
-            className={clsx("shrink-0", compact ? "h-10 text-xs px-3.5" : "h-11")}
+            className={clsx("shrink-0 self-end", compact ? "h-10 text-xs px-3.5" : "h-11")}
             aria-expanded={advancedOpen}
             aria-controls={advancedId}
             onClick={() => setAdvancedOpen((current) => !current)}

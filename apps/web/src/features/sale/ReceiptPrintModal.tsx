@@ -195,8 +195,8 @@ export function ReceiptPrintModal({ order, onClose, receiptInfo }: ReceiptPrintM
               <span className="w-36 shrink-0 font-medium text-slate-600">Họ và tên người nộp:</span>
               <span className="font-bold text-slate-900 uppercase">{studentName}</span>
               {order.student_code && (
-                <span className="ml-2 font-mono text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200">
-                  Mã HV: {order.student_code}
+                <span className="ml-2 font-mono text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200 whitespace-nowrap">
+                  Mã: {order.student_code}
                 </span>
               )}
             </div>

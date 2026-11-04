@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 
 import { Icon } from "./icons";
@@ -33,20 +34,56 @@ export function SearchCombobox({
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState(selected?.label ?? "");
   const [open, setOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [dropdownCoords, setDropdownCoords] = useState<{
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+    width?: number;
+    maxHeight?: number;
+  }>({});
 
-  const checkPosition = () => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const spaceBelow = viewportHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      setOpenUpward(spaceBelow < 240 && spaceAbove > spaceBelow);
+  const updatePosition = useCallback(() => {
+    if (!inputRef.current || typeof window === "undefined") return;
+    const rect = inputRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    const openUp = spaceBelow < 240 && spaceAbove > spaceBelow;
+
+    const isRightHalf = rect.left > viewportWidth / 2;
+    const wouldOverflow = rect.left + Math.max(rect.width, 240) > viewportWidth - 16;
+    const alignR = isRightHalf || wouldOverflow;
+
+    const calculatedMaxHeight = openUp
+      ? Math.min(260, Math.max(120, spaceAbove - 20))
+      : Math.min(260, Math.max(120, spaceBelow - 20));
+
+    if (openUp) {
+      setDropdownCoords({
+        bottom: viewportHeight - rect.top + 6,
+        left: alignR ? undefined : Math.max(12, rect.left),
+        right: alignR ? Math.max(12, viewportWidth - rect.right) : undefined,
+        width: rect.width || undefined,
+        maxHeight: calculatedMaxHeight,
+      });
+    } else {
+      setDropdownCoords({
+        top: rect.bottom + 6,
+        left: alignR ? undefined : Math.max(12, rect.left),
+        right: alignR ? Math.max(12, viewportWidth - rect.right) : undefined,
+        width: rect.width || undefined,
+        maxHeight: calculatedMaxHeight,
+      });
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (selectedLabel) setQuery(selectedLabel);
@@ -54,12 +91,48 @@ export function SearchCombobox({
   }, [selectedLabel, value]);
 
   useEffect(() => {
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    if (!open) return;
+    updatePosition();
+
+    const handleScroll = (event: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(event.target as Node)) {
+        return;
+      }
+      updatePosition();
     };
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-  }, []);
+
+    const handleOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("mousedown", handleOutside);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("mousedown", handleOutside);
+    };
+  }, [open, updatePosition]);
+
+  useEffect(() => {
+    if (open && activeIndex >= 0 && dropdownRef.current) {
+      const activeEl = dropdownRef.current.querySelector<HTMLElement>(
+        `[id="${listId}-${activeIndex}"]`,
+      );
+      if (typeof activeEl?.scrollIntoView === "function") {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [open, activeIndex, listId]);
 
   const choose = (option: SearchComboboxOption) => {
     onChange(option.value);
@@ -69,11 +142,15 @@ export function SearchCombobox({
 
   return (
     <div ref={containerRef} className="relative min-w-0 space-y-2">
-      <label htmlFor={inputId} className="block text-sm font-semibold text-navy-heading">
+      <label
+        htmlFor={inputId}
+        className="block text-sm font-semibold text-navy-heading whitespace-nowrap"
+      >
         {label}
       </label>
       <div className="relative">
         <input
+          ref={inputRef}
           id={inputId}
           role="combobox"
           aria-autocomplete="list"
@@ -87,12 +164,12 @@ export function SearchCombobox({
           placeholder={placeholder}
           autoComplete="off"
           onFocus={() => {
-            checkPosition();
+            updatePosition();
             setOpen(true);
             setActiveIndex(-1);
           }}
           onChange={(event) => {
-            checkPosition();
+            updatePosition();
             setQuery(event.target.value);
             setOpen(true);
             setActiveIndex(-1);
@@ -106,14 +183,14 @@ export function SearchCombobox({
             }
             if (event.key === "ArrowDown") {
               event.preventDefault();
-              checkPosition();
+              updatePosition();
               setOpen(true);
               setActiveIndex((index) => Math.min(index + 1, options.length - 1));
               return;
             }
             if (event.key === "ArrowUp") {
               event.preventDefault();
-              checkPosition();
+              updatePosition();
               setOpen(true);
               setActiveIndex((index) => Math.max(index - 1, 0));
               return;
@@ -131,54 +208,67 @@ export function SearchCombobox({
           className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gtext"
         />
       </div>
-      {open ? (
-        <div
-          id={listId}
-          role="listbox"
-          className={clsx(
-            "absolute left-0 right-0 z-[100] max-h-60 overflow-y-auto rounded-2xl border border-white/90 bg-white/90 backdrop-blur-2xl p-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-150 motion-reduce:animate-none",
-            openUpward ? "bottom-full mb-1" : "top-full mt-1",
-          )}
-        >
-          {loading ? (
-            <p role="status" className="px-3 py-3 text-sm text-gtext">
-              Đang tải lựa chọn
-            </p>
-          ) : options.length === 0 ? (
-            <p className="px-3 py-3 text-sm text-gtext">Không tìm thấy lựa chọn phù hợp</p>
-          ) : (
-            options.map((option, index) => (
-              <div
-                id={`${listId}-${index}`}
-                key={option.value}
-                role="option"
-                aria-selected={option.value === value}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => choose(option)}
-                onMouseEnter={() => setActiveIndex(index)}
-                className={clsx(
-                  "flex w-full items-start justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors",
-                  index === activeIndex
-                    ? "bg-[#0532e6]/10 text-[#001258] font-bold"
-                    : "text-[#111c2c]/80 hover:bg-white/80 hover:text-[#111c2c]",
-                )}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold">{option.label}</span>
-                  {option.description ? (
-                    <span className="mt-0.5 block truncate text-xs text-gtext">
-                      {option.description}
-                    </span>
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            id={listId}
+            role="listbox"
+            style={{
+              position: "fixed",
+              top: dropdownCoords.top !== undefined ? `${dropdownCoords.top}px` : undefined,
+              bottom:
+                dropdownCoords.bottom !== undefined ? `${dropdownCoords.bottom}px` : undefined,
+              left: dropdownCoords.left !== undefined ? `${dropdownCoords.left}px` : undefined,
+              right: dropdownCoords.right !== undefined ? `${dropdownCoords.right}px` : undefined,
+              width: dropdownCoords.width ? `${dropdownCoords.width}px` : undefined,
+              minWidth: dropdownCoords.width ? `${dropdownCoords.width}px` : undefined,
+              maxHeight: `${dropdownCoords.maxHeight ?? 240}px`,
+              zIndex: 10005,
+            }}
+            className="overflow-y-auto overscroll-contain rounded-2xl border border-white/95 bg-white/95 backdrop-blur-3xl p-1.5 shadow-[0_20px_50px_rgba(7,20,38,0.2),0_0_0_1px_rgba(255,255,255,0.9)] animate-in fade-in zoom-in-95 duration-150 motion-reduce:animate-none"
+          >
+            {loading ? (
+              <p role="status" className="px-3 py-3 text-sm text-gtext">
+                Đang tải lựa chọn
+              </p>
+            ) : options.length === 0 ? (
+              <p className="px-3 py-3 text-sm text-gtext">Không tìm thấy lựa chọn phù hợp</p>
+            ) : (
+              options.map((option, index) => (
+                <div
+                  id={`${listId}-${index}`}
+                  key={option.value}
+                  role="option"
+                  aria-selected={option.value === value}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => choose(option)}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={clsx(
+                    "flex w-full items-start justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors cursor-pointer",
+                    index === activeIndex
+                      ? "bg-[#0532e6]/10 text-[#001258] font-bold"
+                      : "text-[#111c2c]/80 hover:bg-white/80 hover:text-[#111c2c]",
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{option.label}</span>
+                    {option.description ? (
+                      <span className="mt-0.5 block truncate text-xs text-gtext">
+                        {option.description}
+                      </span>
+                    ) : null}
+                  </span>
+                  {option.value === value ? (
+                    <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-[#0532e6]" />
                   ) : null}
-                </span>
-                {option.value === value ? (
-                  <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-[#0532e6]" />
-                ) : null}
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
+                </div>
+              ))
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

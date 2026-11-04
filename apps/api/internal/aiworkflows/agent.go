@@ -77,7 +77,7 @@ func (a *AgentOrchestrator) buildSystemPrompt(claims *auth.AccessClaims) string 
   + NẾU SALE HỎI VỀ SỐ LEAD TOÀN CÔNG TY HOẶC YÊU CẦU GÁN LEAD:
     * BẮT BUỘC TỪ CHỐI RÕ RÀNG & LỊCH SỰ: "Theo chính sách bảo mật và phân quyền của Trung tâm NSA, tài khoản Chuyên viên Tư vấn (Sale) chỉ xem được số lượng khách hàng được phân công cho chính mình. Để xem số liệu tổng thể toàn trung tâm hoặc điều phối phân bổ lead, bạn vui lòng liên hệ Trưởng phòng Tuyển sinh (SALE_ADMIN) hoặc Admin."
   + BẠN TUYỆT ĐỐI KHÔNG CÓ QUYỀN gán lead mới, cướp lead hoặc chuyển gán khách hàng cho bất kỳ ai.
-  + Bạn ĐƯỢC PHÉP: Tra cứu khách hàng của chính bạn, tạo việc cần làm (task) cho chính bạn, và cập nhật trạng thái phễu tư vấn cho khách của mình.`, roleStr, claims.Email, claims.Email)
+  + Bạn ĐƯỢC PHÉP: Tra cứu khách hàng của chính bạn, tra cứu danh sách công việc/lịch hẹn nhắc việc của bạn ('list_lead_tasks'), tạo việc cần làm (task) cho chính bạn, và cập nhật trạng thái phễu tư vấn cho khách của mình.`, roleStr, claims.Email, claims.Email)
 	} else {
 		roleRule = fmt.Sprintf(`- VAI TRÒ NGƯỜI DÙNG: %s. Quyền hạn bị giới hạn. Không được thực thi các tác vụ bán hàng.`, roleStr)
 	}
@@ -117,8 +117,27 @@ QUY TẮC THỰC THI & SỬ DỤNG CÔNG CỤ (TOOLS):
    - Tuyệt đối KHÔNG trả lời từ chối rằng "hệ thống chưa có tính năng tạo phiếu thu/phiếu đăng ký". Bạn ĐÃ CÓ tool 'create_registration_order' để trực tiếp tạo/cập nhật phiếu đăng ký chuẩn tự động!
    - Hệ thống tự sinh mã phiếu chuẩn DH000000xx, chia các đợt học phí (3 đợt: 40%% - 30%% - 30%%), cập nhật khách sang Đã đăng ký và tạo task nhắc thu học phí đợt 1.
    - Báo cáo kết quả chi tiết kèm bảng lộ trình đóng học phí và link [Quản lý Phiếu đăng ký](/sale/phieu-dang-ky).
-6. Nếu một tool trả về lỗi PERMISSION_DENIED (vi phạm phân quyền), bạn phải thông báo trung thực cho người dùng lý do bị từ chối dựa trên quyền hạn của họ.
-7. Trả lời bằng tiếng Việt chuyên nghiệp, rõ ràng, gãy gọn, có định dạng danh sách hoặc bảng biểu markdown trực quan.`, roleRule)
+6. Khi người dùng hỏi về nhắc việc, lịch hẹn, công việc cần làm, to-do list (ví dụ: "sale admin có nhắc việc gì cho tôi ko", "tôi có lịch hẹn/công việc gì hôm nay không", "danh sách việc cần làm", "admin có giao việc gì không"):
+   - BẮT BUỘC GỌI TOOL 'list_lead_tasks' để tra cứu các công việc / lịch hẹn trong hệ thống.
+   - Nếu là tài khoản Sale: tool sẽ tự động lọc các công việc được giao cho chính Sale đó.
+   - Báo cáo rõ ràng từng công việc: Tiêu đề công việc, Tên khách hàng (kèm SĐT nếu có), Nội dung ghi chú/hướng dẫn của quản lý/người giao, Hạn hoàn thành, Người giao việc (VD: admin@nsa.local), và trạng thái (Chờ xử lý / Quá hạn / Đã xong).
+   - TUYỆT ĐỐI KHÔNG tự bịa đặt rằng "không có việc nào" hay "Sale Admin chưa giao việc nào" khi chưa gọi tool 'list_lead_tasks' để tra cứu trong cơ sở dữ liệu!
+7. Khi người dùng muốn đánh dấu xong việc / hoàn thành task (ví dụ: "đã gọi cho anh Long rồi", "hoàn thành việc nhắc thu học phí", "đánh dấu xong"):
+   - Dùng tool 'complete_lead_task' để cập nhật hoàn thành công việc.
+8. Khi người dùng muốn ghi chú cuộc gọi, lịch sử tư vấn, tin nhắn Zalo hoặc ghi nhận kết quả trao đổi:
+   - Dùng tool 'add_lead_interaction' để lưu nhật ký tương tác với khách hàng.
+9. Khi người dùng muốn xem hồ sơ chi tiết, toàn bộ lịch sử tư vấn hoặc các việc đã/đang làm của 1 khách hàng:
+   - Dùng tool 'get_lead_details'.
+10. Khi người dùng muốn thêm mới khách hàng tiềm năng (ví dụ: "thêm khách hàng Anh Tuấn SĐT..."):
+    - Dùng tool 'create_lead'.
+11. Khi người dùng hỏi về danh sách phiếu đăng ký, đơn học phí, hợp đồng học phí (ví dụ: "những đơn nào chưa thanh toán?", "phiếu đăng ký của chị Mai"):
+    - Dùng tool 'list_registration_orders'.
+12. Khi người dùng hỏi về danh mục khóa học đào tạo, số buổi học, yêu cầu chuyên cần:
+    - Dùng tool 'list_courses'.
+13. Khi người dùng hỏi về danh sách lớp học, sĩ số, ngày khai giảng hoặc lịch mở lớp:
+    - Dùng tool 'list_classes'.
+14. Nếu một tool trả về lỗi PERMISSION_DENIED (vi phạm phân quyền), bạn phải thông báo trung thực cho người dùng lý do bị từ chối dựa trên quyền hạn của họ.
+15. Trả lời bằng tiếng Việt chuyên nghiệp, rõ ràng, gãy gọn, có định dạng danh sách hoặc bảng biểu markdown trực quan.`, roleRule)
 }
 
 func (a *AgentOrchestrator) Chat(ctx context.Context, claims *auth.AccessClaims, req AgentChatRequest) (AgentChatResponse, error) {
@@ -334,6 +353,31 @@ func (a *AgentOrchestrator) buildTools(claims *auth.AccessClaims) []OpenRouterTo
 		{
 			Type: "function",
 			Function: OpenRouterFunction{
+				Name:        "list_lead_tasks",
+				Description: "Tra cứu danh sách công việc cần làm, lịch hẹn, nhắc việc (lead tasks) được phân công hoặc trong hệ thống. Hỗ trợ lọc theo trạng thái (pending/today/overdue/completed/all), theo khách hàng, hoặc theo nhân viên.",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"filter_status": map[string]any{
+							"type":        "string",
+							"enum":        []string{"pending", "today", "overdue", "completed", "all"},
+							"description": "Bộ lọc trạng thái công việc: 'pending' (chưa hoàn thành), 'today' (hạn hôm nay), 'overdue' (quá hạn), 'completed' (đã xong), 'all' (tất cả). Mặc định là 'pending'.",
+						},
+						"assigned_to_email": map[string]any{
+							"type":        "string",
+							"description": "Email của nhân viên được giao việc (chỉ dành cho Admin/Sale Admin tra cứu nhân viên khác).",
+						},
+						"lead_id": map[string]any{
+							"type":        "string",
+							"description": "UUID khách hàng cụ thể (nếu muốn xem việc liên quan đến 1 khách).",
+						},
+					},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
 				Name:        "update_lead_pipeline_status",
 				Description: "Cập nhật giai đoạn phễu tư vấn của khách hàng (VD: 'data_moi', 'knm_thue_bao', 'goi_lai_sau', 'follow', 'tu_choi', 'da_dang_ky').",
 				Parameters: map[string]any{
@@ -380,6 +424,183 @@ func (a *AgentOrchestrator) buildTools(claims *auth.AccessClaims) []OpenRouterTo
 				Parameters: map[string]any{
 					"type":       "object",
 					"properties": map[string]any{},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "complete_lead_task",
+				Description: "Đánh dấu hoàn thành một công việc / lịch hẹn nhắc việc (task). Chỉ nhân viên được giao việc hoặc Quản lý mới có quyền hoàn thành.",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"task_id": map[string]any{
+							"type":        "string",
+							"description": "UUID của công việc cần hoàn tất (nếu biết).",
+						},
+						"task_title": map[string]any{
+							"type":        "string",
+							"description": "Tiêu đề hoặc từ khóa của công việc (VD: 'Liên hệ chăm sóc lại Hồ Công Lý').",
+						},
+						"lead_name": map[string]any{
+							"type":        "string",
+							"description": "Tên khách hàng liên quan đến công việc cần hoàn thành.",
+						},
+					},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "add_lead_interaction",
+				Description: "Ghi nhật ký tương tác / cuộc gọi / tin nhắn Zalo / trao đổi trực tiếp với khách hàng (call log, interaction note).",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"lead_id": map[string]any{
+							"type":        "string",
+							"description": "UUID của khách hàng (hoặc để trống nếu cung cấp lead_name).",
+						},
+						"lead_name": map[string]any{
+							"type":        "string",
+							"description": "Tên hoặc SĐT của khách hàng (VD: 'Anh Long', '0912345678').",
+						},
+						"channel": map[string]any{
+							"type":        "string",
+							"enum":        []string{"phone_call", "zalo", "facebook", "email", "in_person", "sms", "other"},
+							"description": "Kênh liên hệ (mặc định 'phone_call' nếu gọi điện, 'zalo' nếu chat zalo, 'in_person' nếu gặp tại trung tâm).",
+						},
+						"summary": map[string]any{
+							"type":        "string",
+							"description": "Nội dung tóm tắt cuộc trao đổi hoặc ghi chú chăm sóc khách hàng.",
+						},
+						"outcome": map[string]any{
+							"type":        "string",
+							"description": "Kết quả cuộc gọi/trao đổi (VD: 'quan_tam', 'goi_lai_sau', 'hen_len_trung_tam', 'chua_nghe_may', 'da_chot', 'tu_choi').",
+						},
+					},
+					"required": []string{"summary"},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "get_lead_details",
+				Description: "Tra cứu hồ sơ chi tiết và toàn bộ lịch sử tư vấn, các cuộc gọi, ghi chú và các công việc/lịch hẹn liên quan đến một khách hàng cụ thể.",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"lead_id": map[string]any{
+							"type":        "string",
+							"description": "UUID của khách hàng (hoặc để trống nếu cung cấp query/lead_name).",
+						},
+						"query": map[string]any{
+							"type":        "string",
+							"description": "Họ tên hoặc SĐT của khách hàng cần xem chi tiết (VD: 'Hồ Công Lý', '0987654321').",
+						},
+					},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "create_lead",
+				Description: "Thêm một khách hàng tiềm năng mới vào hệ thống. Với tài khoản Sale, khách mới sẽ tự động được phân công cho chính bạn phụ trách.",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"full_name": map[string]any{
+							"type":        "string",
+							"description": "Họ và tên của khách hàng (bắt buộc).",
+						},
+						"phone": map[string]any{
+							"type":        "string",
+							"description": "Số điện thoại liên hệ của khách hàng.",
+						},
+						"email": map[string]any{
+							"type":        "string",
+							"description": "Địa chỉ email của khách hàng nếu có.",
+						},
+						"course_name": map[string]any{
+							"type":        "string",
+							"description": "Tên hoặc từ khóa khóa học khách hàng quan tâm (VD: 'Điện ô tô', 'GDI/CRDi', 'Xe điện EV').",
+						},
+						"source": map[string]any{
+							"type":        "string",
+							"enum":        []string{"facebook", "tiktok", "google", "zalo", "website", "referral", "walk_in", "event", "other"},
+							"description": "Kênh nguồn khách hàng tiếp cận (mặc định 'facebook' hoặc 'walk_in').",
+						},
+						"notes": map[string]any{
+							"type":        "string",
+							"description": "Ghi chú ban đầu về nhu cầu, nguyện vọng của khách hàng.",
+						},
+					},
+					"required": []string{"full_name"},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "list_registration_orders",
+				Description: "Tra cứu danh sách phiếu đăng ký học viên, hợp đồng học phí, số tiền, ưu đãi, tình trạng thanh toán và lộ trình chia đợt đóng.",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"search": map[string]any{
+							"type":        "string",
+							"description": "Từ khóa tìm kiếm (họ tên học viên/khách hàng hoặc mã phiếu DH000000xx).",
+						},
+						"status": map[string]any{
+							"type":        "string",
+							"enum":        []string{"pending", "paid", "cancelled", "all"},
+							"description": "Lọc theo trạng thái thanh toán ('pending' = chưa thanh toán, 'paid' = đã thanh toán, 'all' = tất cả). Mặc định là 'all'.",
+						},
+						"limit": map[string]any{
+							"type":        "integer",
+							"description": "Số lượng tối đa kết quả trả về (mặc định 10).",
+						},
+					},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "list_courses",
+				Description: "Tra cứu danh mục các khóa học đào tạo của trung tâm NSA, bao gồm mã khóa học, tên khóa học, số buổi học, yêu cầu chuyên cần và mô tả tóm tắt.",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"search": map[string]any{
+							"type":        "string",
+							"description": "Từ khóa tìm kiếm tên hoặc mã khóa học (để trống để lấy danh sách tiêu biểu).",
+						},
+					},
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: OpenRouterFunction{
+				Name:        "list_classes",
+				Description: "Tra cứu danh sách các lớp học, thời gian khai giảng, ngày kết thúc và sĩ số học viên (số học viên đã ghi danh / sĩ số tối đa).",
+				Parameters: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"search": map[string]any{
+							"type":        "string",
+							"description": "Từ khóa tìm theo mã lớp hoặc tên lớp.",
+						},
+						"status": map[string]any{
+							"type":        "string",
+							"description": "Lọc trạng thái lớp (VD: 'planning', 'enrolling', 'in_progress', 'completed', để trống nếu lấy tất cả).",
+						},
+					},
 				},
 			},
 		},
@@ -1032,6 +1253,673 @@ func (a *AgentOrchestrator) executeTool(ctx context.Context, claims *auth.Access
 			"task_title": task.Title,
 			"due_at":     dueAt.Format("15:04 02/01/2006"),
 			"message":    fmt.Sprintf("Đã tạo việc cần làm '%s' cho khách hàng %s, hạn hoàn thành %s.", task.Title, lead.FullName, dueAt.Format("15:04 02/01/2006")),
+		})
+		return string(dataBytes), nil
+
+	case "list_lead_tasks":
+		var args struct {
+			FilterStatus    string `json:"filter_status"`
+			AssignedToEmail string `json:"assigned_to_email"`
+			LeadID          string `json:"lead_id"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		filterStatus := strings.TrimSpace(args.FilterStatus)
+		if filterStatus == "" {
+			filterStatus = "pending"
+		}
+
+		var assignedToArg pgtype.UUID
+		if isSale {
+			// Enforce RBAC: Sale staff can ONLY view tasks assigned to them!
+			uid, err := data.UUID(claims.UserID)
+			if err != nil {
+				return `{"error": "PERMISSION_DENIED: Invalid user ID"}`, nil
+			}
+			assignedToArg = uid
+		} else if strings.TrimSpace(args.AssignedToEmail) != "" {
+			var staffID pgtype.UUID
+			err := a.pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL", strings.TrimSpace(args.AssignedToEmail)).Scan(&staffID)
+			if err == nil && staffID.Valid {
+				assignedToArg = staffID
+			}
+		}
+
+		var leadIDArg pgtype.UUID
+		if strings.TrimSpace(args.LeadID) != "" {
+			lid, err := data.UUID(args.LeadID)
+			if err == nil {
+				leadIDArg = lid
+			}
+		}
+
+		tasks, err := a.queries.ListLeadTasks(ctx, db.ListLeadTasksParams{
+			AssignedTo:   assignedToArg,
+			LeadID:       leadIDArg,
+			FilterStatus: filterStatus,
+		})
+		if err != nil {
+			return fmt.Sprintf(`{"error": "%s"}`, err.Error()), nil
+		}
+
+		type TaskResult struct {
+			ID              string `json:"id"`
+			Title           string `json:"title"`
+			Description     string `json:"description"`
+			LeadName        string `json:"lead_name"`
+			LeadPhone       string `json:"lead_phone"`
+			AssignedToEmail string `json:"assigned_to_email"`
+			CreatedByEmail  string `json:"created_by_email"`
+			DueAt           string `json:"due_at"`
+			Status          string `json:"status"`
+			IsCompleted     bool   `json:"is_completed"`
+			IsOverdue       bool   `json:"is_overdue"`
+		}
+
+		loc, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
+		if loc == nil {
+			loc = time.Local
+		}
+		now := time.Now()
+
+		results := make([]TaskResult, 0, len(tasks))
+		for _, t := range tasks {
+			phone := ""
+			if t.LeadPhone.Valid {
+				phone = t.LeadPhone.String
+			}
+			desc := ""
+			if t.Description.Valid {
+				desc = t.Description.String
+			}
+			dueStr := ""
+			isOverdue := false
+			if t.DueAt.Valid {
+				dueTime := t.DueAt.Time.In(loc)
+				dueStr = dueTime.Format("15:04 02/01/2006")
+				if !t.CompletedAt.Valid && dueTime.Before(now) {
+					isOverdue = true
+				}
+			}
+
+			status := "Chờ xử lý"
+			if t.CompletedAt.Valid {
+				status = "Đã xong"
+			} else if isOverdue {
+				status = "Quá hạn"
+			}
+
+			results = append(results, TaskResult{
+				ID:              data.UUIDString(t.ID),
+				Title:           t.Title,
+				Description:     desc,
+				LeadName:        t.LeadName,
+				LeadPhone:       phone,
+				AssignedToEmail: t.AssignedToEmail,
+				CreatedByEmail:  t.CreatedByEmail,
+				DueAt:           dueStr,
+				Status:          status,
+				IsCompleted:     t.CompletedAt.Valid,
+				IsOverdue:       isOverdue,
+			})
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"total_tasks": len(results),
+			"filter":      filterStatus,
+			"tasks":       results,
+		})
+		return string(dataBytes), nil
+
+	case "complete_lead_task":
+		var args struct {
+			TaskID    string `json:"task_id"`
+			TaskTitle string `json:"task_title"`
+			LeadName  string `json:"lead_name"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		var taskID pgtype.UUID
+		if strings.TrimSpace(args.TaskID) != "" {
+			tid, err := data.UUID(args.TaskID)
+			if err == nil {
+				taskID = tid
+			}
+		}
+
+		if !taskID.Valid {
+			queryTitle := strings.TrimSpace(args.TaskTitle)
+			queryLead := strings.TrimSpace(args.LeadName)
+			var assignedToVal any = nil
+			if isSale {
+				uid, err := data.UUID(claims.UserID)
+				if err == nil {
+					assignedToVal = uid
+				}
+			}
+
+			err := a.pool.QueryRow(ctx, `
+				SELECT lt.id
+				FROM lead_tasks lt
+				JOIN leads l ON l.id = lt.lead_id
+				WHERE lt.completed_at IS NULL
+				  AND ($1::text = '' OR lt.title ILIKE '%' || $1 || '%')
+				  AND ($2::text = '' OR l.full_name ILIKE '%' || $2 || '%')
+				  AND ($3::uuid IS NULL OR lt.assigned_to = $3::uuid)
+				ORDER BY lt.created_at DESC
+				LIMIT 1
+			`, queryTitle, queryLead, assignedToVal).Scan(&taskID)
+			if err != nil || !taskID.Valid {
+				return `{"error": "Không tìm thấy công việc nào đang chờ xử lý phù hợp với yêu cầu của bạn."}`, nil
+			}
+		}
+
+		taskRow, err := a.queries.GetLeadTask(ctx, taskID)
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Không tìm thấy công việc: %s"}`, err.Error()), nil
+		}
+		if isSale && data.UUIDString(taskRow.AssignedTo) != claims.UserID {
+			return `{"error": "PERMISSION_DENIED: Bạn chỉ có quyền đánh dấu hoàn thành công việc được giao cho chính mình."}`, nil
+		}
+
+		completedTask, err := a.queries.CompleteLeadTask(ctx, taskID)
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Lỗi khi hoàn thành công việc: %s"}`, err.Error()), nil
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"status":       "success",
+			"task_id":      data.UUIDString(completedTask.ID),
+			"task_title":   completedTask.Title,
+			"lead_name":    taskRow.LeadName,
+			"completed_at": time.Now().Format("15:04 02/01/2006"),
+			"message":      fmt.Sprintf("Đã đánh dấu hoàn thành công việc: '%s' (Khách hàng: %s).", completedTask.Title, taskRow.LeadName),
+		})
+		return string(dataBytes), nil
+
+	case "add_lead_interaction":
+		var args struct {
+			LeadID   string `json:"lead_id"`
+			LeadName string `json:"lead_name"`
+			Channel  string `json:"channel"`
+			Summary  string `json:"summary"`
+			Outcome  string `json:"outcome"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		leadUUID, err := data.UUID(args.LeadID)
+		if err != nil || !leadUUID.Valid {
+			searchName := strings.TrimSpace(args.LeadName)
+			if searchName != "" {
+				var assignedToVal any = nil
+				if isSale {
+					uid, err := data.UUID(claims.UserID)
+					if err == nil {
+						assignedToVal = uid
+					}
+				}
+				_ = a.pool.QueryRow(ctx, `
+					SELECT id FROM leads
+					WHERE deleted_at IS NULL
+					  AND (full_name ILIKE '%' || $1 || '%' OR COALESCE(phone, '') ILIKE '%' || $1 || '%')
+					  AND ($2::uuid IS NULL OR assigned_to = $2::uuid)
+					ORDER BY created_at DESC LIMIT 1
+				`, searchName, assignedToVal).Scan(&leadUUID)
+			}
+		}
+		if !leadUUID.Valid {
+			return `{"error": "Không tìm thấy khách hàng tương ứng để ghi nhật ký."}`, nil
+		}
+
+		lead, err := a.queries.GetLead(ctx, leadUUID)
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Không tìm thấy khách hàng: %s"}`, err.Error()), nil
+		}
+		if isSale && (!lead.AssignedTo.Valid || data.UUIDString(lead.AssignedTo) != claims.UserID) {
+			return `{"error": "PERMISSION_DENIED: Bạn chỉ có thể ghi chú cho khách hàng do bạn phụ trách."}`, nil
+		}
+
+		actorUUID, err := data.UUID(claims.UserID)
+		if err != nil {
+			return `{"error": "ID người dùng không hợp lệ"}`, nil
+		}
+
+		channel := db.InteractionChannelPhoneCall
+		switch strings.ToLower(strings.TrimSpace(args.Channel)) {
+		case "zalo":
+			channel = db.InteractionChannelZalo
+		case "facebook", "fb":
+			channel = db.InteractionChannelFacebook
+		case "email", "mail":
+			channel = db.InteractionChannelEmail
+		case "in_person", "truc_tiep", "gap_mat":
+			channel = db.InteractionChannelInPerson
+		case "sms":
+			channel = db.InteractionChannelSms
+		case "other", "khac":
+			channel = db.InteractionChannelOther
+		}
+
+		interaction, err := a.queries.CreateLeadInteraction(ctx, db.CreateLeadInteractionParams{
+			LeadID:    leadUUID,
+			Channel:   channel,
+			Summary:   args.Summary,
+			Outcome:   data.Text(&args.Outcome),
+			CreatedBy: actorUUID,
+		})
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Lỗi lưu nhật ký tương tác: %s"}`, err.Error()), nil
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"status":     "success",
+			"lead_name":  lead.FullName,
+			"channel":    string(interaction.Channel),
+			"summary":    interaction.Summary,
+			"created_at": time.Now().Format("15:04 02/01/2006"),
+			"message":    fmt.Sprintf("Đã ghi lại nhật ký trao đổi với khách hàng **%s** qua kênh %s thành công.", lead.FullName, string(interaction.Channel)),
+		})
+		return string(dataBytes), nil
+
+	case "get_lead_details":
+		var args struct {
+			LeadID string `json:"lead_id"`
+			Query  string `json:"query"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		leadUUID, err := data.UUID(args.LeadID)
+		if err != nil || !leadUUID.Valid {
+			searchStr := strings.TrimSpace(args.Query)
+			if searchStr == "" {
+				searchStr = strings.TrimSpace(args.LeadID)
+			}
+			if searchStr != "" {
+				var assignedToVal any = nil
+				if isSale {
+					uid, err := data.UUID(claims.UserID)
+					if err == nil {
+						assignedToVal = uid
+					}
+				}
+				_ = a.pool.QueryRow(ctx, `
+					SELECT id FROM leads
+					WHERE deleted_at IS NULL
+					  AND (full_name ILIKE '%' || $1 || '%' OR COALESCE(phone, '') ILIKE '%' || $1 || '%')
+					  AND ($2::uuid IS NULL OR assigned_to = $2::uuid)
+					ORDER BY created_at DESC LIMIT 1
+				`, searchStr, assignedToVal).Scan(&leadUUID)
+			}
+		}
+		if !leadUUID.Valid {
+			return `{"error": "Không tìm thấy khách hàng cần tra cứu thông tin."}`, nil
+		}
+
+		lead, err := a.queries.GetLead(ctx, leadUUID)
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Không tìm thấy khách hàng: %s"}`, err.Error()), nil
+		}
+		if isSale && (!lead.AssignedTo.Valid || data.UUIDString(lead.AssignedTo) != claims.UserID) {
+			return `{"error": "PERMISSION_DENIED: Bạn chỉ có quyền xem chi tiết khách hàng do bạn phụ trách."}`, nil
+		}
+
+		courseName := "Chưa xác định"
+		if lead.CourseName.Valid && lead.CourseName.String != "" {
+			courseName = lead.CourseName.String
+		}
+
+		assignedEmail := "Chưa phân công"
+		if lead.AssignedToEmail.Valid && lead.AssignedToEmail.String != "" {
+			assignedEmail = lead.AssignedToEmail.String
+		}
+
+		interactions, _ := a.queries.ListLeadInteractionsByLead(ctx, leadUUID)
+		tasks, _ := a.queries.ListLeadTasksByLead(ctx, leadUUID)
+
+		type MiniInteraction struct {
+			Channel   string `json:"channel"`
+			Summary   string `json:"summary"`
+			CreatedAt string `json:"created_at"`
+		}
+		type MiniTask struct {
+			Title       string `json:"title"`
+			DueAt       string `json:"due_at"`
+			IsCompleted bool   `json:"is_completed"`
+		}
+
+		interactionList := make([]MiniInteraction, 0, len(interactions))
+		for _, it := range interactions {
+			interactionList = append(interactionList, MiniInteraction{
+				Channel:   string(it.Channel),
+				Summary:   it.Summary,
+				CreatedAt: it.CreatedAt.Time.Format("15:04 02/01/2006"),
+			})
+		}
+
+		taskList := make([]MiniTask, 0, len(tasks))
+		for _, tk := range tasks {
+			due := ""
+			if tk.DueAt.Valid {
+				due = tk.DueAt.Time.Format("15:04 02/01/2006")
+			}
+			taskList = append(taskList, MiniTask{
+				Title:       tk.Title,
+				DueAt:       due,
+				IsCompleted: tk.CompletedAt.Valid,
+			})
+		}
+
+		phone := ""
+		if lead.Phone.Valid {
+			phone = lead.Phone.String
+		}
+		email := ""
+		if lead.Email.Valid {
+			email = lead.Email.String
+		}
+		notes := ""
+		if lead.Notes.Valid {
+			notes = lead.Notes.String
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"full_name":       lead.FullName,
+			"phone":           phone,
+			"email":           email,
+			"course_name":     courseName,
+			"pipeline_status": string(lead.PipelineStatus),
+			"source":          string(lead.Source),
+			"assigned_to":     assignedEmail,
+			"notes":           notes,
+			"interactions":    interactionList,
+			"tasks":           taskList,
+		})
+		return string(dataBytes), nil
+
+	case "create_lead":
+		var args struct {
+			FullName   string `json:"full_name"`
+			Phone      string `json:"phone"`
+			Email      string `json:"email"`
+			CourseName string `json:"course_name"`
+			Source     string `json:"source"`
+			Notes      string `json:"notes"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		if strings.TrimSpace(args.FullName) == "" {
+			return `{"error": "Vui lòng cung cấp họ và tên khách hàng."}`, nil
+		}
+
+		actorUUID, err := data.UUID(claims.UserID)
+		if err != nil {
+			return `{"error": "ID người dùng không hợp lệ"}`, nil
+		}
+
+		var courseUUID pgtype.UUID
+		courseNameDisplay := "Kỹ thuật Ô tô"
+		if strings.TrimSpace(args.CourseName) != "" {
+			var cName string
+			err := a.pool.QueryRow(ctx, `
+				SELECT id, name FROM courses
+				WHERE name ILIKE '%' || $1 || '%' OR code ILIKE '%' || $1 || '%'
+				LIMIT 1
+			`, strings.TrimSpace(args.CourseName)).Scan(&courseUUID, &cName)
+			if err == nil {
+				courseNameDisplay = cName
+			}
+		}
+
+		src := db.LeadSourceFacebook
+		switch strings.ToLower(strings.TrimSpace(args.Source)) {
+		case "tiktok":
+			src = db.LeadSourceTiktok
+		case "google":
+			src = db.LeadSourceGoogle
+		case "zalo":
+			src = db.LeadSourceZalo
+		case "website", "web":
+			src = db.LeadSourceWebsite
+		case "referral", "gioi_thieu":
+			src = db.LeadSourceReferral
+		case "walk_in", "truc_tiep":
+			src = db.LeadSourceWalkIn
+		case "event", "su_kien":
+			src = db.LeadSourceEvent
+		case "other", "khac":
+			src = db.LeadSourceOther
+		}
+
+		var assignedTo pgtype.UUID
+		var assignedAt pgtype.Timestamptz
+		var assignedBy pgtype.UUID
+		if isSale {
+			assignedTo = actorUUID
+			assignedAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+			assignedBy = actorUUID
+		}
+
+		createdLead, err := a.queries.CreateLead(ctx, db.CreateLeadParams{
+			FullName:           strings.TrimSpace(args.FullName),
+			Phone:              data.Text(&args.Phone),
+			Email:              data.Text(&args.Email),
+			Source:             src,
+			InterestedCourseID: courseUUID,
+			Notes:              data.Text(&args.Notes),
+			PipelineStatus:     db.LeadPipelineStatusDataMoi,
+			AssignedTo:         assignedTo,
+			AssignedAt:         assignedAt,
+			AssignedBy:         assignedBy,
+			CreatedBy:          actorUUID,
+		})
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Lỗi thêm mới khách hàng: %s"}`, err.Error()), nil
+		}
+
+		ownerMsg := "Chờ phân bổ (chưa gán)"
+		if isSale {
+			ownerMsg = fmt.Sprintf("Đã tự động gán cho bạn (%s)", claims.Email)
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"status":      "success",
+			"lead_id":     data.UUIDString(createdLead.ID),
+			"full_name":   createdLead.FullName,
+			"phone":       args.Phone,
+			"course_name": courseNameDisplay,
+			"source":      string(src),
+			"assignment":  ownerMsg,
+			"message":     fmt.Sprintf("Đã tạo khách hàng tiềm năng **%s** thành công! Khóa học: %s. Trạng thái: Data mới. Phụ trách: %s.", createdLead.FullName, courseNameDisplay, ownerMsg),
+		})
+		return string(dataBytes), nil
+
+	case "list_registration_orders":
+		var args struct {
+			Search string `json:"search"`
+			Status string `json:"status"`
+			Limit  int    `json:"limit"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		limit := int32(10)
+		if args.Limit > 0 && args.Limit <= 30 {
+			limit = int32(args.Limit)
+		}
+
+		var statusFilter db.NullOrderStatus
+		switch strings.ToLower(strings.TrimSpace(args.Status)) {
+		case "pending", "chua_thanh_toan":
+			statusFilter = db.NullOrderStatus{OrderStatus: db.OrderStatusPending, Valid: true}
+		case "paid", "da_thanh_toan":
+			statusFilter = db.NullOrderStatus{OrderStatus: db.OrderStatusPaid, Valid: true}
+		case "cancelled", "da_huy":
+			statusFilter = db.NullOrderStatus{OrderStatus: db.OrderStatusCancelled, Valid: true}
+		}
+
+		var createdByFilter pgtype.UUID
+		if isSale {
+			uid, err := data.UUID(claims.UserID)
+			if err == nil {
+				createdByFilter = uid
+			}
+		}
+
+		orders, err := a.queries.ListOrders(ctx, db.ListOrdersParams{
+			Search:     args.Search,
+			Status:     statusFilter,
+			CreatedBy:  createdByFilter,
+			PageOffset: 0,
+			PageLimit:  limit,
+		})
+		if err != nil {
+			return fmt.Sprintf(`{"error": "%s"}`, err.Error()), nil
+		}
+
+		type OrderView struct {
+			OrderCode      string `json:"order_code"`
+			CustomerName   string `json:"customer_name"`
+			CourseName     string `json:"course_name"`
+			FinalAmount    string `json:"final_amount"`
+			DiscountAmount string `json:"discount_amount"`
+			Status         string `json:"status"`
+			CreatedAt      string `json:"created_at"`
+		}
+
+		results := make([]OrderView, 0, len(orders))
+		for _, o := range orders {
+			cName := ""
+			if o.LeadName.Valid && o.LeadName.String != "" {
+				cName = o.LeadName.String
+			} else if o.StudentName.Valid {
+				cName = o.StudentName.String
+			}
+			course := ""
+			if o.CourseName.Valid {
+				course = o.CourseName.String
+			}
+
+			statusVN := "Chưa thanh toán"
+			if o.Status == db.OrderStatusPaid {
+				statusVN = "Đã thanh toán"
+			} else if o.Status == db.OrderStatusCancelled {
+				statusVN = "Đã hủy"
+			}
+
+			results = append(results, OrderView{
+				OrderCode:      o.OrderCode,
+				CustomerName:   cName,
+				CourseName:     course,
+				FinalAmount:    formatAmount(o.FinalAmount) + " đ",
+				DiscountAmount: formatAmount(o.DiscountAmount) + " đ",
+				Status:         statusVN,
+				CreatedAt:      o.CreatedAt.Time.Format("02/01/2006"),
+			})
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"total_orders": len(results),
+			"orders":       results,
+		})
+		return string(dataBytes), nil
+
+	case "list_courses":
+		var args struct {
+			Search string `json:"search"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		courses, err := a.queries.ListCourses(ctx, db.ListCoursesParams{
+			Search:     args.Search,
+			Status:     "active",
+			SortBy:     "created_at",
+			SortOrder:  "desc",
+			PageOffset: 0,
+			PageLimit:  20,
+		})
+		if err != nil {
+			return fmt.Sprintf(`{"error": "%s"}`, err.Error()), nil
+		}
+
+		type CourseView struct {
+			Code                 string `json:"code"`
+			Name                 string `json:"name"`
+			TotalSessions        int32  `json:"total_sessions"`
+			MinimumAttendancePct string `json:"minimum_attendance_pct"`
+			Description          string `json:"description"`
+		}
+		views := make([]CourseView, 0, len(courses))
+		for _, c := range courses {
+			desc := ""
+			if c.Description.Valid {
+				desc = c.Description.String
+			}
+			views = append(views, CourseView{
+				Code:                 c.Code,
+				Name:                 c.Name,
+				TotalSessions:        c.TotalSessions,
+				MinimumAttendancePct: formatAmount(c.MinimumAttendancePct) + "%",
+				Description:          desc,
+			})
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"total_courses": len(views),
+			"courses":       views,
+		})
+		return string(dataBytes), nil
+
+	case "list_classes":
+		var args struct {
+			Search string `json:"search"`
+			Status string `json:"status"`
+		}
+		_ = json.Unmarshal([]byte(argsJSON), &args)
+
+		classes, err := a.queries.ListAdminClasses(ctx, db.ListAdminClassesParams{
+			Search:     args.Search,
+			Status:     args.Status,
+			PageOffset: 0,
+			PageLimit:  15,
+		})
+		if err != nil {
+			return fmt.Sprintf(`{"error": "%s"}`, err.Error()), nil
+		}
+
+		type ClassView struct {
+			ClassCode        string `json:"class_code"`
+			Name             string `json:"name"`
+			CourseName       string `json:"course_name"`
+			StartDate        string `json:"start_date"`
+			EndDate          string `json:"end_date"`
+			EnrolledStudents int32  `json:"enrolled_students"`
+			MaximumStudents  int32  `json:"maximum_students"`
+			Status           string `json:"status"`
+		}
+		views := make([]ClassView, 0, len(classes))
+		for _, cl := range classes {
+			startDate := ""
+			if cl.StartDate.Valid {
+				startDate = cl.StartDate.Time.Format("02/01/2006")
+			}
+			endDate := ""
+			if cl.EndDate.Valid {
+				endDate = cl.EndDate.Time.Format("02/01/2006")
+			}
+			views = append(views, ClassView{
+				ClassCode:        cl.ClassCode,
+				Name:             cl.Name,
+				CourseName:       cl.CourseName,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				EnrolledStudents: cl.EnrolledStudents,
+				MaximumStudents:  cl.MaximumStudents,
+				Status:           string(cl.Status),
+			})
+		}
+
+		dataBytes, _ := json.Marshal(map[string]any{
+			"total_classes": len(views),
+			"classes":       views,
 		})
 		return string(dataBytes), nil
 
@@ -1832,6 +2720,118 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 	}
 
 	isSale := a.isOnlySaleStaff(claims)
+
+	// Inquiries about tasks / reminders / schedule (for Sale and Managers)
+	if strings.Contains(combinedText, "nhắc việc") || strings.Contains(combinedText, "lịch hẹn") || strings.Contains(combinedText, "việc cần làm") ||
+		strings.Contains(combinedText, "giao việc") || strings.Contains(combinedText, "công việc") || strings.Contains(combinedText, "task") ||
+		strings.Contains(combinedText, "nhắc nhở") || strings.Contains(combinedText, "hôm nay có việc") {
+		var assignedToArg pgtype.UUID
+		if isSale {
+			uid, err := data.UUID(claims.UserID)
+			if err == nil {
+				assignedToArg = uid
+			}
+		}
+		tasks, err := a.queries.ListLeadTasks(ctx, db.ListLeadTasksParams{
+			AssignedTo:   assignedToArg,
+			LeadID:       pgtype.UUID{},
+			FilterStatus: "pending",
+		})
+		if err == nil && len(tasks) > 0 {
+			var sb strings.Builder
+			if isSale {
+				sb.WriteString(fmt.Sprintf("Dạ có! Dưới đây là danh sách **công việc / nhắc việc cần làm** được phân công cho bạn (%s):\n\n", claims.Email))
+			} else {
+				sb.WriteString("Dạ có! Dưới đây là danh sách **công việc / lịch hẹn cần xử lý** trong hệ thống:\n\n")
+			}
+			sb.WriteString("| Tiêu đề việc | Khách hàng | Người giao | Hạn hoàn thành | Ghi chú |\n")
+			sb.WriteString("| :--- | :--- | :--- | :--- | :--- |\n")
+			loc, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
+			if loc == nil {
+				loc = time.Local
+			}
+			for _, t := range tasks {
+				dueStr := ""
+				if t.DueAt.Valid {
+					dueStr = t.DueAt.Time.In(loc).Format("15:04 02/01/2006")
+				}
+				desc := ""
+				if t.Description.Valid {
+					desc = t.Description.String
+				}
+				sb.WriteString(fmt.Sprintf("| **%s** | %s | %s | %s | %s |\n", t.Title, t.LeadName, t.CreatedByEmail, dueStr, desc))
+			}
+			sb.WriteString("\n*Bạn có thể xem chi tiết hoặc đánh dấu hoàn tất tại mục Danh sách việc cần làm.*")
+			return AgentChatResponse{
+				Reply:     sb.String(),
+				ModelUsed: "deterministic-domain-engine",
+				ToolsUsed: []string{"list_lead_tasks"},
+			}, nil
+		} else if err == nil && len(tasks) == 0 {
+			replyText := "Hiện tại bạn không có công việc hoặc lịch hẹn nhắc việc nào chưa xử lý (0 công việc chờ xử lý)."
+			if !isSale {
+				replyText = "Hiện tại không có công việc hoặc lịch hẹn nhắc việc nào đang chờ xử lý trên hệ thống."
+			}
+			return AgentChatResponse{
+				Reply:     replyText,
+				ModelUsed: "deterministic-domain-engine",
+				ToolsUsed: []string{"list_lead_tasks"},
+			}, nil
+		}
+	}
+
+	// Inquiries about courses
+	if strings.Contains(combinedText, "khóa học") || strings.Contains(combinedText, "khoá học") || strings.Contains(combinedText, "chương trình học") {
+		courses, err := a.queries.ListCourses(ctx, db.ListCoursesParams{
+			Status:     "active",
+			SortBy:     "name",
+			SortOrder:  "asc",
+			PageOffset: 0,
+			PageLimit:  10,
+		})
+		if err == nil && len(courses) > 0 {
+			var sb strings.Builder
+			sb.WriteString("Dạ có! Dưới đây là danh mục các **khóa học đào tạo kỹ thuật ô tô** tại Trung tâm NSA:\n\n")
+			sb.WriteString("| Mã khóa | Tên khóa học | Số buổi | Chuyên cần tối thiểu |\n")
+			sb.WriteString("| :--- | :--- | :--- | :--- |\n")
+			for _, c := range courses {
+				sb.WriteString(fmt.Sprintf("| `%s` | **%s** | %d buổi | %s%% |\n", c.Code, c.Name, c.TotalSessions, formatAmount(c.MinimumAttendancePct)))
+			}
+			sb.WriteString("\n*Bạn có thể xem chi tiết hoặc đăng ký khóa học tại mục [Quản lý Khóa học](/courses).*")
+			return AgentChatResponse{
+				Reply:     sb.String(),
+				ModelUsed: "deterministic-domain-engine",
+				ToolsUsed: []string{"list_courses"},
+			}, nil
+		}
+	}
+
+	// Inquiries about classes
+	if strings.Contains(combinedText, "lớp học") || strings.Contains(combinedText, "lớp sắp mở") || strings.Contains(combinedText, "khai giảng") || strings.Contains(combinedText, "lịch học") {
+		classes, err := a.queries.ListAdminClasses(ctx, db.ListAdminClassesParams{
+			PageOffset: 0,
+			PageLimit:  10,
+		})
+		if err == nil && len(classes) > 0 {
+			var sb strings.Builder
+			sb.WriteString("Dạ có! Dưới đây là danh sách **các lớp học và tiến độ đào tạo** tại Trung tâm NSA:\n\n")
+			sb.WriteString("| Mã lớp | Khóa học | Sĩ số (Đã ĐK / Tối đa) | Ngày khai giảng | Trạng thái |\n")
+			sb.WriteString("| :--- | :--- | :--- | :--- | :--- |\n")
+			for _, cl := range classes {
+				start := "Dự kiến"
+				if cl.StartDate.Valid {
+					start = cl.StartDate.Time.Format("02/01/2006")
+				}
+				sb.WriteString(fmt.Sprintf("| `%s` | **%s** | %d/%d học viên | %s | %s |\n", cl.ClassCode, cl.CourseName, cl.EnrolledStudents, cl.MaximumStudents, start, string(cl.Status)))
+			}
+			sb.WriteString("\n*Bạn có thể xem chi tiết thời khóa biểu hoặc phân công giảng viên tại mục [Điều phối Lớp học](/academic/classes).*")
+			return AgentChatResponse{
+				Reply:     sb.String(),
+				ModelUsed: "deterministic-domain-engine",
+				ToolsUsed: []string{"list_classes"},
+			}, nil
+		}
+	}
 
 	// 2. Inquiries about new leads or scanning unassigned leads
 	if isSale {

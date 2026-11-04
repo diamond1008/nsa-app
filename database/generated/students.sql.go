@@ -136,7 +136,7 @@ INSERT INTO student_profiles (
 )
 VALUES (
   $1,
-  COALESCE(NULLIF($2::text, ''), 'HV' || lpad(nextval('student_code_seq')::text, 8, '0')),
+  COALESCE(NULLIF($2::text, ''), 'HV' || lpad(nextval('student_code_seq')::text, 6, '0')),
   $3, $4, $5, $6, $7,
   $8, $9, $10,
   $11, $12

@@ -337,14 +337,13 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 	var studentCode, teacherCode string
 	if targetRole == auth.RoleStudent {
 		now := time.Now().UTC()
-		studentCode = fmt.Sprintf("HV%s", now.Format("060102150405"))
 		sName := fullNameTrimmed
 		if sName == "" {
 			sName = email
 		}
-		_, err := q.CreateStudentProfile(ctx, db.CreateStudentProfileParams{
+		profile, err := q.CreateStudentProfile(ctx, db.CreateStudentProfileParams{
 			UserID:                createdUser.ID,
-			StudentCode:           studentCode,
+			StudentCode:           "",
 			FullName:              sName,
 			AvatarUrl:             pgtype.Text{},
 			Phone:                 phoneArg,
@@ -358,6 +357,9 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		})
 		if err != nil && !dberror.IsCode(err, dberror.UniqueViolation) {
 			return UserView{}, fmt.Errorf("create student profile: %w", err)
+		}
+		if err == nil {
+			studentCode = profile.StudentCode
 		}
 	} else if targetRole == auth.RoleTeacher {
 		now := time.Now().UTC()

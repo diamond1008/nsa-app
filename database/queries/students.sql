@@ -7,7 +7,7 @@ INSERT INTO student_profiles (
 )
 VALUES (
   sqlc.arg(user_id),
-  COALESCE(NULLIF(sqlc.arg(student_code)::text, ''), 'HV' || lpad(nextval('student_code_seq')::text, 8, '0')),
+  COALESCE(NULLIF(sqlc.arg(student_code)::text, ''), 'HV' || lpad(nextval('student_code_seq')::text, 6, '0')),
   sqlc.arg(full_name), sqlc.narg(avatar_url), sqlc.narg(phone), sqlc.narg(date_of_birth), sqlc.narg(gender),
   sqlc.narg(address), sqlc.narg(emergency_contact_name), sqlc.narg(emergency_contact_phone),
   sqlc.arg(status), sqlc.narg(enrolled_at)

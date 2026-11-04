@@ -2370,6 +2370,57 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
       setOpen(false);
     },
   });
+
+  const advancedClassFilterCount = [
+    listState.filters.course_id,
+    listState.filters.teacher_id,
+    listState.filters.from_date,
+    listState.filters.to_date,
+  ].filter(Boolean).length;
+
+  const advancedClassFilters = (
+    <>
+      <div className="w-full min-w-56 sm:w-64">
+        <SearchCombobox
+          label="Khóa học"
+          value={listState.filters.course_id}
+          onChange={(value) => updateList({ course_id: value })}
+          onSearch={setCourseSearch}
+          options={courseFilterChoices}
+          loading={courseFilterOptions.isLoading}
+        />
+      </div>
+      <div className="w-full min-w-56 sm:w-64">
+        <SearchCombobox
+          label="Giảng viên"
+          value={listState.filters.teacher_id}
+          onChange={(value) => updateList({ teacher_id: value })}
+          onSearch={setTeacherSearch}
+          options={teacherFilterChoices}
+          loading={teacherFilterOptions.isLoading}
+        />
+      </div>
+      <div className="w-full min-w-40 sm:w-44">
+        <Input
+          label="Từ ngày"
+          name="class-from-date"
+          type="date"
+          value={listState.filters.from_date}
+          onChange={(event) => updateList({ from_date: event.target.value })}
+        />
+      </div>
+      <div className="w-full min-w-40 sm:w-44">
+        <Input
+          label="Đến ngày"
+          name="class-to-date"
+          type="date"
+          value={listState.filters.to_date}
+          onChange={(event) => updateList({ to_date: event.target.value })}
+        />
+      </div>
+    </>
+  );
+
   return (
     <div>
       <PageHeader
@@ -2427,8 +2478,10 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
           setSearchParams(new URLSearchParams(), { replace: true });
         }}
         searchPlaceholder="Nhập mã hoặc tên lớp…"
+        advancedFilters={advancedClassFilters}
+        advancedFilterCount={advancedClassFilterCount}
       >
-        <div className="w-full min-w-44 sm:w-48">
+        <div className="w-full min-w-36 sm:w-44">
           <Select
             label="Trạng thái"
             value={listState.filters.status}
@@ -2442,7 +2495,7 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
             <option value="cancelled">Đã hủy</option>
           </Select>
         </div>
-        <div className="w-full min-w-40 sm:w-44">
+        <div className="w-full min-w-36 sm:w-44">
           <Select
             label="Sĩ số"
             value={listState.filters.capacity}
@@ -2452,44 +2505,6 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
             <option value="available">Còn chỗ</option>
             <option value="full">Đã đầy</option>
           </Select>
-        </div>
-        <div className="w-full min-w-56 sm:w-64">
-          <SearchCombobox
-            label="Khóa học"
-            value={listState.filters.course_id}
-            onChange={(value) => updateList({ course_id: value })}
-            onSearch={setCourseSearch}
-            options={courseFilterChoices}
-            loading={courseFilterOptions.isLoading}
-          />
-        </div>
-        <div className="w-full min-w-56 sm:w-64">
-          <SearchCombobox
-            label="Giảng viên"
-            value={listState.filters.teacher_id}
-            onChange={(value) => updateList({ teacher_id: value })}
-            onSearch={setTeacherSearch}
-            options={teacherFilterChoices}
-            loading={teacherFilterOptions.isLoading}
-          />
-        </div>
-        <div className="w-full min-w-40 sm:w-44">
-          <Input
-            label="Từ ngày"
-            name="class-from-date"
-            type="date"
-            value={listState.filters.from_date}
-            onChange={(event) => updateList({ from_date: event.target.value })}
-          />
-        </div>
-        <div className="w-full min-w-40 sm:w-44">
-          <Input
-            label="Đến ngày"
-            name="class-to-date"
-            type="date"
-            value={listState.filters.to_date}
-            onChange={(event) => updateList({ to_date: event.target.value })}
-          />
         </div>
       </FilterBar>
       <QueryState

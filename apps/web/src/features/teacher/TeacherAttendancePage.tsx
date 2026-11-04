@@ -227,7 +227,7 @@ export function TeacherAttendancePage() {
         subtitle="Học viên chưa ghi nhận được mặc định Vắng. Giảng viên đánh dấu người Có mặt rồi lưu; sau 00:00 giờ Việt Nam dữ liệu sẽ bị khóa."
       />
 
-      <Card className="mb-5">
+      <Card className="mb-5 relative z-20">
         <SearchCombobox
           label="Buổi học"
           value={sessionId}

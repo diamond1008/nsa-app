@@ -83,8 +83,8 @@ export function AdminAttendancePage({ readOnly = false }: { readOnly?: boolean }
         page: 1,
         per_page: 20,
         search: debouncedSessionSearch || undefined,
-        from: range.from,
-        to: range.to,
+        from: debouncedSessionSearch ? undefined : range.from,
+        to: debouncedSessionSearch ? undefined : range.to,
         sort_by: "starts_at",
         sort_order: "desc",
       }),
@@ -203,7 +203,7 @@ export function AdminAttendancePage({ readOnly = false }: { readOnly?: boolean }
         }
       />
 
-      <Card className="mb-5">
+      <Card className="mb-5 relative z-20">
         <SearchCombobox
           label="Buổi học"
           value={sessionId}

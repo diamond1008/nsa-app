@@ -807,21 +807,29 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                     </th>
                   )}
                   {!isSaleMode && (
-                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Mã đối tượng</th>
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold whitespace-nowrap">
+                      Mã đối tượng
+                    </th>
                   )}
                   {!isSaleMode && (
-                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Vai trò</th>
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold whitespace-nowrap">
+                      Vai trò
+                    </th>
                   )}
-                  <th className="border-b border-white/70 px-4 py-3.5 font-bold">
+                  <th className="border-b border-white/70 px-4 py-3.5 font-bold whitespace-nowrap">
                     Trạng thái tài khoản
                   </th>
                   {!isSaleMode && (
-                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Người tạo</th>
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold whitespace-nowrap">
+                      Người tạo
+                    </th>
                   )}
                   {!isSaleMode && (
-                    <th className="border-b border-white/70 px-4 py-3.5 font-bold">Ngày tạo</th>
+                    <th className="border-b border-white/70 px-4 py-3.5 font-bold whitespace-nowrap">
+                      Ngày tạo
+                    </th>
                   )}
-                  <th className="border-b border-white/70 px-5 py-3.5 text-right font-bold">
+                  <th className="border-b border-white/70 px-5 py-3.5 text-right font-bold whitespace-nowrap">
                     Chi tiết
                   </th>
                 </tr>
@@ -1031,14 +1039,14 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                         )}
 
                         {!isSaleMode && (
-                          <td className="border-b border-white/60 px-4 py-4">
+                          <td className="border-b border-white/60 px-4 py-4 whitespace-nowrap">
                             {u.student_code ? (
-                              <span className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs tabular-nums">
-                                HV: {u.student_code}
+                              <span className="inline-flex items-center font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs tabular-nums whitespace-nowrap">
+                                {u.student_code}
                               </span>
                             ) : u.teacher_code ? (
-                              <span className="font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-xs tabular-nums">
-                                GV: {u.teacher_code}
+                              <span className="inline-flex items-center font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-xs tabular-nums whitespace-nowrap">
+                                {u.teacher_code}
                               </span>
                             ) : (
                               <span className="text-gtext">—</span>
@@ -1047,7 +1055,7 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                         )}
 
                         {!isSaleMode && (
-                          <td className="border-b border-white/60 px-4 py-4">
+                          <td className="border-b border-white/60 px-4 py-4 whitespace-nowrap">
                             <div className="flex flex-wrap gap-1">
                               {u.roles.map((r) => (
                                 <RoleBadge key={r} role={r} />
@@ -1056,20 +1064,20 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                           </td>
                         )}
 
-                        <td className="border-b border-white/60 px-4 py-4">
+                        <td className="border-b border-white/60 px-4 py-4 whitespace-nowrap">
                           <StatusBadge status={u.status} />
                         </td>
                         {!isSaleMode && (
-                          <td className="border-b border-white/60 px-4 py-4 text-gtext">
+                          <td className="border-b border-white/60 px-4 py-4 text-gtext whitespace-nowrap">
                             {u.created_by_email || "Hệ thống"}
                           </td>
                         )}
                         {!isSaleMode && (
-                          <td className="border-b border-white/60 px-4 py-4 text-gtext tabular-nums">
+                          <td className="border-b border-white/60 px-4 py-4 text-gtext tabular-nums whitespace-nowrap">
                             {formatDateTime(u.created_at)}
                           </td>
                         )}
-                        <td className="border-b border-white/60 px-5 py-4 text-right">
+                        <td className="border-b border-white/60 px-5 py-4 text-right whitespace-nowrap">
                           <Button
                             variant="soft"
                             className="h-8 px-3 text-xs font-semibold rounded-xl"
@@ -1481,11 +1489,11 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                         <span className="text-gtext font-medium">Mã định danh liên kết:</span>
                         <p className="mt-1 font-semibold text-navy">
                           {selectedUser.student_code ? (
-                            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-mono text-xs">
+                            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-mono text-xs whitespace-nowrap">
                               Học viên: {selectedUser.student_code}
                             </span>
                           ) : selectedUser.teacher_code ? (
-                            <span className="text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-mono text-xs">
+                            <span className="text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-mono text-xs whitespace-nowrap">
                               Giảng viên: {selectedUser.teacher_code}
                             </span>
                           ) : (
