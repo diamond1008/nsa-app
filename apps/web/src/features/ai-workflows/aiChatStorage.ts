@@ -1,6 +1,6 @@
 /**
  * NSA AI Chat Session Storage & Retention Policy
- * 
+ *
  * Rules:
  * 1. Persists conversation history across page reloads and tab navigations.
  * 2. 24-hour Auto-Expiration: Session is automatically expired and deleted
@@ -12,7 +12,7 @@
 export const CHAT_STORAGE_KEY_PREFIX = "nsa_ai_chat_session_";
 export const CHAT_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-export interface StoredChatSession<T = any> {
+export interface StoredChatSession<T = unknown> {
   messages: T[];
   lastActivityAt: number; // Unix timestamp in ms of the last message
   reactionMap?: Record<string, "up" | "down">;
@@ -27,10 +27,10 @@ export function getChatStorageKey(userId?: string): string {
  * Loads the active chat session from localStorage if it has not expired (> 24 hours of inactivity).
  * If expired, it automatically removes the stale session and returns null.
  */
-export function loadChatSession<T = any>(
+export function loadChatSession<T = unknown>(
   userId?: string,
   now: number = Date.now(),
-  storage: Storage = localStorage
+  storage: Storage = localStorage,
 ): StoredChatSession<T> | null {
   try {
     const key = getChatStorageKey(userId);
@@ -38,7 +38,11 @@ export function loadChatSession<T = any>(
     if (!raw) return null;
 
     const session: StoredChatSession<T> = JSON.parse(raw);
-    if (!session || !Array.isArray(session.messages) || typeof session.lastActivityAt !== "number") {
+    if (
+      !session ||
+      !Array.isArray(session.messages) ||
+      typeof session.lastActivityAt !== "number"
+    ) {
       storage.removeItem(key);
       return null;
     }
@@ -61,13 +65,13 @@ export function loadChatSession<T = any>(
  * Saves or updates the chat session in localStorage.
  * If messages are empty, the session key is removed from storage.
  */
-export function saveChatSession<T = any>(
+export function saveChatSession<T = unknown>(
   userId: string | undefined,
   messages: T[],
   lastActivityAt: number = Date.now(),
   reactionMap?: Record<string, "up" | "down">,
   expandedReasoning?: Record<string, boolean>,
-  storage: Storage = localStorage
+  storage: Storage = localStorage,
 ): void {
   try {
     const key = getChatStorageKey(userId);

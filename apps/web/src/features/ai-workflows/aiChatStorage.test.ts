@@ -29,7 +29,10 @@ describe("aiChatStorage", () => {
     saveChatSession(userId, sampleMessages, messageTimestamp, { "2": "up" }, { "2": true });
 
     // Load within 1 hour
-    const loaded = loadChatSession(userId, messageTimestamp + 3600 * 1000);
+    const loaded = loadChatSession<{ id: string; role: string; content: string }>(
+      userId,
+      messageTimestamp + 3600 * 1000,
+    );
     expect(loaded).not.toBeNull();
     expect(loaded?.messages).toHaveLength(2);
     expect(loaded?.messages[0].content).toBe("Chốt khách Chị Lê Thị Mai");
@@ -93,8 +96,8 @@ describe("aiChatStorage", () => {
     saveChatSession("user-a", [{ id: "a1", role: "user", content: "Chat of User A" }]);
     saveChatSession("user-b", [{ id: "b1", role: "user", content: "Chat of User B" }]);
 
-    const chatA = loadChatSession("user-a");
-    const chatB = loadChatSession("user-b");
+    const chatA = loadChatSession<{ id: string; role: string; content: string }>("user-a");
+    const chatB = loadChatSession<{ id: string; role: string; content: string }>("user-b");
 
     expect(chatA?.messages[0].content).toBe("Chat of User A");
     expect(chatB?.messages[0].content).toBe("Chat of User B");

@@ -26,9 +26,34 @@ interface ChatItem {
   proposals?: AIWorkflowProposal[];
 }
 
-export function GeminiSparkleStar({ className = "w-9 h-9", ...props }: any) {
+interface ISpeechRecognitionEvent {
+  results?: Array<Array<{ transcript?: string }>>;
+}
+
+interface ISpeechRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: ISpeechRecognitionEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+export function GeminiSparkleStar({
+  className = "w-9 h-9",
+  ...props
+}: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
       <defs>
         <linearGradient id="gemini-star-grad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#4285F4" />
@@ -47,9 +72,21 @@ export function GeminiSparkleStar({ className = "w-9 h-9", ...props }: any) {
 
 const DEFAULT_SUGGESTIONS = [
   { icon: "⚡", label: "Quét khách mới chưa chia cho Sale", prompt: "Quét khách mới chưa chia" },
-  { icon: "📊", label: "Hệ thống có tổng số bao nhiêu lead tuyển sinh?", prompt: "Hệ thống có tổng số bao nhiêu lead tuyển sinh?" },
-  { icon: "⏰", label: "Khách hàng nào bị bỏ quên chưa chăm sóc > 24h?", prompt: "Khách nào bị bỏ quên > 24h?" },
-  { icon: "💳", label: "Có đơn học phí nào đang quá hạn cần nhắc không?", prompt: "Đơn học phí nào quá hạn?" },
+  {
+    icon: "📊",
+    label: "Hệ thống có tổng số bao nhiêu lead tuyển sinh?",
+    prompt: "Hệ thống có tổng số bao nhiêu lead tuyển sinh?",
+  },
+  {
+    icon: "⏰",
+    label: "Khách hàng nào bị bỏ quên chưa chăm sóc > 24h?",
+    prompt: "Khách nào bị bỏ quên > 24h?",
+  },
+  {
+    icon: "💳",
+    label: "Có đơn học phí nào đang quá hạn cần nhắc không?",
+    prompt: "Đơn học phí nào quá hạn?",
+  },
 ];
 
 export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
@@ -85,11 +122,11 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<ChatItem[]>(() => initialSession?.messages ?? []);
   const [expandedReasoning, setExpandedReasoning] = useState<Record<string, boolean>>(
-    () => initialSession?.expandedReasoning ?? {}
+    () => initialSession?.expandedReasoning ?? {},
   );
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [reactionMap, setReactionMap] = useState<Record<string, "up" | "down">>(
-    () => initialSession?.reactionMap ?? {}
+    () => initialSession?.reactionMap ?? {},
   );
   const lastActivityAtRef = useRef<number>(initialSession?.lastActivityAt ?? Date.now());
 
@@ -112,7 +149,7 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
   }, [isOpen, user?.id]);
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const isInitialWelcome = messages.length === 0;
@@ -252,8 +289,11 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
 
   const toggleVoiceInput = () => {
     if (typeof window === "undefined") return;
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const win = window as unknown as {
+      SpeechRecognition?: new () => ISpeechRecognition;
+      webkitSpeechRecognition?: new () => ISpeechRecognition;
+    };
+    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       composerRef.current?.focus();
       return;
@@ -269,7 +309,7 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
       rec.continuous = false;
       rec.interimResults = false;
       rec.onstart = () => setIsListening(true);
-      rec.onresult = (e: any) => {
+      rec.onresult = (e: ISpeechRecognitionEvent) => {
         const transcript = e.results?.[0]?.[0]?.transcript;
         if (transcript) {
           setChatInput((prev) => (prev ? prev + " " + transcript : transcript));
@@ -282,7 +322,7 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
       rec.onend = () => setIsListening(false);
       recognitionRef.current = rec;
       rec.start();
-    } catch (e) {
+    } catch {
       setIsListening(false);
     }
   };
@@ -340,14 +380,15 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
       ]);
       queryClient.invalidateQueries({ queryKey: ["ai-workflows"] });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       lastActivityAtRef.current = Date.now();
+      const message = err instanceof Error ? err.message : "Không thể phản hồi";
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-err-${Date.now()}`,
           role: "assistant",
-          content: `Đã có lỗi khi kết nối AI: ${err?.message || "Không thể phản hồi"}. Vui lòng thử lại.`,
+          content: `Đã có lỗi khi kết nối AI: ${message}. Vui lòng thử lại.`,
         },
       ]);
     },
@@ -392,7 +433,13 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
   // Sync session changes to localStorage whenever messages, reactionMap, or reasoning toggles change
   useEffect(() => {
     if (messages.length > 0) {
-      saveChatSession(user?.id, messages, lastActivityAtRef.current, reactionMap, expandedReasoning);
+      saveChatSession(
+        user?.id,
+        messages,
+        lastActivityAtRef.current,
+        reactionMap,
+        expandedReasoning,
+      );
     }
   }, [messages, reactionMap, expandedReasoning, user?.id]);
 
@@ -414,7 +461,10 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
       <div className="fixed inset-y-0 right-0 flex max-w-full pl-0 sm:pl-3 pointer-events-none">
         <div
           style={{
-            width: typeof window !== "undefined" && window.innerWidth < 640 ? "100vw" : `${drawerWidthPct}vw`,
+            width:
+              typeof window !== "undefined" && window.innerWidth < 640
+                ? "100vw"
+                : `${drawerWidthPct}vw`,
             maxWidth: "100vw",
             minWidth: typeof window !== "undefined" && window.innerWidth < 640 ? "100vw" : "320px",
           }}
@@ -488,7 +538,10 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                 >
                   <Icon
                     name="sparkles"
-                    className={clsx("h-4 w-4", scanMutation.isPending && "animate-spin text-[#0532e6]")}
+                    className={clsx(
+                      "h-4 w-4",
+                      scanMutation.isPending && "animate-spin text-[#0532e6]",
+                    )}
                   />
                 </button>
 
@@ -593,7 +646,12 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden select-text cursor-auto">
               {/* Message List Area */}
               <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 app-custom-scroll overscroll-contain select-text flex flex-col">
-                <div className={clsx("w-full flex-1 flex flex-col", drawerWidthPct >= 65 && "max-w-3xl mx-auto")}>
+                <div
+                  className={clsx(
+                    "w-full flex-1 flex flex-col",
+                    drawerWidthPct >= 65 && "max-w-3xl mx-auto",
+                  )}
+                >
                   {/* Hero Greeting Center (when chat is new/empty - Exact Gemini Side Panel match) */}
                   {isInitialWelcome && (
                     <div className="flex-1 flex flex-col justify-between py-6 select-none min-h-[50vh]">
@@ -606,7 +664,8 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                           The mic is yours, {displayName}
                         </h2>
                         <p className="mt-2 text-xs text-slate-500 font-normal max-w-xs leading-relaxed">
-                          NSA AI sẵn sàng hỗ trợ điều phối lead, tra cứu số liệu CRM và giải quyết đơn học phí.
+                          NSA AI sẵn sàng hỗ trợ điều phối lead, tra cứu số liệu CRM và giải quyết
+                          đơn học phí.
                         </p>
                       </div>
 
@@ -738,7 +797,12 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                                       : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95",
                                   )}
                                 >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
                                     <path
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
@@ -766,7 +830,12 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                                       : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95",
                                   )}
                                 >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
                                     <path
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
@@ -790,12 +859,34 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                                   )}
                                 >
                                   {copiedId === msg.id ? (
-                                    <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" />
+                                    <svg
+                                      className="w-4 h-4 text-emerald-600"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2.2}
+                                        d="M5 13l4 4L19 7"
+                                      />
                                     </svg>
                                   ) : (
-                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                      <rect x="9" y="4" width="10" height="13" rx="2.5" strokeWidth="1.8" />
+                                    <svg
+                                      className="w-4 h-4"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                    >
+                                      <rect
+                                        x="9"
+                                        y="4"
+                                        width="10"
+                                        height="13"
+                                        rx="2.5"
+                                        strokeWidth="1.8"
+                                      />
                                       <path
                                         d="M6 8.5H5.5A2.5 2.5 0 003 11v6.5A2.5 2.5 0 005.5 20h6.5a2.5 2.5 0 002.5-2.5V17"
                                         strokeWidth="1.8"
@@ -852,7 +943,12 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                       )}
                     >
                       {/* Leading Action (Plus Trigger for Quick Prompts) */}
-                      <div className={clsx("flex items-center shrink-0", isMultiLine && "mb-0.5 sm:mb-1")}>
+                      <div
+                        className={clsx(
+                          "flex items-center shrink-0",
+                          isMultiLine && "mb-0.5 sm:mb-1",
+                        )}
+                      >
                         <button
                           type="button"
                           onClick={() => scanMutation.mutate()}
@@ -861,14 +957,29 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                           aria-label="Quét nhanh điểm nghẽn hệ thống"
                           className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-[#0532e6] transition active:scale-95 cursor-pointer"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 4v16m8-8H4"
+                            />
                           </svg>
                         </button>
                       </div>
 
                       {/* Textarea Area */}
-                      <div className={clsx("flex-1 min-w-0 px-2 flex items-center", isMultiLine && "py-1")}>
+                      <div
+                        className={clsx(
+                          "flex-1 min-w-0 px-2 flex items-center",
+                          isMultiLine && "py-1",
+                        )}
+                      >
                         <textarea
                           ref={composerRef}
                           value={chatInput}
@@ -888,7 +999,12 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                       </div>
 
                       {/* Trailing Actions (Stop / Send / Mic Button) */}
-                      <div className={clsx("flex items-center gap-1.5 shrink-0 pr-0.5", isMultiLine && "mb-0.5 sm:mb-1")}>
+                      <div
+                        className={clsx(
+                          "flex items-center gap-1.5 shrink-0 pr-0.5",
+                          isMultiLine && "mb-0.5 sm:mb-1",
+                        )}
+                      >
                         {chatMutation.isPending ? (
                           <button
                             type="button"
@@ -905,8 +1021,18 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                             aria-label="Gửi câu hỏi"
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0532e6] hover:bg-[#001258] text-white transition-all shadow-sm active:scale-95 cursor-pointer"
                           >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2.5}
+                                d="M5 10l7-7m0 0l7 7m-7-7v18"
+                              />
                             </svg>
                           </button>
                         ) : (
@@ -918,12 +1044,32 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 transition active:scale-95 cursor-pointer"
                           >
                             {isListening ? (
-                              <svg className="w-4 h-4 text-red-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                              <svg
+                                className="w-4 h-4 text-red-500 animate-pulse"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                                />
                               </svg>
                             ) : (
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                                />
                               </svg>
                             )}
                           </button>
@@ -1015,8 +1161,7 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
                           className="h-7 text-xs px-3 rounded-lg"
                           onClick={() => approveMutation.mutate(proposal.id)}
                           loading={
-                            approveMutation.isPending &&
-                            approveMutation.variables === proposal.id
+                            approveMutation.isPending && approveMutation.variables === proposal.id
                           }
                         >
                           Duyệt thực thi

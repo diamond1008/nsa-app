@@ -61,7 +61,7 @@ export function AIMarkdownContent({ content }: AIMarkdownContentProps) {
               {children}
             </a>
           ),
-          code: ({ children, ...props }: any) => (
+          code: ({ children, ...props }: React.ComponentPropsWithoutRef<"code">) => (
             <code
               className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[12px] text-pink-600 border border-slate-200/70 select-text break-all"
               {...props}
@@ -79,7 +79,9 @@ export function AIMarkdownContent({ content }: AIMarkdownContentProps) {
               </div>
               <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-50/80 border-t border-slate-100 text-[11px] text-slate-400 select-none">
                 <span>💡 Kéo thanh trượt hoặc vuốt ngang để xem đủ cột</span>
-                <span className="font-mono text-[10px] text-slate-500 font-semibold">↔ Cuộn bảng</span>
+                <span className="font-mono text-[10px] text-slate-500 font-semibold">
+                  ↔ Cuộn bảng
+                </span>
               </div>
             </div>
           ),
@@ -101,7 +103,9 @@ export function AIMarkdownContent({ content }: AIMarkdownContentProps) {
           ),
           td: ({ children }) => {
             const rawText = typeof children === "string" ? children.trim() : "";
-            const isPhone = /^(0[35789]\d{8}|\+84[35789]\d{8})$/.test(rawText.replace(/[\s\.-]/g, ""));
+            const isPhone = /^(0[35789]\d{8}|\+84[35789]\d{8})$/.test(
+              rawText.replace(/[\s.-]/g, ""),
+            );
             return (
               <td className="px-4 py-3 text-[12.5px] text-slate-800 select-text align-middle leading-normal whitespace-nowrap">
                 {isPhone ? (
