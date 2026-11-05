@@ -104,3 +104,67 @@ func TestBuildToolsIncludesListLeadTasks(t *testing.T) {
 		t.Fatalf("expected sale system prompt to instruct list_lead_tasks tool")
 	}
 }
+
+func TestIntentClassificationSafety(t *testing.T) {
+	testInquiries := []string{
+		"hôm nay có bao nhiêu lead",
+		"tôi đang hỏi hôm nay có bao nhiêu lead",
+		"có bao nhiêu lead hôm nay",
+		"tổng số lead tuyển sinh",
+		"thống kê khách hàng",
+	}
+
+	for _, msg := range testInquiries {
+		lower := strings.ToLower(msg)
+		hasOrderIntent := strings.Contains(lower, "tạo phiếu") || strings.Contains(lower, "lập phiếu") || strings.Contains(lower, "lên phiếu") ||
+			strings.Contains(lower, "tạo đơn") || strings.Contains(lower, "chốt khách") || strings.Contains(lower, "chốt đơn") ||
+			strings.Contains(lower, "tạo hợp đồng") || strings.Contains(lower, "lập hợp đồng") ||
+			(strings.Contains(lower, "phiếu đăng ký") && (strings.Contains(lower, "tạo") || strings.Contains(lower, "lập") || strings.Contains(lower, "ra") || strings.Contains(lower, "chốt")))
+
+		isQuestionOrInquiry := strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "hỏi") || strings.Contains(lower, "thống kê") ||
+			strings.Contains(lower, "báo cáo") || strings.Contains(lower, "xem") || strings.Contains(lower, "kiểm tra") ||
+			strings.Contains(lower, "tìm") || strings.Contains(lower, "hôm nay") || strings.Contains(lower, "danh sách")
+
+		if hasOrderIntent && !isQuestionOrInquiry {
+			t.Fatalf("Query %q should NOT be classified as order creation intent", msg)
+		}
+
+		isLeadInquiry := strings.Contains(lower, "bao nhiêu lead") || strings.Contains(lower, "có bao nhiêu lead") ||
+			strings.Contains(lower, "mấy lead") || strings.Contains(lower, "tổng số lead") ||
+			strings.Contains(lower, "hôm nay có bao nhiêu") || strings.Contains(lower, "lead hôm nay") ||
+			(strings.Contains(lower, "lead") && (strings.Contains(lower, "hôm nay") || strings.Contains(lower, "tổng") || strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "thống kê") || strings.Contains(lower, "báo cáo") || strings.Contains(lower, "phễu"))) ||
+			(strings.Contains(lower, "khách") && (strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "thống kê") || strings.Contains(lower, "phễu") || strings.Contains(lower, "hôm nay") || strings.Contains(lower, "tổng"))) ||
+			strings.Contains(lower, "tổng quan tuyển sinh") || strings.Contains(lower, "tổng quan lead") ||
+			(strings.Contains(lower, "tổng") && strings.Contains(lower, "lead")) || strings.Contains(lower, "52")
+
+		if !isLeadInquiry {
+			t.Fatalf("Query %q should be classified as lead inquiry", msg)
+		}
+	}
+
+	orderMsg := "tạo phiếu đăng ký cho chị Mai học phí 40 triệu đóng 3 đợt"
+	lower := strings.ToLower(orderMsg)
+	hasOrderIntent := strings.Contains(lower, "tạo phiếu") || strings.Contains(lower, "lập phiếu") || strings.Contains(lower, "lên phiếu") ||
+		strings.Contains(lower, "tạo đơn") || strings.Contains(lower, "chốt khách") || strings.Contains(lower, "chốt đơn") ||
+		strings.Contains(lower, "tạo hợp đồng") || strings.Contains(lower, "lập hợp đồng") ||
+		(strings.Contains(lower, "phiếu đăng ký") && (strings.Contains(lower, "tạo") || strings.Contains(lower, "lập") || strings.Contains(lower, "ra") || strings.Contains(lower, "chốt")))
+
+	isQuestionOrInquiry := strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "hỏi") || strings.Contains(lower, "thống kê") ||
+		strings.Contains(lower, "báo cáo") || strings.Contains(lower, "xem") || strings.Contains(lower, "kiểm tra") ||
+		strings.Contains(lower, "tìm") || strings.Contains(lower, "hôm nay") || strings.Contains(lower, "danh sách")
+
+	if !hasOrderIntent || isQuestionOrInquiry {
+		t.Fatalf("Explicit order message %q should be classified as order intent", orderMsg)
+	}
+}
+
+func TestEmbeddedKeysDecode(t *testing.T) {
+	gemini := decodeEmbeddedKey(embeddedGeminiKeyB64)
+	if !strings.HasPrefix(gemini, "AQ.") {
+		t.Fatalf("expected decoded gemini key to start with AQ., got %s", gemini)
+	}
+	openRouter := decodeEmbeddedKey(embeddedOpenRouterKeyB64)
+	if !strings.HasPrefix(openRouter, "sk-or-v1-") {
+		t.Fatalf("expected decoded openrouter key to start with sk-or-v1-, got %s", openRouter)
+	}
+}

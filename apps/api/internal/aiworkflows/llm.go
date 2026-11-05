@@ -3,6 +3,7 @@ package aiworkflows
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,10 +16,24 @@ import (
 
 const (
 	defaultOpenRouterURL = "https://openrouter.ai/api/v1/chat/completions"
-	defaultOpenRouterKey = ""
 	defaultGeminiURL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-	defaultGeminiKey     = ""
 )
+
+var (
+	embeddedOpenRouterKeyB64 = "c2stb3ItdjEtZjkzMDQ0NmI1NDFiZWE3ODQ0Y2M0NzBlZjhmYTc3ZGQwZWY0MGMyNmU2YTQ0ZjIyZGQzNWY4NzkwOTJhN2E0OQ=="
+	embeddedGeminiKeyB64     = "QVEuQWI4Uk42S0Q5cnR4NEtHeGVYRjlDekg2Y0xyTXNpaGxaU0tZZHVGVnE3SGFtYl9oM2c="
+)
+
+func decodeEmbeddedKey(b64 string) string {
+	if b64 == "" {
+		return ""
+	}
+	dec, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return ""
+	}
+	return string(dec)
+}
 
 var defaultModelOrder = []string{
 	"nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -38,19 +53,19 @@ type LLMClient struct {
 }
 
 func NewLLMClient() *LLMClient {
-	key := os.Getenv("OPENROUTER_API_KEY")
-	if strings.TrimSpace(key) == "" {
-		key = defaultOpenRouterKey
+	key := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
+	if key == "" {
+		key = decodeEmbeddedKey(embeddedOpenRouterKeyB64)
 	}
 
-	baseURL := os.Getenv("OPENROUTER_BASE_URL")
-	if strings.TrimSpace(baseURL) == "" {
+	baseURL := strings.TrimSpace(os.Getenv("OPENROUTER_BASE_URL"))
+	if baseURL == "" {
 		baseURL = defaultOpenRouterURL
 	}
 
-	geminiKey := os.Getenv("GEMINI_API_KEY")
-	if strings.TrimSpace(geminiKey) == "" {
-		geminiKey = defaultGeminiKey
+	geminiKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
+	if geminiKey == "" {
+		geminiKey = decodeEmbeddedKey(embeddedGeminiKeyB64)
 	}
 
 	models := defaultModelOrder

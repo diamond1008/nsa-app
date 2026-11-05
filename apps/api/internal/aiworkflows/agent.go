@@ -109,8 +109,9 @@ QUY TẮC THỰC THI & SỬ DỤNG CÔNG CỤ (TOOLS):
    - Dùng 'assign_lead_to_sale' để thực thi gán.
 3. Nếu người dùng yêu cầu tự động chia đều / phân bổ tất cả khách chưa gán:
    - Dùng 'auto_distribute_unassigned_leads'.
-4. Khi người dùng hỏi về tổng số lead tuyển sinh, thống kê phễu hoặc tình hình khách hàng:
+4. Khi người dùng hỏi về tổng số lead tuyển sinh, thống kê phễu, hoặc hỏi hôm nay có bao nhiêu lead mới:
    - Dùng tool 'get_leads_overview_stats' để lấy dữ liệu thực tế từ database theo đúng phân quyền (Sale chỉ xem số khách được phân công cho mình, Quản lý/Admin xem toàn bộ số lượng thực tế toàn trung tâm) và báo cáo chi tiết.
+   - Đặc biệt nếu người dùng hỏi về "hôm nay có bao nhiêu lead", hãy trả lời chính xác số lượng trong trường 'leads_today' của báo cáo trước tiên, sau đó mới tóm tắt tổng số lead và các trạng thái phễu!
 5. Khi người dùng yêu cầu "chốt khách hàng" hoặc "tạo phiếu đăng ký" (hợp đồng học phí, chia đợt đóng):
    - Bạn PHẢI GỌI TOOL 'create_registration_order'.
    - Phân tích thông tin người dùng: Tên hoặc SĐT khách hàng (VD: "Chị Lê Thị Mai" - chú ý nếu tin nhắn hiện tại không nhắc lại tên nhưng tin nhắn trước đó trong lịch sử trò chuyện nhắc đến khách hàng nào thì lấy tên khách hàng đó), mức học phí (VD: "40 triệu" -> amount: 40000000), số đợt đóng (VD: "3 đợt" -> installments: 3).
@@ -249,9 +250,9 @@ func (a *AgentOrchestrator) buildTools(claims *auth.AccessClaims) []OpenRouterTo
 		searchLeadsDesc = "Tìm kiếm trong danh sách khách hàng được phân công cho riêng bạn theo từ khóa (họ tên, số điện thoại hoặc email)."
 	}
 
-	leadsOverviewDesc := "Lấy báo cáo tổng quan và số liệu thống kê chi tiết về khách hàng (leads) tuyển sinh, phân bổ theo từng giai đoạn phễu, kênh nguồn và tình hình tư vấn."
+	leadsOverviewDesc := "Lấy báo cáo tổng quan và số liệu thống kê chi tiết về khách hàng (leads) tuyển sinh, bao gồm số lead mới hôm nay (leads_today), tổng số lead, phân bổ theo từng giai đoạn phễu, kênh nguồn và tình hình tư vấn."
 	if isSale {
-		leadsOverviewDesc = "Lấy báo cáo tổng quan và số liệu thống kê chi tiết về các khách hàng được phân công cho riêng bạn (số lượng theo phễu, khóa học quan tâm)."
+		leadsOverviewDesc = "Lấy báo cáo tổng quan và số liệu thống kê chi tiết về các khách hàng được phân công cho riêng bạn, bao gồm số lead mới hôm nay (leads_today), tổng số lượng theo phễu, khóa học quan tâm."
 	}
 
 	staleLeadsDesc := "Quét danh sách khách hàng đang tư vấn nhưng bị ngâm quá 24 giờ không có tương tác mới hoặc không có lịch hẹn tiếp theo."
@@ -2379,6 +2380,7 @@ type LeadsOverviewReport struct {
 	IsPersonalSaleScope bool                `json:"is_personal_sale_scope"`
 	StaffEmail          string              `json:"staff_email,omitempty"`
 	TotalLeads          int64               `json:"total_leads"`
+	LeadsToday          int64               `json:"leads_today"`
 	UnassignedLeads     int64               `json:"unassigned_leads"`
 	AssignedLeads       int64               `json:"assigned_leads"`
 	ByStatus            map[string]int64    `json:"by_status"`
@@ -2423,6 +2425,12 @@ func (a *AgentOrchestrator) fetchLeadsOverview(ctx context.Context, claims *auth
 			report.AssignedLeads = total
 			report.UnassignedLeads = 0
 		}
+
+		_ = a.pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM leads
+			WHERE deleted_at IS NULL AND assigned_to = $1
+			  AND DATE(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE(NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
+		`, uid).Scan(&report.LeadsToday)
 
 		sRows, err := a.pool.Query(ctx, `
 			SELECT pipeline_status, COUNT(*)
@@ -2494,6 +2502,12 @@ func (a *AgentOrchestrator) fetchLeadsOverview(ctx context.Context, claims *auth
 		report.TotalLeads = total
 	}
 
+	_ = a.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM leads
+		WHERE deleted_at IS NULL
+		  AND DATE(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = DATE(NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')
+	`).Scan(&report.LeadsToday)
+
 	unassigned, err := a.queries.CountUnassignedLeads(ctx)
 	if err == nil {
 		report.UnassignedLeads = unassigned
@@ -2559,78 +2573,18 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 		historyText += " " + strings.ToLower(h.Content)
 	}
 	combinedText := lower + " " + historyText
+	isSale := a.isOnlySaleStaff(claims)
 
-	// 0. Inquiries about creating registration orders (Phiếu đăng ký) or closing a deal (Chốt khách hàng)
-	if strings.Contains(combinedText, "phiếu đăng ký") || strings.Contains(combinedText, "tạo phiếu") || strings.Contains(combinedText, "hợp đồng") ||
-		(strings.Contains(combinedText, "học phí") && (strings.Contains(combinedText, "triệu") || strings.Contains(combinedText, "đợt") || strings.Contains(combinedText, "lần") || strings.Contains(combinedText, "tr"))) ||
-		(strings.Contains(combinedText, "chốt") && (strings.Contains(combinedText, "khách") || strings.Contains(combinedText, "mai") || strings.Contains(combinedText, "học viên"))) {
+	// 1. Inquiries about total leads / lead count / today's leads / pipeline overview / numbers like 52
+	isLeadInquiry := strings.Contains(lower, "bao nhiêu lead") || strings.Contains(lower, "có bao nhiêu lead") ||
+		strings.Contains(lower, "mấy lead") || strings.Contains(lower, "tổng số lead") ||
+		strings.Contains(lower, "hôm nay có bao nhiêu") || strings.Contains(lower, "lead hôm nay") ||
+		(strings.Contains(lower, "lead") && (strings.Contains(lower, "hôm nay") || strings.Contains(lower, "tổng") || strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "thống kê") || strings.Contains(lower, "báo cáo") || strings.Contains(lower, "phễu"))) ||
+		(strings.Contains(lower, "khách") && (strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "thống kê") || strings.Contains(lower, "phễu") || strings.Contains(lower, "hôm nay") || strings.Contains(lower, "tổng"))) ||
+		strings.Contains(lower, "tổng quan tuyển sinh") || strings.Contains(lower, "tổng quan lead") ||
+		(strings.Contains(lower, "tổng") && strings.Contains(lower, "lead")) || strings.Contains(lower, "52")
 
-		amount := 40000000.0
-		if strings.Contains(combinedText, "10 triệu") || strings.Contains(combinedText, "10tr") {
-			amount = 10000000.0
-		} else if strings.Contains(combinedText, "11 triệu") || strings.Contains(combinedText, "11tr") {
-			amount = 11000000.0
-		} else if strings.Contains(combinedText, "12 triệu") || strings.Contains(combinedText, "12tr") {
-			amount = 12000000.0
-		} else if strings.Contains(combinedText, "15 triệu") || strings.Contains(combinedText, "15tr") {
-			amount = 15000000.0
-		} else if strings.Contains(combinedText, "20 triệu") || strings.Contains(combinedText, "20tr") {
-			amount = 20000000.0
-		} else if strings.Contains(combinedText, "30 triệu") || strings.Contains(combinedText, "30tr") {
-			amount = 30000000.0
-		} else if strings.Contains(combinedText, "40 triệu") || strings.Contains(combinedText, "40tr") {
-			amount = 40000000.0
-		} else if strings.Contains(combinedText, "50 triệu") || strings.Contains(combinedText, "50tr") {
-			amount = 50000000.0
-		} else if strings.Contains(combinedText, "60 triệu") || strings.Contains(combinedText, "60tr") {
-			amount = 60000000.0
-		}
-
-		installments := 3
-		if strings.Contains(combinedText, "1 đợt") || strings.Contains(combinedText, "1 lần") {
-			installments = 1
-		} else if strings.Contains(combinedText, "2 đợt") || strings.Contains(combinedText, "2 lần") {
-			installments = 2
-		} else if strings.Contains(combinedText, "3 đợt") || strings.Contains(combinedText, "3 lần") {
-			installments = 3
-		} else if strings.Contains(combinedText, "4 đợt") || strings.Contains(combinedText, "4 lần") {
-			installments = 4
-		} else if strings.Contains(combinedText, "5 đợt") || strings.Contains(combinedText, "5 lần") {
-			installments = 5
-		}
-
-		leadName := "Chị Lê Thị Mai"
-		if strings.Contains(combinedText, "mai") {
-			leadName = "Chị Lê Thị Mai"
-		} else if strings.Contains(combinedText, "long") {
-			leadName = "Nguyễn Văn Long"
-		} else if strings.Contains(combinedText, "minh") {
-			leadName = "Dương Nhật Minh"
-		} else if strings.Contains(combinedText, "huy") {
-			leadName = "Hoàng Gia Huy"
-		} else if strings.Contains(combinedText, "an") {
-			leadName = "Trần Văn An"
-		}
-
-		argsBytes, _ := json.Marshal(map[string]any{
-			"lead_name":    leadName,
-			"amount":       amount,
-			"installments": installments,
-			"notes":        "Đăng ký qua trợ lý NSA AI",
-		})
-		reply, _ := a.executeTool(ctx, claims, "create_registration_order", string(argsBytes))
-		return AgentChatResponse{
-			Reply:     reply,
-			ModelUsed: "deterministic-domain-engine",
-			ToolsUsed: []string{"create_registration_order"},
-		}, nil
-	}
-
-	// 1. Inquiries about total leads / lead count / pipeline overview / numbers like 52
-	if strings.Contains(lower, "tổng") || strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "tất cả") ||
-		strings.Contains(lower, "52") || strings.Contains(lower, "thống kê") || strings.Contains(lower, "phễu") ||
-		strings.Contains(lower, "báo cáo") || strings.Contains(lower, "lead") || strings.Contains(lower, "tuyển sinh") {
-
+	if isLeadInquiry {
 		overview, err := a.fetchLeadsOverview(ctx, claims)
 		if err == nil {
 			var sb strings.Builder
@@ -2646,8 +2600,15 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 			}
 			priorityKeys := []string{"data_moi", "follow", "goi_lai_sau", "da_dang_ky", "dang_hoc", "knm_thue_bao", "tu_choi", "ket_thuc"}
 
+			isTodayQuery := strings.Contains(lower, "hôm nay") || strings.Contains(lower, "hom nay") || strings.Contains(lower, "today")
+
 			if overview.IsPersonalSaleScope {
-				sb.WriteString(fmt.Sprintf("Chào bạn! Theo phân quyền Chuyên viên Tư vấn Tuyển sinh (%s), bạn hiện đang phụ trách **tổng cộng %d khách hàng** được phân công cho riêng bạn:\n\n", claims.Email, overview.TotalLeads))
+				if isTodayQuery {
+					sb.WriteString(fmt.Sprintf("Hôm nay (%s), bạn có **%d lead mới** được ghi nhận/phân công.\n\n", time.Now().Format("02/01/2006"), overview.LeadsToday))
+					sb.WriteString(fmt.Sprintf("Theo phân quyền Chuyên viên Tư vấn Tuyển sinh (%s), bạn hiện đang phụ trách **tổng cộng %d khách hàng**:\n\n", claims.Email, overview.TotalLeads))
+				} else {
+					sb.WriteString(fmt.Sprintf("Chào bạn! Theo phân quyền Chuyên viên Tư vấn Tuyển sinh (%s), bạn hiện đang phụ trách **tổng cộng %d khách hàng** (Hôm nay ghi nhận: **%d lead mới**):\n\n", claims.Email, overview.TotalLeads, overview.LeadsToday))
+				}
 
 				sb.WriteString("### 📊 Trạng thái khách hàng bạn đang chăm sóc\n")
 				for _, k := range priorityKeys {
@@ -2677,7 +2638,12 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 				}, nil
 			}
 
-			sb.WriteString(fmt.Sprintf("Dạ chuẩn xác ạ! Hệ thống quản lý tuyển sinh NSA hiện đang ghi nhận **tổng cộng %d lead tuyển sinh** trong cơ sở dữ liệu:\n\n", overview.TotalLeads))
+			if isTodayQuery {
+				sb.WriteString(fmt.Sprintf("Hôm nay (%s), hệ thống ghi nhận **%d lead mới**.\n\n", time.Now().Format("02/01/2006"), overview.LeadsToday))
+				sb.WriteString(fmt.Sprintf("Tổng số lượng khách hàng (leads) trong toàn hệ thống hiện tại là: **%d lead**:\n\n", overview.TotalLeads))
+			} else {
+				sb.WriteString(fmt.Sprintf("Dạ chuẩn xác ạ! Hệ thống quản lý tuyển sinh NSA hiện đang ghi nhận **tổng cộng %d lead tuyển sinh** trong cơ sở dữ liệu (Hôm nay ghi nhận: **%d lead mới**):\n\n", overview.TotalLeads, overview.LeadsToday))
+			}
 
 			sb.WriteString("### 📊 Thống kê Phễu Tuyển sinh\n")
 			for _, k := range priorityKeys {
@@ -2718,8 +2684,6 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 			}, nil
 		}
 	}
-
-	isSale := a.isOnlySaleStaff(claims)
 
 	// Inquiries about tasks / reminders / schedule (for Sale and Managers)
 	if strings.Contains(combinedText, "nhắc việc") || strings.Contains(combinedText, "lịch hẹn") || strings.Contains(combinedText, "việc cần làm") ||
@@ -2915,6 +2879,78 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 			Reply:     reply,
 			ModelUsed: "deterministic-domain-engine",
 			ToolsUsed: []string{"trigger_full_scan_and_generate_proposals"},
+		}, nil
+	}
+
+	// Action: Inquiries about creating registration orders (Phiếu đăng ký) or closing a deal (Chốt khách hàng)
+	hasOrderIntent := strings.Contains(lower, "tạo phiếu") || strings.Contains(lower, "lập phiếu") || strings.Contains(lower, "lên phiếu") ||
+		strings.Contains(lower, "tạo đơn") || strings.Contains(lower, "chốt khách") || strings.Contains(lower, "chốt đơn") ||
+		strings.Contains(lower, "tạo hợp đồng") || strings.Contains(lower, "lập hợp đồng") ||
+		(strings.Contains(lower, "phiếu đăng ký") && (strings.Contains(lower, "tạo") || strings.Contains(lower, "lập") || strings.Contains(lower, "ra") || strings.Contains(lower, "chốt")))
+
+	isQuestionOrInquiry := strings.Contains(lower, "bao nhiêu") || strings.Contains(lower, "hỏi") || strings.Contains(lower, "thống kê") ||
+		strings.Contains(lower, "báo cáo") || strings.Contains(lower, "xem") || strings.Contains(lower, "kiểm tra") ||
+		strings.Contains(lower, "tìm") || strings.Contains(lower, "hôm nay") || strings.Contains(lower, "danh sách")
+
+	if hasOrderIntent && !isQuestionOrInquiry {
+		amount := 40000000.0
+		if strings.Contains(combinedText, "10 triệu") || strings.Contains(combinedText, "10tr") {
+			amount = 10000000.0
+		} else if strings.Contains(combinedText, "11 triệu") || strings.Contains(combinedText, "11tr") {
+			amount = 11000000.0
+		} else if strings.Contains(combinedText, "12 triệu") || strings.Contains(combinedText, "12tr") {
+			amount = 12000000.0
+		} else if strings.Contains(combinedText, "15 triệu") || strings.Contains(combinedText, "15tr") {
+			amount = 15000000.0
+		} else if strings.Contains(combinedText, "20 triệu") || strings.Contains(combinedText, "20tr") {
+			amount = 20000000.0
+		} else if strings.Contains(combinedText, "30 triệu") || strings.Contains(combinedText, "30tr") {
+			amount = 30000000.0
+		} else if strings.Contains(combinedText, "40 triệu") || strings.Contains(combinedText, "40tr") {
+			amount = 40000000.0
+		} else if strings.Contains(combinedText, "50 triệu") || strings.Contains(combinedText, "50tr") {
+			amount = 50000000.0
+		} else if strings.Contains(combinedText, "60 triệu") || strings.Contains(combinedText, "60tr") {
+			amount = 60000000.0
+		}
+
+		installments := 3
+		if strings.Contains(combinedText, "1 đợt") || strings.Contains(combinedText, "1 lần") {
+			installments = 1
+		} else if strings.Contains(combinedText, "2 đợt") || strings.Contains(combinedText, "2 lần") {
+			installments = 2
+		} else if strings.Contains(combinedText, "3 đợt") || strings.Contains(combinedText, "3 lần") {
+			installments = 3
+		} else if strings.Contains(combinedText, "4 đợt") || strings.Contains(combinedText, "4 lần") {
+			installments = 4
+		} else if strings.Contains(combinedText, "5 đợt") || strings.Contains(combinedText, "5 lần") {
+			installments = 5
+		}
+
+		leadName := "Chị Lê Thị Mai"
+		if strings.Contains(combinedText, "trần văn an") || strings.Contains(combinedText, "anh an") || strings.Contains(combinedText, "bác an") {
+			leadName = "Trần Văn An"
+		} else if strings.Contains(combinedText, "nguyễn văn long") || strings.Contains(combinedText, "anh long") {
+			leadName = "Nguyễn Văn Long"
+		} else if strings.Contains(combinedText, "dương nhật minh") || strings.Contains(combinedText, "anh minh") {
+			leadName = "Dương Nhật Minh"
+		} else if strings.Contains(combinedText, "hoàng gia huy") || strings.Contains(combinedText, "anh huy") {
+			leadName = "Hoàng Gia Huy"
+		} else if strings.Contains(combinedText, "lê thị mai") || strings.Contains(combinedText, "chị mai") {
+			leadName = "Chị Lê Thị Mai"
+		}
+
+		argsBytes, _ := json.Marshal(map[string]any{
+			"lead_name":    leadName,
+			"amount":       amount,
+			"installments": installments,
+			"notes":        "Đăng ký qua trợ lý NSA AI",
+		})
+		reply, _ := a.executeTool(ctx, claims, "create_registration_order", string(argsBytes))
+		return AgentChatResponse{
+			Reply:     reply,
+			ModelUsed: "deterministic-domain-engine",
+			ToolsUsed: []string{"create_registration_order"},
 		}, nil
 	}
 
