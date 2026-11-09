@@ -157,9 +157,9 @@ body {
   transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb,
-html:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb,
-body:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb {
+
+
+.is-scrolling::-webkit-scrollbar-thumb, .is-scrolling *::-webkit-scrollbar-thumb {
   background-color: rgba(148, 163, 184, 0.45) !important;
 }
 
@@ -174,7 +174,7 @@ body:hover:not(.no-scrollbar)::-webkit-scrollbar-thumb {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }
-  *:hover {
+  .is-scrolling {
     scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
   }
 }

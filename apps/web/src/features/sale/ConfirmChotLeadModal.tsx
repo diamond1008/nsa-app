@@ -32,20 +32,26 @@ export function ConfirmChotLeadModal({
   const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState(false);
   const [successResult, setSuccessResult] = useState<ConvertResult | null>(null);
+  const [countdown, setCountdown] = useState(4);
   const copyTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+  const wasOpenRef = useRef(false);
 
-  // Clean up copy timeout on unmount
+  // Clean up copy and countdown timeouts on unmount
   useEffect(() => {
     return () => {
       if (copyTimerRef.current !== null) {
         window.clearTimeout(copyTimerRef.current);
       }
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+      }
     };
   }, []);
 
-  // Initialize or reset form state whenever lead changes or modal opens
+  // Initialize form state ONLY when modal transitions from closed to open
   useEffect(() => {
-    if (open && lead) {
+    if (open && !wasOpenRef.current && lead) {
       setFullName(lead.full_name || "");
       setEmail(lead.email || "");
       setPhone(lead.phone || "");
@@ -54,8 +60,49 @@ export function ConfirmChotLeadModal({
       setFormError("");
       setCopied(false);
       setSuccessResult(null);
+      setCountdown(4);
     }
+    wasOpenRef.current = open;
   }, [open, lead]);
+
+  const handleDismissSuccess = () => {
+    if (countdownTimerRef.current !== null) {
+      window.clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (successResult) {
+      onSuccess(successResult);
+    }
+    onClose();
+  };
+
+  // Auto-close countdown when conversion succeeds
+  useEffect(() => {
+    if (!successResult) return;
+
+    setCountdown(4);
+    countdownTimerRef.current = window.setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownTimerRef.current !== null) {
+            window.clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+          }
+          onSuccess(successResult);
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
+  }, [successResult, onSuccess, onClose]);
 
   const convertMutation = useMutation({
     mutationFn: (data: { password?: string; email?: string; full_name?: string; phone?: string }) =>
@@ -136,47 +183,49 @@ export function ConfirmChotLeadModal({
 
   if (!open || !lead) return null;
 
-  // View: Success Screen after conversion
+  // View: Success Screen after conversion with celebration animation & auto-close
   if (successResult) {
     return (
       <Modal
         open={open}
-        title="Chốt học viên thành công!"
-        onClose={() => {
-          onSuccess(successResult);
-          onClose();
-        }}
-        className="max-w-xl"
+        title="Đăng ký & Chốt học viên thành công!"
+        onClose={handleDismissSuccess}
+        className="max-w-lg"
       >
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-5 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md">
-              <Icon name="check" className="h-8 w-8" />
+        <div className="space-y-4 py-1 animate-in fade-in zoom-in-95 duration-200">
+          {/* Animated Celebration Icon Header */}
+          <div className="text-center pt-2">
+            <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-emerald-400/25 animate-ping duration-1000" />
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xl shadow-emerald-600/30">
+                <Icon name="check" className="h-9 w-9 stroke-[3]" />
+              </div>
             </div>
-            <h3 className="mt-3 text-lg font-bold text-emerald-950">
-              Đã chuyển đổi thành Học viên chính thức!
+            <h3 className="mt-3 text-lg font-extrabold text-slate-900">
+              🎉 Đăng ký học viên thành công!
             </h3>
-            <p className="mt-1 text-xs text-emerald-800">
+            <p className="mt-1 text-xs text-slate-500">
               Hồ sơ học viên và tài khoản đăng nhập đã được khởi tạo thành công trên hệ thống.
             </p>
+          </div>
 
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-3.5 text-center">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gtext">
-                Mã học viên được cấp
-              </span>
-              <p className="font-mono text-xl font-bold text-navy mt-0.5">
-                {successResult.student_code}
-              </p>
-              <p className="text-xs text-slate-600 mt-0.5 font-medium">{fullName}</p>
-            </div>
+          {/* Student Code Badge */}
+          <div className="rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 text-center shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800">
+              Mã học viên chính thức
+            </span>
+            <p className="font-mono text-2xl font-black text-emerald-700 tracking-wide mt-0.5">
+              {successResult.student_code}
+            </p>
+            <p className="text-xs text-slate-600 font-semibold mt-0.5">{fullName}</p>
           </div>
 
           {/* Account Credentials Box */}
-          <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4">
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-blue-200/70">
               <span className="text-xs font-bold text-navy flex items-center gap-1.5">
                 <Icon name="lock" className="h-4 w-4 text-[#0532e6]" />
-                Thông tin tài khoản đăng nhập của Học viên
+                Tài khoản đăng nhập của Học viên
               </span>
               <button
                 type="button"
@@ -184,48 +233,41 @@ export function ConfirmChotLeadModal({
                 className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer active:scale-95"
               >
                 <Icon name="check" className="h-3.5 w-3.5" />
-                {copied ? "Đã copy!" : "Sao chép thông tin"}
+                {copied ? "✓ Đã copy!" : "Sao chép"}
               </button>
             </div>
 
             <div className="space-y-2 text-xs text-slate-700">
-              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-blue-100">
-                <span className="text-slate-500">Tên đăng nhập (Email):</span>
-                <strong className="text-navy font-mono text-xs">{email}</strong>
+              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-blue-100 shadow-2xs">
+                <span className="text-slate-500 font-medium">Tên đăng nhập (Email):</span>
+                <strong className="text-[#0532e6] font-mono">{email}</strong>
               </div>
-              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-blue-100">
-                <span className="text-slate-500">Mật khẩu khởi tạo:</span>
-                <span className="font-mono font-bold text-emerald-700 text-xs">
+              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-blue-100 shadow-2xs">
+                <span className="text-slate-500 font-medium">Mật khẩu khởi tạo:</span>
+                <span className="font-mono font-bold text-emerald-700">
                   {successResult.initial_password || password}
                 </span>
-              </div>
-              <div className="text-[11px] text-slate-500 pt-1 italic">
-                * Học viên sẽ được yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.
               </div>
             </div>
           </div>
 
-          {/* Next Step Guidance Note */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 flex items-start gap-2">
-            <Icon name="info" className="h-4 w-4 text-[#0532e6] shrink-0 mt-0.5" />
-            <p className="leading-relaxed">
-              <strong>Bước tiếp theo:</strong> Để ghi danh vào lớp học, thu học phí hoặc áp dụng ưu
-              đãi, bạn có thể vào mục <strong className="text-navy">Phiếu đăng ký</strong>{" "}
-              (/sale/phieu-dang-ky) để tạo phiếu đăng ký cho học viên này bất kỳ lúc nào.
-            </p>
-          </div>
+          {/* Auto-closing Countdown & Quick Dismiss */}
+          <div className="p-3 rounded-2xl bg-slate-100/90 border border-slate-200 flex items-center justify-between text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <span>Tự động đóng popup sau <b>{countdown}s</b>...</span>
+            </div>
 
-          <div className="flex justify-end pt-3 border-t border-gborder">
             <Button
               type="button"
               variant="primary"
-              className="px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => {
-                onSuccess(successResult);
-                onClose();
-              }}
+              className="h-8 px-4 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+              onClick={handleDismissSuccess}
             >
-              Hoàn tất & Xem hồ sơ học viên
+              Đóng popup ngay
             </Button>
           </div>
         </div>

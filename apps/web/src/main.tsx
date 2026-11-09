@@ -7,6 +7,35 @@ import { AuthProvider } from "./features/auth/AuthContext";
 import { router } from "./routes/router";
 import "./index.css";
 
+// Auto-show scrollbar only when actively scrolling (wheel/touch), fade out when idle
+if (typeof window !== "undefined") {
+  const scrollTimeouts = new WeakMap<HTMLElement, number>();
+
+  window.addEventListener(
+    "scroll",
+    (event) => {
+      const target = event.target as HTMLElement | Document;
+      const el = target === document ? document.documentElement : (target as HTMLElement);
+      if (!el || !el.classList) return;
+
+      el.classList.add("is-scrolling");
+
+      const existing = scrollTimeouts.get(el);
+      if (existing) {
+        window.clearTimeout(existing);
+      }
+
+      const timer = window.setTimeout(() => {
+        el.classList.remove("is-scrolling");
+        scrollTimeouts.delete(el);
+      }, 850);
+
+      scrollTimeouts.set(el, timer);
+    },
+    { capture: true, passive: true },
+  );
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

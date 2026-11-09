@@ -391,47 +391,47 @@ export function CreateReceiptModal({
 
               {/* Dynamic Amount Input & Realtime Calculation Feedback */}
               <div className="space-y-2 border-t border-slate-200 pt-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-800">
-                    Số tiền thực tế thu đợt này (VNĐ) <span className="text-red-500">*</span>
-                  </label>
-                  <span className="font-mono text-xs text-slate-500">
-                    Mã phiếu dự kiến: <b className="text-slate-800">{expectedReceiptCode}</b>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <CurrencyInput
-                      value={amountToCollect}
-                      onChange={setAmountToCollect}
-                      placeholder="Nhập số tiền thu thực tế..."
-                      error={isOverpaying ? "Số tiền vượt quá số tiền còn lại cần nộp" : undefined}
-                      suffix="VNĐ"
-                      required
-                    />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <label className="block text-xs font-semibold text-slate-800">
+                      Số tiền thực tế thu đợt này (VNĐ) <span className="text-red-500">*</span>
+                    </label>
+                    <span className="font-mono text-[11px] text-slate-400">
+                      ({expectedReceiptCode})
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0 self-start">
+
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setAmountToCollect(remainingBefore)}
-                      className="px-2.5 h-10 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition-colors whitespace-nowrap shadow-2xs cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-semibold hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
                       title="Thu toàn bộ số tiền còn nợ"
                     >
-                      Thu full ({formatVND(remainingBefore)})
+                      ⚡ Thu full ({formatVND(remainingBefore)})
                     </button>
-                    {currentInstallment &&
-                      currentInstallment.amount < remainingBefore && (
-                        <button
-                          type="button"
-                          onClick={() => setAmountToCollect(currentInstallment.amount)}
-                          className="px-2.5 h-10 rounded-xl border border-blue-200 bg-blue-50 text-[#0532e6] text-xs font-semibold hover:bg-blue-100 transition-colors whitespace-nowrap shadow-2xs cursor-pointer"
-                          title="Thu theo số tiền dự kiến của đợt này"
-                        >
-                          Theo đợt ({formatVND(currentInstallment.amount)})
-                        </button>
-                      )}
+                    {currentInstallment && currentInstallment.amount < remainingBefore && (
+                      <button
+                        type="button"
+                        onClick={() => setAmountToCollect(currentInstallment.amount)}
+                        className="px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 text-[#0532e6] text-[11px] font-semibold hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
+                        title="Thu theo số tiền dự kiến của đợt này"
+                      >
+                        📋 Theo đợt ({formatVND(currentInstallment.amount)})
+                      </button>
+                    )}
                   </div>
+                </div>
+
+                <div className="w-full">
+                  <CurrencyInput
+                    value={amountToCollect}
+                    onChange={setAmountToCollect}
+                    placeholder="Nhập số tiền thu thực tế..."
+                    error={isOverpaying ? "Số tiền vượt quá số tiền còn lại cần nộp" : undefined}
+                    suffix="VNĐ"
+                    required
+                  />
                 </div>
 
                 {/* Overpayment Error Alert */}
