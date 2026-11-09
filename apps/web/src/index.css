@@ -114,12 +114,12 @@ body {
   transition: background-color 0.35s ease;
 }
 
-.app-custom-scroll.is-scrolling::-webkit-scrollbar-thumb,
-.app-custom-scroll:hover::-webkit-scrollbar-thumb {
+.app-custom-scroll.is-scrolling::-webkit-scrollbar-thumb {
+
   background-color: rgba(100, 116, 139, 0.65) !important;
 }
 
-.app-custom-scroll::-webkit-scrollbar-thumb:hover {
+.app-custom-scroll.is-scrolling::-webkit-scrollbar-thumb:hover {
   background-color: rgba(51, 65, 85, 0.9) !important;
 }
 
@@ -128,8 +128,8 @@ body {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }
-  .app-custom-scroll.is-scrolling,
-  .app-custom-scroll:hover {
+  .app-custom-scroll.is-scrolling {
+
     scrollbar-color: rgba(100, 116, 139, 0.65) transparent;
   }
 }
@@ -159,13 +159,14 @@ body {
 
 
 
-.is-scrolling::-webkit-scrollbar-thumb, .is-scrolling *::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.45) !important;
+.is-scrolling::-webkit-scrollbar-thumb,
+.is-scrolling *::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.7) !important;
 }
 
-::-webkit-scrollbar-thumb:hover,
-*::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 116, 139, 0.85) !important;
+.is-scrolling::-webkit-scrollbar-thumb:hover,
+.is-scrolling *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(51, 65, 85, 0.9) !important;
 }
 
 /* Firefox only: standard scrollbar rules without disabling WebKit custom scrollbars */
@@ -175,7 +176,7 @@ body {
     scrollbar-color: transparent transparent;
   }
   .is-scrolling {
-    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+    scrollbar-color: rgba(100, 116, 139, 0.7) transparent;
   }
 }
 

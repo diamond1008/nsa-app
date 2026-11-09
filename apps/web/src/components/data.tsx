@@ -84,8 +84,8 @@ export function DataTable<T extends { id: string }>({
   onSort,
   rowClassName,
   onRowClick,
-  stickyHeader = false,
-  stickyHeaderOffset = 0,
+  stickyHeader = true,
+  stickyHeaderOffset,
 }: {
   items: T[];
   columns: Column<T>[];
@@ -96,6 +96,11 @@ export function DataTable<T extends { id: string }>({
   stickyHeader?: boolean;
   stickyHeaderOffset?: number;
 }) {
+  const theadTop =
+    stickyHeaderOffset !== undefined
+      ? `${stickyHeaderOffset}px`
+      : "var(--nsa-sticky-header-offset, 0px)";
+
   return (
     <Card className={clsx(stickyHeader ? "overflow-visible" : "overflow-hidden", "p-0")}>
       <div className="divide-y divide-white/70 md:hidden">
@@ -146,7 +151,7 @@ export function DataTable<T extends { id: string }>({
                 ? "sticky z-10"
                 : "sticky top-0 z-10 bg-white/75 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-md",
             )}
-            style={stickyHeader ? { top: `${stickyHeaderOffset}px` } : undefined}
+            style={stickyHeader ? { top: theadTop } : undefined}
           >
             <tr>
               {columns.map((column, colIdx) => (
@@ -163,7 +168,7 @@ export function DataTable<T extends { id: string }>({
                     stickyHeader
                       ? {
                           position: "sticky",
-                          top: `${stickyHeaderOffset}px`,
+                          top: theadTop,
                           zIndex: 15,
                         }
                       : undefined

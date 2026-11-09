@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 
 import { Icon } from "../../components/icons";
-import { Button, Card, Spinner, Textarea } from "../../components/ui";
+import { Button, Card, PageHeader, Spinner, Textarea } from "../../components/ui";
 import { formatDateTime } from "../../lib/format";
 import type {
   AIProposalPriority,
@@ -73,36 +73,24 @@ export function AIWorkflowHubPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0532e6]/10 text-[#0532e6]">
-              <Icon name="sparkles" className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-navy-heading md:text-2xl">
-                Điều phối Quy trình Thông minh
-              </h1>
-              <p className="text-xs text-gtext md:text-sm">
-                Tự động phát hiện điểm nghẽn, đề xuất giải pháp chuẩn SOP và phê duyệt thực thi
-                1-chạm
-              </p>
-            </div>
+      <PageHeader
+        title="Điều phối Quy trình Thông minh"
+        eyebrow="Trợ lý Quy trình AI"
+        subtitle="Tự động phát hiện điểm nghẽn, đề xuất giải pháp chuẩn SOP và phê duyệt thực thi 1-chạm"
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="primary"
+              onClick={() => scanMutation.mutate()}
+              loading={scanMutation.isPending}
+              className="shadow-md hover:shadow-lg transition-all"
+            >
+              <Icon name="sparkles" className="h-4 w-4" />
+              Quét điểm nghẽn ngay
+            </Button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="primary"
-            onClick={() => scanMutation.mutate()}
-            loading={scanMutation.isPending}
-            className="shadow-md hover:shadow-lg transition-all"
-          >
-            <Icon name="sparkles" className="h-4 w-4" />
-            Quét điểm nghẽn ngay
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Success Notification Banner */}
       {successBanner && (

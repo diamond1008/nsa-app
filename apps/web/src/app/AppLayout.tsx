@@ -5,6 +5,7 @@ import clsx from "clsx";
 
 import { Icon } from "../components/icons";
 import type { IconName } from "../components/icons";
+import { HeaderUtilitiesContext } from "../components/ui";
 import { useAuth } from "../features/auth/AuthContext";
 import { notificationApi } from "../features/notifications/notificationApi";
 import { aiWorkflowApi } from "../features/ai-workflows/aiWorkflowApi";
@@ -336,7 +337,7 @@ export default function AppLayout() {
     refetchInterval: 60_000,
   });
 
-  const handleToggleNotifications = () => {
+  const handleToggleNotifications = useCallback(() => {
     setNotificationsOpen((prev) => {
       const next = !prev;
       if (next && notifications.data?.items) {
@@ -359,12 +360,111 @@ export default function AppLayout() {
       }
       return next;
     });
-  };
+  }, [notifications.data, queryClient]);
 
   const markRead = useMutation({
     mutationFn: (id: string) => notificationApi.markRead(id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
+
+  const [hasPageHeader, setHasPageHeader] = useState(false);
+  const pageHeaderCountRef = useRef(0);
+  const onPageHeaderMount = useCallback(() => {
+    pageHeaderCountRef.current++;
+    setHasPageHeader(true);
+    return () => {
+      pageHeaderCountRef.current = Math.max(0, pageHeaderCountRef.current - 1);
+      if (pageHeaderCountRef.current === 0) {
+        setHasPageHeader(false);
+      }
+    };
+  }, []);
+
+  const renderGlobalUtilities = useCallback(
+    () => (
+      <div className="flex items-center gap-2 shrink-0">
+        {canAccessAI && (
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-[#0532e6] transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-[#0532e6] shadow-2xs cursor-pointer"
+              aria-label="Trợ lý NSA AI"
+              title="Mở trợ lý NSA AI"
+              onClick={() => setAiDrawerOpen(true)}
+            >
+              <GeminiSparkleStar className="h-5 w-5" />
+              {!!aiSummary.data?.pending_total && (
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0532e6] px-1 text-[9px] font-bold text-white shadow-2xs">
+                  {Math.min(aiSummary.data.pending_total, 99)}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+        <div className="relative shrink-0" ref={notificationRef}>
+          <button
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-navy/80 transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-navy shadow-2xs"
+            aria-label="Thông báo"
+            aria-expanded={notificationsOpen}
+            onClick={handleToggleNotifications}
+          >
+            <Icon name="bell" className="h-5 w-5" />
+            {!!notifications.data?.unread && (
+              <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[9px] font-bold text-white shadow-2xs">
+                {Math.min(notifications.data.unread, 99)}
+              </span>
+            )}
+          </button>
+          {notificationsOpen && (
+            <div className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/90 bg-white/85 backdrop-blur-3xl shadow-elevated animate-in fade-in zoom-in-95 duration-150">
+              <div className="border-b border-white/70 bg-white/40 px-4 py-3">
+                <b className="text-sm text-navy">Thông báo</b>
+                <p className="text-xs text-gtext">
+                  {notifications.data?.unread ?? 0} chưa đọc
+                </p>
+              </div>
+              <div className="max-h-[26rem] overflow-y-auto">
+                {notifications.data?.items.map((item) => (
+                  <button
+                    key={item.id}
+                    className={clsx(
+                      "block w-full border-b border-white/60 px-4 py-3 text-left hover:bg-white/60 transition-colors",
+                      item.status === "unread" && "bg-[#0532e6]/10",
+                    )}
+                    onClick={() => {
+                      if (item.status === "unread") markRead.mutate(item.id);
+                      setNotificationsOpen(false);
+                      if (item.action_url?.startsWith("/")) navigate(item.action_url);
+                    }}
+                  >
+                    <span className="block text-sm font-semibold text-navy">
+                      {item.title}
+                    </span>
+                    <span className="mt-1 block text-xs text-gtext">{item.message}</span>
+                    <span className="mt-1 block text-[10px] text-gtext">
+                      {formatDateTime(item.created_at)}
+                    </span>
+                  </button>
+                ))}
+                {!notifications.data?.items.length && (
+                  <p className="p-6 text-center text-sm text-gtext">Chưa có thông báo.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    ),
+    [
+      canAccessAI,
+      aiSummary.data,
+      notifications.data,
+      notificationsOpen,
+      handleToggleNotifications,
+      markRead,
+      navigate,
+    ],
+  );
   const location = useLocation();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
@@ -886,7 +986,10 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="relative flex h-dvh w-full max-w-full overflow-hidden bg-[#f8fafc] select-none">
+    <HeaderUtilitiesContext.Provider
+      value={{ renderGlobalUtilities, openMobileMenu, onPageHeaderMount }}
+    >
+      <div className="relative flex h-dvh w-full max-w-full overflow-hidden bg-[#f8fafc] select-none">
       {/* Soft ambient lighting halos matching oceanic blue theme */}
       <div className="pointer-events-none fixed -top-32 -left-32 h-[560px] w-[560px] rounded-full bg-[#0532e6]/10 blur-[140px]" />
       <div className="pointer-events-none fixed top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-[#0ea5e9]/12 blur-[150px]" />
@@ -932,86 +1035,19 @@ export default function AppLayout() {
           className="min-h-0 flex-1 overflow-y-auto app-custom-scroll"
         >
           <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 lg:p-8">
-            <div className="flex items-center justify-between pb-3 gap-3">
-              <button
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all"
-                aria-label="Mở menu"
-                onClick={openMobileMenu}
-              >
-                <Icon name="menu" />
-              </button>
-              <div id="app-top-header-slot" className="flex items-center gap-3 min-w-0 flex-1" />
-              {canAccessAI && (
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-[#0532e6] transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-[#0532e6] shadow-2xs cursor-pointer"
-                    aria-label="Trợ lý NSA AI"
-                    title="Mở trợ lý NSA AI"
-                    onClick={() => setAiDrawerOpen(true)}
-                  >
-                    <GeminiSparkleStar className="h-5 w-5" />
-                    {!!aiSummary.data?.pending_total && (
-                      <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0532e6] px-1 text-[9px] font-bold text-white shadow-2xs">
-                        {Math.min(aiSummary.data.pending_total, 99)}
-                      </span>
-                    )}
-                  </button>
-                </div>
-              )}
-              <div className="relative shrink-0" ref={notificationRef}>
+            {!hasPageHeader && (
+              <div className="flex items-center justify-between pb-3 gap-3">
                 <button
-                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/60 backdrop-blur-md text-navy/80 transition-all hover:bg-white/85 active:scale-90 active:bg-white/95 hover:text-navy shadow-2xs"
-                  aria-label="Thông báo"
-                  aria-expanded={notificationsOpen}
-                  onClick={handleToggleNotifications}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all"
+                  aria-label="Mở menu"
+                  onClick={openMobileMenu}
                 >
-                  <Icon name="bell" className="h-5 w-5" />
-                  {!!notifications.data?.unread && (
-                    <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[9px] font-bold text-white shadow-2xs">
-                      {Math.min(notifications.data.unread, 99)}
-                    </span>
-                  )}
+                  <Icon name="menu" />
                 </button>
-                {notificationsOpen && (
-                  <div className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/90 bg-white/85 backdrop-blur-3xl shadow-elevated animate-in fade-in zoom-in-95 duration-150">
-                    <div className="border-b border-white/70 bg-white/40 px-4 py-3">
-                      <b className="text-sm text-navy">Thông báo</b>
-                      <p className="text-xs text-gtext">
-                        {notifications.data?.unread ?? 0} chưa đọc
-                      </p>
-                    </div>
-                    <div className="max-h-[26rem] overflow-y-auto">
-                      {notifications.data?.items.map((item) => (
-                        <button
-                          key={item.id}
-                          className={clsx(
-                            "block w-full border-b border-white/60 px-4 py-3 text-left hover:bg-white/60 transition-colors",
-                            item.status === "unread" && "bg-[#0532e6]/10",
-                          )}
-                          onClick={() => {
-                            if (item.status === "unread") markRead.mutate(item.id);
-                            setNotificationsOpen(false);
-                            if (item.action_url?.startsWith("/")) navigate(item.action_url);
-                          }}
-                        >
-                          <span className="block text-sm font-semibold text-navy">
-                            {item.title}
-                          </span>
-                          <span className="mt-1 block text-xs text-gtext">{item.message}</span>
-                          <span className="mt-1 block text-[10px] text-gtext">
-                            {formatDateTime(item.created_at)}
-                          </span>
-                        </button>
-                      ))}
-                      {!notifications.data?.items.length && (
-                        <p className="p-6 text-center text-sm text-gtext">Chưa có thông báo.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div id="app-top-header-slot" className="flex items-center gap-3 min-w-0 flex-1" />
+                {renderGlobalUtilities()}
               </div>
-            </div>
+            )}
             <Outlet />
           </div>
         </main>
@@ -1020,5 +1056,6 @@ export default function AppLayout() {
         <AIWorkflowDrawer isOpen={aiDrawerOpen} onClose={() => setAiDrawerOpen(false)} />
       )}
     </div>
+    </HeaderUtilitiesContext.Provider>
   );
 }

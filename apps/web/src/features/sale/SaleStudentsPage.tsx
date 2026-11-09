@@ -204,7 +204,7 @@ export function SaleStudentsPage() {
         empty={!studentsQuery.isLoading && items.length === 0}
         emptyTitle="Chưa có học viên nào"
       >
-        <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
+        <div className="overflow-visible rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
           <DataTable
             items={items}
             columns={columns}

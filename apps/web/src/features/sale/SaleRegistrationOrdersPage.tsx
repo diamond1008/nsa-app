@@ -411,7 +411,7 @@ export function SaleRegistrationOrdersPage() {
         empty={!ordersQuery.isLoading && items.length === 0}
         emptyTitle="Chưa có phiếu đăng ký nào"
       >
-        <div className="overflow-hidden rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
+        <div className="overflow-visible rounded-2xl border border-white/60 bg-white/65 backdrop-blur-2xl shadow-[0_4px_24px_rgba(7,20,38,0.04)]">
           <DataTable items={items} columns={columns} />
           {totalPages > 1 && (
             <div className="border-t border-slate-200/80 px-4 py-3 bg-white/40">

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useId, useState } from "react";
+import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import clsx from "clsx";
 
@@ -52,20 +52,57 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
     advancedFilterCount = 0,
     searchPlaceholder = "Nhập mã, tên hoặc email…",
     className,
-    sticky = false,
+    sticky = true,
     compact = false,
   },
   ref,
 ) {
+  const internalRef = useRef<HTMLElement | null>(null);
   const advancedId = useId();
   const [advancedOpen, setAdvancedOpen] = useState(advancedFilterCount > 0);
+
   useEffect(() => {
     if (advancedFilterCount > 0) setAdvancedOpen(true);
   }, [advancedFilterCount]);
+
+  useEffect(() => {
+    if (!sticky) return;
+    const el = internalRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.height > 0) {
+        document.documentElement.style.setProperty(
+          "--nsa-sticky-header-offset",
+          `${Math.round(rect.height)}px`,
+        );
+      }
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.setProperty("--nsa-sticky-header-offset", "0px");
+    };
+  }, [sticky]);
+
   const hasFilters = Boolean(search.trim()) || activeFilters.length > 0;
   return (
     <section
-      ref={ref}
+      ref={(node) => {
+        internalRef.current = node;
+        if (typeof ref === "function") {
+          ref(node);
+        } else if (ref) {
+          (ref as React.MutableRefObject<HTMLElement | null>).current = node;
+        }
+      }}
       className={clsx(
         "rounded-2xl border border-white/85 bg-white/70 backdrop-blur-xl shadow-card transition-all",
         compact ? "p-3 mb-3" : "p-4 mb-5",

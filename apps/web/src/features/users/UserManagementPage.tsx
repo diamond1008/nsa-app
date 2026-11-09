@@ -10,6 +10,7 @@ import {
   ErrorBanner,
   Input,
   Modal,
+  PageHeader,
   Select,
   SuccessBanner,
   Textarea,
@@ -669,29 +670,27 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
       {actionSuccess && <SuccessBanner message={actionSuccess} />}
       {actionError && <ErrorBanner message={actionError} />}
 
-      {/* Header Card */}
-      <Card className="p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-navy-heading tracking-tight">{pageTitle}</h1>
-            <p className="mt-1 text-sm text-gtext">{pageSubtitle}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
-              onClick={() => {
-                setActionError(null);
-                setIsCreateOpen(true);
-              }}
-            >
-              <Icon name="plus" className="h-4 w-4" />
-              Thêm tài khoản mới
-            </Button>
-          </div>
-        </div>
+      {/* Page Header */}
+      <PageHeader
+        title={pageTitle}
+        subtitle={pageSubtitle}
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => {
+              setActionError(null);
+              setIsCreateOpen(true);
+            }}
+          >
+            <Icon name="plus" className="h-4 w-4" />
+            Thêm tài khoản mới
+          </Button>
+        }
+      />
 
-        {/* Filters */}
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Sticky Filters Bar */}
+      <section className="sticky top-0 z-20 rounded-2xl border border-white/85 bg-white/85 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-4 mb-4 transition-all">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
           <Input
             label="Tìm kiếm"
             placeholder="Email, họ tên, mã số..."
@@ -735,11 +734,11 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
           </Select>
 
           {isSaleMode && (
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-navy-heading">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-navy-heading">
                 Nhận Lead tự động
               </label>
-              <div className="flex h-11 items-center justify-between rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/60 to-indigo-50/30 px-3.5 shadow-2xs">
+              <div className="flex h-10 items-center justify-between rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/60 to-indigo-50/30 px-3.5 shadow-2xs">
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   Đang nhận
@@ -754,16 +753,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
             </div>
           )}
 
-          <div className="space-y-2">
-            <label
-              className="block text-sm font-semibold text-transparent select-none pointer-events-none"
-              aria-hidden="true"
-            >
-              &nbsp;
-            </label>
+          <div>
             <Button
               variant="ghost"
-              className="w-full h-11"
+              className="w-full h-10 text-xs"
               onClick={() => {
                 setSearch("");
                 setSelectedRole(isSaleMode ? "SALE" : "");
@@ -775,19 +768,19 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
             </Button>
           </div>
         </div>
-      </Card>
+      </section>
 
       {/* Users Table */}
-      <Card className="overflow-hidden p-0">
+      <Card className="overflow-visible p-0 shadow-card border-white/80">
         <QueryState
           loading={usersQuery.isLoading}
           error={usersQuery.error}
           empty={!usersQuery.data?.items || usersQuery.data.items.length === 0}
           emptyTitle="Chưa có tài khoản nào"
         >
-          <div className="overflow-x-auto">
+          <div className="overflow-visible">
             <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-white/75 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-md">
+              <thead className="sticky top-[76px] z-10 bg-white/95 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-xl shadow-xs">
                 <tr>
                   <th className="w-12 border-b border-white/70 px-3 py-3.5 text-center font-bold">
                     STT
