@@ -260,14 +260,9 @@ export function CreateRegistrationOrderModal({
         {/* Payment Policy / Installments Selection */}
         <div className="space-y-3 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-slate-800">
-                Chính sách đóng học phí (Số đợt thanh toán) <span className="text-red-500">*</span>
-              </label>
-              <span className="text-[11px] font-bold text-[#0532e6]">
-                Đang chọn: {installmentPlan} đợt {installmentPlan === 1 ? "(Thanh toán full 100%)" : ""}
-              </span>
-            </div>
+            <label className="block text-xs font-semibold text-slate-800 mb-2">
+              Chính sách đóng học phí (Số đợt thanh toán) <span className="text-red-500">*</span>
+            </label>
             <InstallmentPlanPicker value={installmentPlan} onChange={setInstallmentPlan} />
             {installmentPlan === 1 && (
               <div className="mt-2 text-[11px] text-blue-800 bg-blue-50/90 border border-blue-200/80 rounded-lg p-2 flex items-center gap-1.5">

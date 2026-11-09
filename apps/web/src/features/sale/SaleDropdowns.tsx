@@ -5,7 +5,7 @@ import { Icon } from "../../components/icons";
 import type { Lead, Order } from "../../lib/domainTypes";
 import { formatDate } from "../../lib/format";
 import { formatVND } from "./saleShared";
-import { INSTALLMENT_PLANS, parseOrderInstallmentPlan } from "./installmentUtils";
+import { parseOrderInstallmentPlan } from "./installmentUtils";
 
 // --- Hook for fixed dropdown positioning (safe inside scrollable modals) ---
 function useDropdownPosition(
@@ -609,7 +609,7 @@ export function StudentSelectorDropdown({
 }
 
 // ============================================================================
-// 3. INSTALLMENT PLAN PICKER (Interactive segment / pill cards)
+// 3. INSTALLMENT PLAN PICKER (Tự nhập số đợt tùy ý)
 // ============================================================================
 interface InstallmentPlanPickerProps {
   value: number;
@@ -617,95 +617,87 @@ interface InstallmentPlanPickerProps {
 }
 
 export function InstallmentPlanPicker({ value, onChange }: InstallmentPlanPickerProps) {
-  const isCustom = value > 5;
-  const [customInput, setCustomInput] = useState<string>(isCustom ? String(value) : "");
+  const [inputValue, setInputValue] = useState<string>(String(value || 1));
 
   useEffect(() => {
-    if (value > 5) {
-      setCustomInput(String(value));
-    }
+    setInputValue(String(value || 1));
   }, [value]);
 
-  const handleCustomChange = (raw: string) => {
-    setCustomInput(raw);
-    const num = parseInt(raw, 10);
-    if (!isNaN(num) && num >= 1 && num <= 24) {
-      onChange(num);
+  const updatePlan = (val: number) => {
+    const clamped = Math.max(1, Math.min(24, val));
+    onChange(clamped);
+    setInputValue(String(clamped));
+  };
+
+  const handleInputChange = (raw: string) => {
+    setInputValue(raw);
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 24) {
+      onChange(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    const parsed = parseInt(inputValue, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      updatePlan(1);
+    } else if (parsed > 24) {
+      updatePlan(24);
+    } else {
+      updatePlan(parsed);
     }
   };
 
   return (
-    <div className="space-y-2.5">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        {Object.values(INSTALLMENT_PLANS).map((p) => {
-          const isSelected = value === p.installments;
-          const ratioText =
-            p.installments === 1
-              ? "100% full"
-              : p.installments === 2
-                ? "50% - 50%"
-                : p.label.replace(`Đóng ${p.installments} lần: `, "");
-
-          return (
-            <button
-              key={p.installments}
-              type="button"
-              onClick={() => {
-                onChange(p.installments);
-                setCustomInput("");
-              }}
-              className={clsx(
-                "relative flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-150 cursor-pointer shadow-2xs",
-                isSelected
-                  ? "border-[#0532e6] bg-[#0532e6]/10 text-[#0532e6] ring-1 ring-[#0532e6] shadow-sm font-bold"
-                  : "border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70",
-              )}
-            >
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-bold">{p.installments} đợt</span>
-                {isSelected && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#0532e6] inline-block" />
-                )}
-              </div>
-              <span
-                className={clsx(
-                  "text-[10px] mt-0.5 line-clamp-1",
-                  isSelected ? "text-[#0532e6]/90 font-medium" : "text-slate-400",
-                )}
-              >
-                {ratioText}
-              </span>
-            </button>
-          );
-        })}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0532e6] border border-blue-100 shrink-0">
+          <Icon name="calendar" className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-800">Số đợt thanh toán tùy ý:</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-[11px] font-bold text-[#0532e6] border border-blue-200/80">
+              {value === 1 ? "1 đợt (Thanh toán full 100%)" : `${value} đợt thanh toán`}
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Nhập số đợt linh hoạt theo thỏa thuận tuyển sinh (tối thiểu 1 đợt, tối đa 24 đợt)
+          </p>
+        </div>
       </div>
 
-      {/* Custom Installments Input for admissions team */}
-      <div className="flex items-center justify-between rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <Icon name="calendar" className="h-4 w-4 text-slate-400" />
-          <span className="text-xs font-medium text-slate-700">
-            Hoặc tự nhập số đợt tùy ý:
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 self-start sm:self-center">
+        <button
+          type="button"
+          onClick={() => updatePlan(value - 1)}
+          disabled={value <= 1}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-base"
+          title="Giảm 1 đợt"
+        >
+          -
+        </button>
+        <div className="flex items-center">
           <input
             type="number"
             min={1}
             max={24}
-            step={1}
-            placeholder="VD: 6"
-            value={customInput}
-            onChange={(e) => handleCustomChange(e.target.value)}
-            className="w-16 h-8 text-center text-xs font-bold text-[#0532e6] rounded-lg border border-slate-200 focus:border-[#0532e6] focus:outline-none focus:ring-1 focus:ring-[#0532e6] bg-slate-50"
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onBlur={handleBlur}
+            className="w-16 h-9 text-center text-sm font-extrabold text-[#0532e6] rounded-xl border border-slate-300 focus:border-[#0532e6] focus:ring-2 focus:ring-[#0532e6]/20 bg-slate-50/80"
           />
-          <span className="text-xs text-slate-500 font-medium">đợt</span>
-          {isCustom && (
-            <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-[10px] font-bold text-[#0532e6] border border-blue-200/80">
-              ✓ Đang áp dụng {value} đợt
-            </span>
-          )}
         </div>
+        <button
+          type="button"
+          onClick={() => updatePlan(value + 1)}
+          disabled={value >= 24}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-base"
+          title="Tăng 1 đợt"
+        >
+          +
+        </button>
+        <span className="text-xs font-semibold text-slate-600 ml-1">đợt</span>
       </div>
     </div>
   );
