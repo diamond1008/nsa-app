@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, ErrorBanner, Modal, Textarea } from "../../components/ui";
+import { Button, CurrencyInput, ErrorBanner, Modal, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import type { Lead } from "../../lib/domainTypes";
 import { mutationMessage } from "../../lib/format";
@@ -198,35 +198,22 @@ export function CreateRegistrationOrderModal({
 
         {/* Tuition & Discount */}
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Học phí niêm yết (VNĐ) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="100000"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full h-10 rounded-xl border border-slate-200/80 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-[#0532e6] focus:outline-none"
-              required
-            />
-          </div>
+          <CurrencyInput
+            label="Học phí niêm yết (VNĐ)"
+            value={amount}
+            onChange={setAmount}
+            placeholder="0"
+            suffix="VNĐ"
+            required
+          />
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Giảm giá / Học bổng (VNĐ)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max={amount}
-              step="100000"
-              value={discountAmount}
-              onChange={(e) => setDiscountAmount(Number(e.target.value))}
-              className="w-full h-10 rounded-xl border border-slate-200/80 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-[#0532e6] focus:outline-none"
-            />
-          </div>
+          <CurrencyInput
+            label="Giảm giá / Học bổng (VNĐ)"
+            value={discountAmount}
+            onChange={setDiscountAmount}
+            placeholder="0"
+            suffix="VNĐ"
+          />
         </div>
 
         {discountAmount > 0 && (

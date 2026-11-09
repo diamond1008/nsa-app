@@ -909,3 +909,6 @@ export function Drawer({
     ? createPortal(drawerElement, document.body)
     : drawerElement;
 }
+
+export { CurrencyInput } from "./CurrencyInput";
+export type { CurrencyInputProps } from "./CurrencyInput";

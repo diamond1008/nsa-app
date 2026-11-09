@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ErrorBanner, Modal, Select, Textarea } from "../../components/ui";
+import { Button, CurrencyInput, ErrorBanner, Modal, Select, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import { useAuth } from "../auth/AuthContext";
 import type { Order } from "../../lib/domainTypes";
@@ -401,26 +401,21 @@ export function CreateReceiptModal({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={remainingBefore}
-                    step={100000}
-                    value={amountToCollect || ""}
-                    onChange={(e) => setAmountToCollect(Number(e.target.value))}
-                    className={`w-full h-10 rounded-xl border px-3 text-sm font-bold shadow-2xs focus:outline-none transition-all ${
-                      isOverpaying
-                        ? "border-red-500 bg-red-50/30 text-red-700 focus:border-red-600 ring-1 ring-red-400"
-                        : "border-slate-200 bg-white text-slate-900 focus:border-[#0532e6] focus:ring-1 focus:ring-[#0532e6]"
-                    }`}
-                    placeholder="Nhập số tiền thu thực tế..."
-                    required
-                  />
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex-1">
+                    <CurrencyInput
+                      value={amountToCollect}
+                      onChange={setAmountToCollect}
+                      placeholder="Nhập số tiền thu thực tế..."
+                      error={isOverpaying ? "Số tiền vượt quá số tiền còn lại cần nộp" : undefined}
+                      suffix="VNĐ"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 self-start">
                     <button
                       type="button"
                       onClick={() => setAmountToCollect(remainingBefore)}
-                      className="px-2.5 h-10 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition-colors whitespace-nowrap shadow-2xs"
+                      className="px-2.5 h-10 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition-colors whitespace-nowrap shadow-2xs cursor-pointer"
                       title="Thu toàn bộ số tiền còn nợ"
                     >
                       Thu full ({formatVND(remainingBefore)})
@@ -430,7 +425,7 @@ export function CreateReceiptModal({
                         <button
                           type="button"
                           onClick={() => setAmountToCollect(currentInstallment.amount)}
-                          className="px-2.5 h-10 rounded-xl border border-blue-200 bg-blue-50 text-[#0532e6] text-xs font-semibold hover:bg-blue-100 transition-colors whitespace-nowrap shadow-2xs"
+                          className="px-2.5 h-10 rounded-xl border border-blue-200 bg-blue-50 text-[#0532e6] text-xs font-semibold hover:bg-blue-100 transition-colors whitespace-nowrap shadow-2xs cursor-pointer"
                           title="Thu theo số tiền dự kiến của đợt này"
                         >
                           Theo đợt ({formatVND(currentInstallment.amount)})

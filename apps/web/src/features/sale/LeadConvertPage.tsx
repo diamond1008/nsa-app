@@ -7,6 +7,7 @@ import { Icon } from "../../components/icons";
 import {
   Button,
   Card,
+  CurrencyInput,
   ErrorBanner,
   Input,
   PageHeader,
@@ -522,23 +523,21 @@ export function LeadConvertPage() {
 
               {/* Tuition & Financials */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  label="Học phí niêm yết (VNĐ) *"
-                  type="number"
-                  min="0"
-                  step="10000"
+                <CurrencyInput
+                  label="Học phí niêm yết (VNĐ)"
                   required
                   value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
+                  onChange={setAmount}
+                  placeholder="0"
+                  suffix="VNĐ"
                 />
 
-                <Input
+                <CurrencyInput
                   label="Giảm giá / Ưu đãi (VNĐ)"
-                  type="number"
-                  min="0"
-                  step="10000"
                   value={discountAmount}
-                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  onChange={setDiscountAmount}
+                  placeholder="0"
+                  suffix="VNĐ"
                 />
               </div>
 
