@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
@@ -9,6 +10,7 @@ import { formatDate } from "../../lib/format";
 import { saleApi } from "./saleApi";
 import { formatVND } from "./saleShared";
 import { parseOrderInstallmentPlan } from "./installmentUtils";
+import { EditInstallmentsModal } from "./EditInstallmentsModal";
 
 export interface LeadOrdersTabProps {
   leadId: string;
@@ -53,6 +55,8 @@ function renderOrderStatusBadge(order: Order, paidCount: number, total: number) 
 }
 
 export function LeadOrdersTab({ leadId, studentId, onCreateOrder }: LeadOrdersTabProps) {
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+
   const ordersQuery = useQuery({
     queryKey: ["sale", "lead-orders", leadId, studentId],
     queryFn: () =>
@@ -230,6 +234,18 @@ export function LeadOrdersTab({ leadId, studentId, onCreateOrder }: LeadOrdersTa
                   </div>
 
                   <div className="flex items-center gap-3">
+                    {order.status !== "paid" &&
+                      order.status !== "cancelled" &&
+                      order.status !== "refunded" && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingOrder(order)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
+                        >
+                          <Icon name="calendar" className="h-3.5 w-3.5" />
+                          Sửa đợt đóng
+                        </button>
+                      )}
                     {hasAnyPaid && (
                       <Link
                         to={`/sale/phieu-thu?order_id=${order.id}&action=print`}
@@ -253,6 +269,15 @@ export function LeadOrdersTab({ leadId, studentId, onCreateOrder }: LeadOrdersTa
             );
           })}
         </div>
+      )}
+
+      {/* Edit Installments Modal */}
+      {editingOrder && (
+        <EditInstallmentsModal
+          open={Boolean(editingOrder)}
+          onClose={() => setEditingOrder(null)}
+          order={editingOrder}
+        />
       )}
     </div>
   );

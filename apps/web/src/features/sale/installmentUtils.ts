@@ -10,7 +10,7 @@ export interface InstallmentPlanOption {
 export const INSTALLMENT_PLANS: Record<number, InstallmentPlanOption> = {
   1: {
     installments: 1,
-    label: "Đóng 1 lần (100%)",
+    label: "Đóng 1 lần (100% full)",
     percentages: [100],
   },
   2: {
@@ -35,6 +35,26 @@ export const INSTALLMENT_PLANS: Record<number, InstallmentPlanOption> = {
   },
 };
 
+export function getInstallmentPlanOption(count: number): InstallmentPlanOption {
+  if (INSTALLMENT_PLANS[count]) {
+    return INSTALLMENT_PLANS[count];
+  }
+  const safeCount = Math.max(1, count);
+  if (safeCount === 1) {
+    return INSTALLMENT_PLANS[1];
+  }
+  const basePct = Math.floor(100 / safeCount);
+  const remainder = 100 - basePct * safeCount;
+  const percentages = Array(safeCount).fill(basePct);
+  percentages[0] += remainder;
+
+  return {
+    installments: safeCount,
+    label: `Đóng ${safeCount} lần (Chia ${safeCount} đợt)`,
+    percentages,
+  };
+}
+
 export interface InstallmentItem {
   round: number; // 1, 2, ...
   percentage: number;
@@ -48,7 +68,7 @@ export interface InstallmentItem {
 }
 
 export interface InstallmentMetadata {
-  plan_type: number; // 1 to 5
+  plan_type: number; // 1, 2, 3, ...
   total_installments: number;
   installments: InstallmentItem[];
   user_notes?: string;
@@ -67,7 +87,7 @@ export function verifyInstallmentsSum(items: InstallmentItem[], totalAmount: num
  * Ensures the sum of all installments strictly equals finalAmount.
  */
 export function calculateInstallments(finalAmount: number, planType: number): InstallmentItem[] {
-  const plan = INSTALLMENT_PLANS[planType] || INSTALLMENT_PLANS[1];
+  const plan = getInstallmentPlanOption(planType);
   const items: InstallmentItem[] = [];
   const roundedFinal = Math.max(0, Math.round(finalAmount));
   let allocated = 0;
@@ -94,13 +114,226 @@ export function calculateInstallments(finalAmount: number, planType: number): In
 }
 
 /**
+ * Gets total amount already paid across all paid installments.
+ */
+export function getOrderTotalPaid(meta: InstallmentMetadata): number {
+  return meta.installments
+    .filter((i) => i.status === "paid")
+    .reduce((sum, i) => sum + i.amount, 0);
+}
+
+/**
+ * Gets remaining balance to be paid for the order.
+ */
+export function getOrderRemainingAmount(finalAmount: number, meta: InstallmentMetadata): number {
+  const totalPaid = getOrderTotalPaid(meta);
+  return Math.max(0, Math.round(finalAmount) - totalPaid);
+}
+
+/**
+ * Checks if the order is 100% fully paid.
+ */
+export function isOrderFullyPaid(finalAmount: number, meta: InstallmentMetadata): boolean {
+  return getOrderRemainingAmount(finalAmount, meta) === 0;
+}
+
+/**
+ * Re-plans the remaining unpaid balance into a new number of pending installments.
+ * Keeps all already paid installments untouched.
+ */
+export function replanRemainingInstallments(
+  meta: InstallmentMetadata,
+  finalAmount: number,
+  newRemainingRounds: number,
+): InstallmentMetadata {
+  const roundedFinal = Math.max(0, Math.round(finalAmount));
+  const paidItems = meta.installments
+    .filter((i) => i.status === "paid")
+    .sort((a, b) => a.round - b.round);
+  const totalPaid = paidItems.reduce((sum, i) => sum + i.amount, 0);
+  const remaining = Math.max(0, roundedFinal - totalPaid);
+
+  if (remaining <= 0) {
+    // Already fully paid
+    return {
+      ...meta,
+      total_installments: paidItems.length || 1,
+      installments: paidItems,
+    };
+  }
+
+  const safeRounds = Math.max(1, newRemainingRounds);
+  const newPendingItems: InstallmentItem[] = [];
+  let allocated = 0;
+
+  for (let idx = 0; idx < safeRounds; idx++) {
+    const isLast = idx === safeRounds - 1;
+    const roundNumber = paidItems.length + idx + 1;
+    const roundAmount = isLast
+      ? Math.max(0, remaining - allocated)
+      : Math.round(remaining / safeRounds);
+
+    if (!isLast) {
+      allocated += roundAmount;
+    }
+
+    const pct = roundedFinal > 0 ? Math.round((roundAmount / roundedFinal) * 100) : 0;
+    newPendingItems.push({
+      round: roundNumber,
+      percentage: pct,
+      amount: roundAmount,
+      status: "pending",
+    });
+  }
+
+  const combined = [...paidItems, ...newPendingItems];
+  return {
+    ...meta,
+    plan_type: combined.length,
+    total_installments: combined.length,
+    installments: combined,
+  };
+}
+
+export interface ApplyReceiptPaymentDetails {
+  receipt_code: string;
+  payment_method?: string;
+  paid_at?: string;
+  collected_by_name?: string;
+  notes?: string;
+}
+
+/**
+ * Applies a receipt collection with a custom collected amount to the installment schedule.
+ * - If customer pays full balance: strips subsequent pending rounds and marks allPaid = true.
+ * - If customer pays partial: updates this round as paid, and distributes remaining unpaid balance across remaining pending rounds (or adds an extra round).
+ */
+export function applyReceiptPayment(
+  meta: InstallmentMetadata,
+  finalAmount: number,
+  roundToPay: number,
+  paidAmount: number,
+  details: ApplyReceiptPaymentDetails,
+): { updatedMeta: InstallmentMetadata; allPaid: boolean } {
+  const roundedFinal = Math.max(0, Math.round(finalAmount));
+  const safePaidAmount = Math.max(0, Math.round(paidAmount));
+
+  // Separate already paid items prior to this round and other items
+  const otherPaidItems = meta.installments.filter(
+    (i) => i.status === "paid" && i.round !== roundToPay,
+  );
+  const totalPaidPrior = otherPaidItems.reduce((sum, i) => sum + i.amount, 0);
+
+  // Maximum amount allowable to collect is remaining before this payment
+  const remainingBefore = Math.max(0, roundedFinal - totalPaidPrior);
+  const actualPaid = Math.min(safePaidAmount, remainingBefore);
+
+  // Create/update the paid item for roundToPay
+  const paidItem: InstallmentItem = {
+    round: roundToPay,
+    percentage: roundedFinal > 0 ? Math.round((actualPaid / roundedFinal) * 100) : 100,
+    amount: actualPaid,
+    status: "paid",
+    receipt_code: details.receipt_code,
+    payment_method: details.payment_method,
+    paid_at: details.paid_at || new Date().toISOString(),
+    collected_by_name: details.collected_by_name || "Sale",
+    notes: details.notes,
+  };
+
+  const newTotalPaid = totalPaidPrior + actualPaid;
+  const remainingAfter = Math.max(0, roundedFinal - newTotalPaid);
+
+  const allPaidItems = [...otherPaidItems, paidItem].sort((a, b) => a.round - b.round);
+
+  // Case A: Full payment (remainingAfter === 0)
+  // Automatically records full payment and cleans up unused pending rounds
+  if (remainingAfter === 0) {
+    const normalized = allPaidItems.map((item, idx) => ({
+      ...item,
+      round: idx + 1,
+    }));
+
+    return {
+      updatedMeta: {
+        ...meta,
+        total_installments: normalized.length,
+        plan_type: normalized.length,
+        installments: normalized,
+      },
+      allPaid: true,
+    };
+  }
+
+  // Case B: Partial payment - Remaining balance exists (remainingAfter > 0)
+  // Check future pending installments
+  const futurePending = meta.installments.filter(
+    (i) => i.status === "pending" && i.round > roundToPay,
+  );
+
+  let newPendingItems: InstallmentItem[];
+
+  if (futurePending.length > 0) {
+    // Redistribute remainingAfter across the future pending rounds
+    let allocated = 0;
+    newPendingItems = futurePending.map((p, idx) => {
+      const isLast = idx === futurePending.length - 1;
+      const roundAmt = isLast
+        ? Math.max(0, remainingAfter - allocated)
+        : Math.round(remainingAfter / futurePending.length);
+
+      if (!isLast) {
+        allocated += roundAmt;
+      }
+
+      const pct = roundedFinal > 0 ? Math.round((roundAmt / roundedFinal) * 100) : 0;
+      return {
+        ...p,
+        amount: roundAmt,
+        percentage: pct,
+        status: "pending" as const,
+      };
+    });
+  } else {
+    // There were no future pending rounds (e.g. 1-round plan or was on last round)
+    // Add an extra round for the unpaid balance so money is not lost
+    const nextRound = roundToPay + 1;
+    const pct = roundedFinal > 0 ? Math.round((remainingAfter / roundedFinal) * 100) : 0;
+    newPendingItems = [
+      {
+        round: nextRound,
+        percentage: pct,
+        amount: remainingAfter,
+        status: "pending",
+      },
+    ];
+  }
+
+  const combined = [...allPaidItems, ...newPendingItems].sort((a, b) => a.round - b.round);
+  const normalized = combined.map((item, idx) => ({
+    ...item,
+    round: idx + 1,
+  }));
+
+  return {
+    updatedMeta: {
+      ...meta,
+      total_installments: normalized.length,
+      plan_type: normalized.length,
+      installments: normalized,
+    },
+    allPaid: false,
+  };
+}
+
+/**
  * Encodes human-readable summary and structured JSON metadata into order notes.
  */
 export function formatOrderNotesWithInstallments(
   userNotes: string,
   metadata: InstallmentMetadata,
 ): string {
-  const plan = INSTALLMENT_PLANS[metadata.plan_type] || INSTALLMENT_PLANS[1];
+  const plan = getInstallmentPlanOption(metadata.total_installments || metadata.plan_type);
   const lines: string[] = [];
   lines.push(`[CHÍNH SÁCH ĐÓNG HỌC PHÍ: ${plan.label}]`);
 

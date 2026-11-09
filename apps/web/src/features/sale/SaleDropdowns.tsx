@@ -617,14 +617,31 @@ interface InstallmentPlanPickerProps {
 }
 
 export function InstallmentPlanPicker({ value, onChange }: InstallmentPlanPickerProps) {
+  const isCustom = value > 5;
+  const [customInput, setCustomInput] = useState<string>(isCustom ? String(value) : "");
+
+  useEffect(() => {
+    if (value > 5) {
+      setCustomInput(String(value));
+    }
+  }, [value]);
+
+  const handleCustomChange = (raw: string) => {
+    setCustomInput(raw);
+    const num = parseInt(raw, 10);
+    if (!isNaN(num) && num >= 1 && num <= 24) {
+      onChange(num);
+    }
+  };
+
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2.5">
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {Object.values(INSTALLMENT_PLANS).map((p) => {
           const isSelected = value === p.installments;
           const ratioText =
             p.installments === 1
-              ? "100%"
+              ? "100% full"
               : p.installments === 2
                 ? "50% - 50%"
                 : p.label.replace(`Đóng ${p.installments} lần: `, "");
@@ -633,7 +650,10 @@ export function InstallmentPlanPicker({ value, onChange }: InstallmentPlanPicker
             <button
               key={p.installments}
               type="button"
-              onClick={() => onChange(p.installments)}
+              onClick={() => {
+                onChange(p.installments);
+                setCustomInput("");
+              }}
               className={clsx(
                 "relative flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-150 cursor-pointer shadow-2xs",
                 isSelected
@@ -658,6 +678,34 @@ export function InstallmentPlanPicker({ value, onChange }: InstallmentPlanPicker
             </button>
           );
         })}
+      </div>
+
+      {/* Custom Installments Input for admissions team */}
+      <div className="flex items-center justify-between rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <Icon name="calendar" className="h-4 w-4 text-slate-400" />
+          <span className="text-xs font-medium text-slate-700">
+            Hoặc tự nhập số đợt tùy ý:
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            min={1}
+            max={24}
+            step={1}
+            placeholder="VD: 6"
+            value={customInput}
+            onChange={(e) => handleCustomChange(e.target.value)}
+            className="w-16 h-8 text-center text-xs font-bold text-[#0532e6] rounded-lg border border-slate-200 focus:border-[#0532e6] focus:outline-none focus:ring-1 focus:ring-[#0532e6] bg-slate-50"
+          />
+          <span className="text-xs text-slate-500 font-medium">đợt</span>
+          {isCustom && (
+            <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-[10px] font-bold text-[#0532e6] border border-blue-200/80">
+              ✓ Đang áp dụng {value} đợt
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

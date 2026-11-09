@@ -2984,25 +2984,38 @@ type InstallmentMetaData struct {
 }
 
 func buildInstallmentNotes(finalAmount int64, planType int, userNotes string) (string, []InstallmentItemData) {
-	if planType < 1 || planType > 5 {
+	if planType < 1 {
 		planType = 3
 	}
 
-	percentages := map[int][]int{
-		1: {100},
-		2: {50, 50},
-		3: {40, 30, 30},
-		4: {30, 30, 20, 20},
-		5: {20, 20, 20, 20, 20},
-	}[planType]
+	var percentages []int
+	var planLabel string
+	if planType <= 5 {
+		percentages = map[int][]int{
+			1: {100},
+			2: {50, 50},
+			3: {40, 30, 30},
+			4: {30, 30, 20, 20},
+			5: {20, 20, 20, 20, 20},
+		}[planType]
 
-	planLabels := map[int]string{
-		1: "Đóng 1 lần (100%)",
-		2: "Đóng 2 lần (50% - 50%)",
-		3: "Đóng 3 lần (40% - 30% - 30%)",
-		4: "Đóng 4 lần (30% - 30% - 20% - 20%)",
-		5: "Đóng 5 lần (20% - 20% - 20% - 20% - 20%)",
-	}[planType]
+		planLabel = map[int]string{
+			1: "Đóng 1 lần (100% full)",
+			2: "Đóng 2 lần (50% - 50%)",
+			3: "Đóng 3 lần (40% - 30% - 30%)",
+			4: "Đóng 4 lần (30% - 30% - 20% - 20%)",
+			5: "Đóng 5 lần (20% - 20% - 20% - 20% - 20%)",
+		}[planType]
+	} else {
+		basePct := 100 / planType
+		rem := 100 - (basePct * planType)
+		percentages = make([]int, planType)
+		for i := 0; i < planType; i++ {
+			percentages[i] = basePct
+		}
+		percentages[0] += rem
+		planLabel = fmt.Sprintf("Đóng %d lần (Chia %d đợt)", planType, planType)
+	}
 
 	var items []InstallmentItemData
 	var allocated int64
@@ -3032,7 +3045,7 @@ func buildInstallmentNotes(finalAmount int64, planType int, userNotes string) (s
 	metaJSON, _ := json.Marshal(meta)
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("[CHÍNH SÁCH ĐÓNG HỌC PHÍ: %s]\n", planLabels))
+	sb.WriteString(fmt.Sprintf("[CHÍNH SÁCH ĐÓNG HỌC PHÍ: %s]\n", planLabel))
 	for _, it := range items {
 		sb.WriteString(fmt.Sprintf("• Đợt %d (%d%%): %s đ - Chưa thu (%s đ)\n",
 			it.Round, it.Percentage, formatNumberVND(it.Amount), formatNumberVND(it.Amount)))

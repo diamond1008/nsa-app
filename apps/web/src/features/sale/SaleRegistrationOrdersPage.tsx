@@ -14,6 +14,7 @@ import { saleApi } from "./saleApi";
 import { formatVND } from "./saleShared";
 import { CreateRegistrationOrderModal } from "./CreateRegistrationOrderModal";
 import { UpdateOrderStatusModal } from "./UpdateOrderStatusModal";
+import { EditInstallmentsModal } from "./EditInstallmentsModal";
 import { parseOrderInstallmentPlan } from "./installmentUtils";
 
 export function SaleRegistrationOrdersPage() {
@@ -33,6 +34,7 @@ export function SaleRegistrationOrdersPage() {
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [editingInstallmentOrder, setEditingInstallmentOrder] = useState<Order | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   // Check URL query param lead_id on mount
@@ -236,9 +238,36 @@ export function SaleRegistrationOrdersPage() {
         const meta = parseOrderInstallmentPlan(order);
         const hasAnyPaid =
           order.status === "paid" || meta.installments.some((i) => i.status === "paid");
+        const canEditInstallments =
+          order.status !== "paid" && order.status !== "cancelled" && order.status !== "refunded";
 
         return (
           <div className="flex items-center justify-end gap-1.5">
+            {canEditInstallments && (
+              <>
+                <Link to={`/sale/phieu-thu?order_id=${order.id}&action=collect`}>
+                  <Button
+                    variant="ghost"
+                    className="h-8 px-2 text-xs text-emerald-700 hover:bg-emerald-50 border border-emerald-200/80 shadow-2xs"
+                    title="Lập phiếu thu tiền đợt kế tiếp"
+                  >
+                    <Icon name="shopping-bag" className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                    Thu tiền
+                  </Button>
+                </Link>
+
+                <Button
+                  variant="ghost"
+                  className="h-8 px-2 text-xs text-amber-800 hover:bg-amber-50 border border-amber-200/80 shadow-2xs"
+                  onClick={() => setEditingInstallmentOrder(order)}
+                  title="Sửa kế hoạch các đợt đóng còn lại"
+                >
+                  <Icon name="calendar" className="mr-1 h-3.5 w-3.5 text-amber-600" />
+                  Sửa đợt
+                </Button>
+              </>
+            )}
+
             {hasAnyPaid && (
               <Link to={`/sale/phieu-thu?order_id=${order.id}&action=print`}>
                 <Button
@@ -263,7 +292,9 @@ export function SaleRegistrationOrdersPage() {
               </Button>
             )}
 
-            {!hasAnyPaid && !isAdmin && <span className="text-slate-300 text-xs px-2">—</span>}
+            {!hasAnyPaid && !canEditInstallments && !isAdmin && (
+              <span className="text-slate-300 text-xs px-2">—</span>
+            )}
           </div>
         );
       },
@@ -411,6 +442,15 @@ export function SaleRegistrationOrdersPage() {
       {/* Admin Change Status Modal */}
       {selectedOrder && (
         <UpdateOrderStatusModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+      )}
+
+      {/* Edit Installments Modal */}
+      {editingInstallmentOrder && (
+        <EditInstallmentsModal
+          open={Boolean(editingInstallmentOrder)}
+          onClose={() => setEditingInstallmentOrder(null)}
+          order={editingInstallmentOrder}
+        />
       )}
     </div>
   );
