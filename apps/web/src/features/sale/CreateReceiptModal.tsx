@@ -248,19 +248,6 @@ export function CreateReceiptModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {formError && <ErrorBanner message={formError} />}
 
-          {/* Role permission info banner */}
-          <div className="flex items-start gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-xs text-blue-900">
-            <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <div>
-              <span className="font-bold">
-                {isManager ? "Phân quyền Quản lý (Sale Manager):" : "Phân quyền Chuyên viên Sale:"}
-              </span>{" "}
-              {isManager
-                ? "Bạn có toàn quyền tạo phiếu thu cho tất cả các phiếu đăng ký của mọi nhân viên trong hệ thống."
-                : "Hệ thống chỉ hiển thị danh sách các phiếu đăng ký do bạn trực tiếp lập."}
-            </div>
-          </div>
-
           {/* Order Selector */}
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-700">

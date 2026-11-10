@@ -5,6 +5,7 @@ import clsx from "clsx";
 
 import { Icon } from "../components/icons";
 import type { IconName } from "../components/icons";
+import { HeaderUtilitiesContext } from "../components/ui";
 import { useAuth } from "../features/auth/AuthContext";
 import { notificationApi } from "../features/notifications/notificationApi";
 import { aiWorkflowApi } from "../features/ai-workflows/aiWorkflowApi";
@@ -972,7 +973,8 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="relative flex h-dvh w-full max-w-full overflow-hidden bg-[#f8fafc] select-none">
+    <HeaderUtilitiesContext.Provider value={{ renderGlobalUtilities, openMobileMenu }}>
+      <div className="relative flex h-dvh w-full max-w-full overflow-hidden bg-[#f8fafc] select-none">
       {/* Soft ambient lighting halos matching oceanic blue theme */}
       <div className="pointer-events-none fixed -top-32 -left-32 h-[560px] w-[560px] rounded-full bg-[#0532e6]/10 blur-[140px]" />
       <div className="pointer-events-none fixed top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-[#0ea5e9]/12 blur-[150px]" />
@@ -1018,18 +1020,6 @@ export default function AppLayout() {
           className="min-h-0 flex-1 overflow-y-auto app-custom-scroll"
         >
           <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 lg:p-8">
-            <div className="flex items-center justify-between pb-3 pt-1 gap-3">
-              <button
-                type="button"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all"
-                aria-label="Mở menu"
-                onClick={openMobileMenu}
-              >
-                <Icon name="menu" />
-              </button>
-              <div id="app-top-header-slot" className="flex items-center gap-3 min-w-0 flex-1" />
-              {renderGlobalUtilities()}
-            </div>
             <Outlet />
           </div>
         </main>
@@ -1038,5 +1028,6 @@ export default function AppLayout() {
         <AIWorkflowDrawer isOpen={aiDrawerOpen} onClose={() => setAiDrawerOpen(false)} />
       )}
     </div>
+    </HeaderUtilitiesContext.Provider>
   );
 }

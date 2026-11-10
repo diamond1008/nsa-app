@@ -110,4 +110,18 @@ describe("operations filters", () => {
     fireEvent.click(clearBtn);
     expect(onClear).toHaveBeenCalledTimes(1);
   });
+
+  it("does not render clear icon button in compact mode when no filters are active", () => {
+    render(
+      <FilterBar
+        compact
+        search=""
+        onSearch={() => undefined}
+        onClearAll={vi.fn()}
+        advancedFilters={<div>Lọc thêm</div>}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Xóa tất cả bộ lọc" })).not.toBeInTheDocument();
+  });
 });

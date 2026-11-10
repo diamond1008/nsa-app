@@ -401,6 +401,8 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 		response.Fail(w, http.StatusConflict, "EMAIL_EXISTS", "Email này đã được sử dụng cho một tài khoản khác trong hệ thống")
 	case errors.Is(err, ErrLeadLocked):
 		response.Fail(w, http.StatusBadRequest, "LEAD_LOCKED", "Hồ sơ học viên đã được khóa thông tin định danh. Vui lòng liên hệ Phòng Đào tạo.")
+	case errors.Is(err, ErrLeadNotConvertedYet):
+		response.Fail(w, http.StatusBadRequest, "LEAD_NOT_CONVERTED", err.Error())
 	default:
 		response.InternalError(w, h.log, auth.RequestIDFrom(r.Context()), err)
 	}

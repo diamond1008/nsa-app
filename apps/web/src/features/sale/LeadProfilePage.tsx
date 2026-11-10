@@ -1106,11 +1106,15 @@ export function LeadProfilePage() {
             value={newStatus}
             onChange={(e) => setNewStatus(e.target.value as LeadPipelineStatus)}
           >
-            {PIPELINE_STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {PIPELINE_STATUS_OPTIONS.map((opt) => {
+              const isConvertedOnly = opt.value === "da_dang_ky" || opt.value === "dang_hoc";
+              const isDisabled = isConvertedOnly && !lead?.converted_student_id;
+              return (
+                <option key={opt.value} value={opt.value} disabled={isDisabled}>
+                  {opt.label}{isDisabled ? " (Cần Chốt học viên)" : ""}
+                </option>
+              );
+            })}
           </Select>
 
           <Textarea

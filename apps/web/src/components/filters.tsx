@@ -91,7 +91,8 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
     };
   }, [sticky]);
 
-  const hasFilters = Boolean(search.trim()) || activeFilters.length > 0;
+  const hasFilters =
+    Boolean(search.trim()) || activeFilters.length > 0 || advancedFilterCount > 0;
   return (
     <section
       ref={(node) => {
@@ -148,7 +149,7 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
             </span>
           ) : null}
           <div className="flex items-center gap-2 shrink-0">
-            {compact && onClearAll ? (
+            {compact && hasFilters && onClearAll ? (
               <div className="relative group/clear shrink-0">
                 <button
                   type="button"
@@ -197,7 +198,7 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
       {advancedFilters && advancedOpen ? (
         <div id={advancedId} className="mt-3 border-t border-slate-200/80 pt-3">
           <div className="flex flex-wrap items-end gap-3">{advancedFilters}</div>
-          {compact && onClearAll && (
+          {compact && hasFilters && onClearAll && (
             <div className="mt-3 flex justify-end border-t border-slate-100/80 pt-2">
               <Button
                 type="button"

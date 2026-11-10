@@ -422,6 +422,10 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, isAdmin bool
 		return View{}, ErrInvalidStatusTransition
 	}
 
+	if (targetStatus == db.LeadPipelineStatusDaDangKy || targetStatus == db.LeadPipelineStatusDangHoc) && !existing.ConvertedStudentID.Valid {
+		return View{}, ErrLeadNotConvertedYet
+	}
+
 	actor, _ := data.UUID(actorID)
 
 	tx, err := s.pool.Begin(ctx)

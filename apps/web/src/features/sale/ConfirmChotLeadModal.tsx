@@ -286,18 +286,9 @@ export function ConfirmChotLeadModal({
         {formError && <ErrorBanner message={formError} />}
 
         {/* Verification Warning Alert */}
-        <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
-          <Icon name="lock" className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="font-bold text-amber-950">
-              Kiểm tra kỹ thông tin định danh trước khi chốt
-            </span>
-            <p className="text-amber-800 leading-relaxed">
-              Địa chỉ <strong>Email</strong> sẽ là <strong>Tên đăng nhập hệ thống</strong> của học
-              viên. Sau khi chốt học viên, các thông tin định danh (Họ tên, Email, SĐT) sẽ được khóa
-              đối với Sale để bảo vệ tính toàn vẹn dữ liệu và chứng chỉ đào tạo.
-            </p>
-          </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-2 text-xs text-amber-900 flex items-center gap-2">
+          <Icon name="lock" className="h-4 w-4 text-amber-700 shrink-0" />
+          <span>Email sẽ là tài khoản đăng nhập và được khóa thông tin định danh sau khi chốt.</span>
         </div>
 
         {/* Form Fields: Clean 3-Row Layout */}
@@ -330,9 +321,6 @@ export function ConfirmChotLeadModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <span className="text-[11px] text-slate-500 mt-1 block">
-              * Email này sẽ dùng làm Tên đăng nhập vào Cổng thông tin Học viên NSA.
-            </span>
           </div>
 
           {/* HÀNG 3: Mật khẩu khởi tạo - 1 hàng riêng biệt full-width */}
@@ -382,11 +370,6 @@ export function ConfirmChotLeadModal({
                 Tạo ngẫu nhiên
               </Button>
             </div>
-
-            <span className="text-[11px] text-slate-500 mt-1 block">
-              * Mật khẩu khởi tạo sẽ cấp cho học viên; học viên có thể tự đổi mật khẩu sau khi đăng
-              nhập.
-            </span>
           </div>
         </div>
 
@@ -402,7 +385,7 @@ export function ConfirmChotLeadModal({
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-5"
           >
             <Icon name="check" className="h-4 w-4 mr-1.5" />
-            Xác nhận Chốt học viên & Cấp tài khoản
+            Xác nhận Chốt học viên
           </Button>
         </div>
       </form>

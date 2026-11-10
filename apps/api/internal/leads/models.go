@@ -18,6 +18,7 @@ var (
 	ErrEmailAlreadyExists      = errors.New("email already exists")
 	ErrInvalidCSV              = errors.New("invalid CSV content")
 	ErrLeadLocked              = errors.New("hồ sơ học viên đã được khóa thông tin định danh, chỉ được phép cập nhật ghi chú")
+	ErrLeadNotConvertedYet     = errors.New("chỉ lead đã được chốt (đã cấp mã học viên) mới có thể chuyển sang trạng thái đã đăng ký. Vui lòng bấm Chốt học viên.")
 )
 
 // View represents the full JSON view of a Lead.

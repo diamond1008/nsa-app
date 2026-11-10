@@ -151,16 +151,6 @@ export function CreateRegistrationOrderModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         {formError && <ErrorBanner message={formError} />}
 
-        {/* Business Rule Notice */}
-        <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2">
-          <Icon name="alert" className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold">Quy tắc nghiệp vụ:</span> Chỉ các Lead đã được chốt thành
-            học viên chính thức (trạng thái <b>Đã đăng ký</b>) mới được phép tạo Phiếu đăng ký thu
-            tiền học phí.
-          </div>
-        </div>
-
         {/* Select Converted Lead */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -285,10 +275,6 @@ export function CreateRegistrationOrderModal({
                 </div>
               ))}
             </div>
-            <p className="pt-1 text-[11px] text-slate-500 italic">
-              * Khi tạo xong phiếu đăng ký, chuyên viên Sale sẽ chủ động vào trang <b>Phiếu thu</b>{" "}
-              để lập phiếu thu cho từng đợt theo thực tế.
-            </p>
           </div>
         </div>
 
