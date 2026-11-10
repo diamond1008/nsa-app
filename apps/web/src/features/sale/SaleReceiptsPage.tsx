@@ -392,6 +392,7 @@ export function SaleReceiptsPage() {
 
       {/* Filter Bar */}
       <FilterBar
+        compact
         search={search}
         onSearch={(val) => {
           setSearch(val);
@@ -399,6 +400,12 @@ export function SaleReceiptsPage() {
         }}
         searchPlaceholder="Tìm theo mã phiếu thu, mã đơn, tên học viên..."
         resultCount={filteredRows.length}
+        resultCountLabel="phiếu"
+        advancedFilterCount={
+          (methodFilter ? 1 : 0) +
+          (fromDate ? 1 : 0) +
+          (toDate ? 1 : 0)
+        }
         onClearAll={
           Boolean(search) || Boolean(methodFilter) || Boolean(fromDate) || Boolean(toDate)
             ? () => {
@@ -410,48 +417,51 @@ export function SaleReceiptsPage() {
               }
             : undefined
         }
-      >
-        <div className="w-full min-w-40 sm:w-48">
-          <Select
-            label="Hình thức thu"
-            value={methodFilter}
-            onChange={(e) => {
-              setMethodFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả hình thức</option>
-            <option value="transfer">Chuyển khoản ngân hàng</option>
-            <option value="cash">Tiền mặt tại văn phòng</option>
-            <option value="pos">Quẹt thẻ POS</option>
-            <option value="installment">Trả góp học phí</option>
-          </Select>
-        </div>
+        advancedFilters={
+          <>
+            <div className="w-full min-w-40 sm:w-48">
+              <Select
+                label="Hình thức thu"
+                value={methodFilter}
+                onChange={(e) => {
+                  setMethodFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Tất cả hình thức</option>
+                <option value="transfer">Chuyển khoản ngân hàng</option>
+                <option value="cash">Tiền mặt tại văn phòng</option>
+                <option value="pos">Quẹt thẻ POS</option>
+                <option value="installment">Trả góp học phí</option>
+              </Select>
+            </div>
 
-        <div className="w-36 sm:w-40">
-          <Input
-            label="Từ ngày"
-            type="date"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
+            <div className="w-36 sm:w-40">
+              <Input
+                label="Từ ngày"
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
 
-        <div className="w-36 sm:w-40">
-          <Input
-            label="Đến ngày"
-            type="date"
-            value={toDate}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </FilterBar>
+            <div className="w-36 sm:w-40">
+              <Input
+                label="Đến ngày"
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </>
+        }
+      />
 
       {/* Table */}
       <QueryState

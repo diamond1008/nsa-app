@@ -445,69 +445,75 @@ export function TeacherSchedulePage() {
         subtitle="Bấm vào một buổi học để mở danh sách điểm danh. Thời gian hiển thị theo giờ Việt Nam."
       />
       <FilterBar
+        compact
         search={searchInput}
         onSearch={setSearchInput}
         resultCount={query.data?.meta.total}
+        resultCountLabel="buổi"
         activeFilters={activeFilters}
+        advancedFilterCount={activeFilters.length}
         onRemoveFilter={(key) => updateList({ [key]: "" })}
         onClearAll={() => {
           setSearchInput("");
           setSearchParams(new URLSearchParams(), { replace: true });
         }}
         searchPlaceholder="Nội dung buổi học, mã lớp, phòng…"
-      >
-        <div className="w-full min-w-44 sm:w-48">
-          <Select
-            label="Lớp phụ trách"
-            value={listState.filters.class_id}
-            onChange={(event) => updateList({ class_id: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            {(classes.data ?? []).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.class_code}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="w-full min-w-40 sm:w-44">
-          <Select
-            label="Trạng thái"
-            value={listState.filters.status}
-            onChange={(event) => updateList({ status: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="scheduled">Đã lên lịch</option>
-            <option value="completed">Đã diễn ra</option>
-            <option value="locked">Đã khóa</option>
-            <option value="cancelled">Đã hủy</option>
-          </Select>
-        </div>
-        <div className="w-full min-w-40 sm:w-44">
-          <Select
-            label="Loại buổi"
-            value={listState.filters.session_type}
-            onChange={(event) => updateList({ session_type: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="theory">Lý thuyết</option>
-            <option value="workshop">Thực hành</option>
-            <option value="assessment">Đánh giá</option>
-            <option value="other">Khác</option>
-          </Select>
-        </div>
-        <div className="w-full min-w-44 sm:w-48">
-          <Select
-            label="Khóa điểm danh"
-            value={listState.filters.attendance_state}
-            onChange={(event) => updateList({ attendance_state: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="unlocked">Đang mở</option>
-            <option value="locked">Đã khóa</option>
-          </Select>
-        </div>
-      </FilterBar>
+        advancedFilters={
+          <>
+            <div className="w-full min-w-44 sm:w-48">
+              <Select
+                label="Lớp phụ trách"
+                value={listState.filters.class_id}
+                onChange={(event) => updateList({ class_id: event.target.value })}
+              >
+                <option value="">Tất cả</option>
+                {(classes.data ?? []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.class_code}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="w-full min-w-40 sm:w-44">
+              <Select
+                label="Trạng thái"
+                value={listState.filters.status}
+                onChange={(event) => updateList({ status: event.target.value })}
+              >
+                <option value="">Tất cả</option>
+                <option value="scheduled">Đã lên lịch</option>
+                <option value="completed">Đã diễn ra</option>
+                <option value="locked">Đã khóa</option>
+                <option value="cancelled">Đã hủy</option>
+              </Select>
+            </div>
+            <div className="w-full min-w-40 sm:w-44">
+              <Select
+                label="Loại buổi"
+                value={listState.filters.session_type}
+                onChange={(event) => updateList({ session_type: event.target.value })}
+              >
+                <option value="">Tất cả</option>
+                <option value="theory">Lý thuyết</option>
+                <option value="workshop">Thực hành</option>
+                <option value="assessment">Đánh giá</option>
+                <option value="other">Khác</option>
+              </Select>
+            </div>
+            <div className="w-full min-w-44 sm:w-48">
+              <Select
+                label="Khóa điểm danh"
+                value={listState.filters.attendance_state}
+                onChange={(event) => updateList({ attendance_state: event.target.value })}
+              >
+                <option value="">Tất cả</option>
+                <option value="unlocked">Đang mở</option>
+                <option value="locked">Đã khóa</option>
+              </Select>
+            </div>
+          </>
+        }
+      />
       <QueryState loading={query.isLoading} error={query.error}>
         <WeekCalendar
           events={events}

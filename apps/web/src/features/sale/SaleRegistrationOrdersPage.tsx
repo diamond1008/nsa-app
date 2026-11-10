@@ -343,6 +343,7 @@ export function SaleRegistrationOrdersPage() {
 
       {/* Filter Bar */}
       <FilterBar
+        compact
         search={search}
         onSearch={(val) => {
           setSearch(val);
@@ -350,6 +351,12 @@ export function SaleRegistrationOrdersPage() {
         }}
         searchPlaceholder="Tìm theo mã phiếu, tên học viên..."
         resultCount={total}
+        resultCountLabel="phiếu"
+        advancedFilterCount={
+          (statusFilter ? 1 : 0) +
+          (fromDate ? 1 : 0) +
+          (toDate ? 1 : 0)
+        }
         onClearAll={
           hasFilterActive
             ? () => {
@@ -361,48 +368,51 @@ export function SaleRegistrationOrdersPage() {
               }
             : undefined
         }
-      >
-        <div className="w-full min-w-40 sm:w-48">
-          <Select
-            label="Trạng thái"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">Chờ thanh toán (pending)</option>
-            <option value="paid">Đã thanh toán (paid)</option>
-            <option value="cancelled">Đã hủy (cancelled)</option>
-            <option value="refunded">Đã hoàn tiền (refunded)</option>
-          </Select>
-        </div>
+        advancedFilters={
+          <>
+            <div className="w-full min-w-40 sm:w-48">
+              <Select
+                label="Trạng thái"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending">Chờ thanh toán (pending)</option>
+                <option value="paid">Đã thanh toán (paid)</option>
+                <option value="cancelled">Đã hủy (cancelled)</option>
+                <option value="refunded">Đã hoàn tiền (refunded)</option>
+              </Select>
+            </div>
 
-        <div className="w-36 sm:w-40">
-          <Input
-            label="Từ ngày"
-            type="date"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
+            <div className="w-36 sm:w-40">
+              <Input
+                label="Từ ngày"
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
 
-        <div className="w-36 sm:w-40">
-          <Input
-            label="Đến ngày"
-            type="date"
-            value={toDate}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </FilterBar>
+            <div className="w-36 sm:w-40">
+              <Input
+                label="Đến ngày"
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </>
+        }
+      />
 
       {/* Table */}
       <QueryState

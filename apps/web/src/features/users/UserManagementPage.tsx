@@ -16,6 +16,7 @@ import {
   Textarea,
 } from "../../components/ui";
 import { QueryState } from "../../components/data";
+import { FilterBar } from "../../components/filters";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 import { formatDateTime } from "../../lib/format";
@@ -688,87 +689,93 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
         }
       />
 
-      {/* Sticky Filters Bar */}
-      <section className="sticky top-0 z-20 rounded-2xl border border-white/85 bg-white/85 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-4 mb-4 transition-all">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-end">
-          <Input
-            label="Tìm kiếm"
-            placeholder="Email, họ tên, mã số..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-
-          {!isSaleMode && (
-            <Select
-              label="Vai trò"
-              value={selectedRole}
-              onChange={(e) => {
-                setSelectedRole(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">-- Tất cả vai trò --</option>
-              {availableRoles.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </Select>
-          )}
-
-          <Select
-            label="Trạng thái"
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">-- Tất cả trạng thái --</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="suspended">Tạm khóa</option>
-            <option value="inactive">Ngừng hoạt động</option>
-          </Select>
-
-          {isSaleMode && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-navy-heading">
-                Nhận Lead tự động
-              </label>
-              <div className="flex h-10 items-center justify-between rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/60 to-indigo-50/30 px-3.5 shadow-2xs">
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Đang nhận
-                </span>
-                <span className="text-xs font-bold text-navy">
-                  <span className="text-[#0532e6] text-sm font-extrabold">
-                    {activeLeadTakersCount}
-                  </span>
-                  <span className="text-slate-500 font-normal"> / {totalSaleCount} Sale</span>
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div>
-            <Button
-              variant="ghost"
-              className="w-full h-10 text-xs"
-              onClick={() => {
+      {/* Filter Bar */}
+      <FilterBar
+        compact
+        search={search}
+        onSearch={(val) => {
+          setSearch(val);
+          setPage(1);
+        }}
+        searchPlaceholder="Email, họ tên, mã số..."
+        resultCount={usersQuery.data?.meta.total}
+        resultCountLabel="tài khoản"
+        advancedFilterCount={
+          (selectedRole && selectedRole !== (isSaleMode ? "SALE" : "") ? 1 : 0) +
+          (selectedStatus ? 1 : 0)
+        }
+        onClearAll={
+          Boolean(search) ||
+          Boolean(selectedRole && selectedRole !== (isSaleMode ? "SALE" : "")) ||
+          Boolean(selectedStatus)
+            ? () => {
                 setSearch("");
                 setSelectedRole(isSaleMode ? "SALE" : "");
                 setSelectedStatus("");
                 setPage(1);
-              }}
-            >
-              Đặt lại bộ lọc
-            </Button>
-          </div>
-        </div>
-      </section>
+              }
+            : undefined
+        }
+        advancedFilters={
+          <>
+            {!isSaleMode && (
+              <div className="w-48">
+                <Select
+                  label="Vai trò"
+                  value={selectedRole}
+                  onChange={(e) => {
+                    setSelectedRole(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">-- Tất cả vai trò --</option>
+                  {availableRoles.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+
+            <div className="w-48">
+              <Select
+                label="Trạng thái"
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">-- Tất cả trạng thái --</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="suspended">Tạm khóa</option>
+                <option value="inactive">Ngừng hoạt động</option>
+              </Select>
+            </div>
+
+            {isSaleMode && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-navy-heading">
+                  Nhận Lead tự động
+                </label>
+                <div className="flex h-10 items-center justify-between rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/60 to-indigo-50/30 px-3.5 shadow-2xs">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Đang nhận
+                  </span>
+                  <span className="text-xs font-bold text-navy">
+                    <span className="text-[#0532e6] text-sm font-extrabold">
+                      {activeLeadTakersCount}
+                    </span>
+                    <span className="text-slate-500 font-normal"> / {totalSaleCount} Sale</span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        }
+      />
 
       {/* Users Table */}
       <Card className="overflow-visible p-0 shadow-card border-white/80">
@@ -780,7 +787,7 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
         >
           <div className="overflow-visible">
             <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
-              <thead className="sticky top-[76px] z-10 bg-white/95 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-xl shadow-xs">
+              <thead className="sticky top-[var(--nsa-sticky-header-offset,58px)] z-10 bg-white/95 text-[11px] uppercase tracking-[0.08em] text-gtext backdrop-blur-xl shadow-xs">
                 <tr>
                   <th className="w-12 border-b border-white/70 px-3 py-3.5 text-center font-bold">
                     STT

@@ -323,64 +323,70 @@ export function AdminOperationsPage() {
           subtitle="Chỉ được duyệt khi chuyên cần đạt 80%, đạt toàn bộ bài kiểm tra bắt buộc và điểm thi kết thúc trên 5."
         />
         <FilterBar
+          compact
           search={searchInput}
           onSearch={setSearchInput}
           resultCount={candidates.data?.meta.total}
+          resultCountLabel="học viên"
           activeFilters={activeCompletionFilters}
+          advancedFilterCount={activeCompletionFilters.length}
           onRemoveFilter={(key) => updateList({ [key]: "" })}
           onClearAll={() => {
             setSearchInput("");
             setSearchParams(new URLSearchParams(), { replace: true });
           }}
           searchPlaceholder="Mã hoặc tên học viên, mã lớp…"
-        >
-          <div className="w-full min-w-48 sm:w-52">
-            <Select
-              label="Điều kiện"
-              value={listState.filters.eligibility}
-              onChange={(event) => updateList({ eligibility: event.target.value })}
-            >
-              <option value="">Tất cả</option>
-              <option value="eligible">Đủ điều kiện</option>
-              <option value="ineligible">Chưa đủ điều kiện</option>
-            </Select>
-          </div>
-          <div className="w-full min-w-56 sm:w-64">
-            <SearchCombobox
-              label="Khóa học"
-              value={listState.filters.course_id}
-              onChange={(value) => updateList({ course_id: value, class_id: "" })}
-              onSearch={setCourseSearch}
-              options={courseOptions}
-              loading={courseOptionsQuery.isLoading}
-            />
-          </div>
-          <div className="w-full min-w-56 sm:w-64">
-            <SearchCombobox
-              label="Lớp học"
-              value={listState.filters.class_id}
-              onChange={(value) => updateList({ class_id: value })}
-              onSearch={setClassSearch}
-              options={classOptions}
-              loading={classOptionsQuery.isLoading}
-            />
-          </div>
-          <div className="w-full min-w-44 sm:w-48">
-            <Select
-              label="Sắp xếp"
-              value={`${listState.sort}:${listState.order}`}
-              onChange={(event) => {
-                const [sort, order] = event.target.value.split(":");
-                updateList({ sort, order });
-              }}
-            >
-              <option value="class_code:asc">Mã lớp A–Z</option>
-              <option value="class_code:desc">Mã lớp Z–A</option>
-              <option value="student_code:asc">Mã học viên A–Z</option>
-              <option value="student_code:desc">Mã học viên Z–A</option>
-            </Select>
-          </div>
-        </FilterBar>
+          advancedFilters={
+            <>
+              <div className="w-full min-w-48 sm:w-52">
+                <Select
+                  label="Điều kiện"
+                  value={listState.filters.eligibility}
+                  onChange={(event) => updateList({ eligibility: event.target.value })}
+                >
+                  <option value="">Tất cả</option>
+                  <option value="eligible">Đủ điều kiện</option>
+                  <option value="ineligible">Chưa đủ điều kiện</option>
+                </Select>
+              </div>
+              <div className="w-full min-w-56 sm:w-64">
+                <SearchCombobox
+                  label="Khóa học"
+                  value={listState.filters.course_id}
+                  onChange={(value) => updateList({ course_id: value, class_id: "" })}
+                  onSearch={setCourseSearch}
+                  options={courseOptions}
+                  loading={courseOptionsQuery.isLoading}
+                />
+              </div>
+              <div className="w-full min-w-56 sm:w-64">
+                <SearchCombobox
+                  label="Lớp học"
+                  value={listState.filters.class_id}
+                  onChange={(value) => updateList({ class_id: value })}
+                  onSearch={setClassSearch}
+                  options={classOptions}
+                  loading={classOptionsQuery.isLoading}
+                />
+              </div>
+              <div className="w-full min-w-44 sm:w-48">
+                <Select
+                  label="Sắp xếp"
+                  value={`${listState.sort}:${listState.order}`}
+                  onChange={(event) => {
+                    const [sort, order] = event.target.value.split(":");
+                    updateList({ sort, order });
+                  }}
+                >
+                  <option value="class_code:asc">Mã lớp A–Z</option>
+                  <option value="class_code:desc">Mã lớp Z–A</option>
+                  <option value="student_code:asc">Mã học viên A–Z</option>
+                  <option value="student_code:desc">Mã học viên Z–A</option>
+                </Select>
+              </div>
+            </>
+          }
+        />
         {certificateAction.error && (
           <ErrorBanner message={mutationMessage(certificateAction.error)} />
         )}
@@ -1289,79 +1295,85 @@ function PersonDirectory({ kind }: { kind: PersonKind }) {
         }
       />
       <FilterBar
+        compact
         search={searchInput}
         onSearch={setSearchInput}
         resultCount={query.data?.meta.total}
+        resultCountLabel={title.toLowerCase()}
         activeFilters={activeFilters}
+        advancedFilterCount={activeFilters.length}
         onRemoveFilter={(key) => updateList({ [key]: "" })}
         onClearAll={() => {
           setSearchInput("");
           setSearchParams(new URLSearchParams(), { replace: true });
         }}
-      >
-        <div className="w-full min-w-44 sm:w-48">
-          <Select
-            label="Trạng thái"
-            value={listState.filters.status}
-            onChange={(event) => updateList({ status: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            {personStatusOptions[kind].map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        {!isStudent ? (
-          <div className="w-full min-w-44 sm:w-52">
-            <Select
-              label="Phân công"
-              value={listState.filters.assignment}
-              onChange={(event) => updateList({ assignment: event.target.value })}
-            >
-              <option value="">Tất cả</option>
-              <option value="assigned">Đã phân công</option>
-              <option value="unassigned">Chưa phân công</option>
-            </Select>
-          </div>
-        ) : null}
-        {isStudent ? (
-          <div className="w-full min-w-44 sm:w-52">
-            <Select
-              label="Nguy cơ chuyên cần"
-              value={listState.filters.attendance_risk}
-              onChange={(event) => updateList({ attendance_risk: event.target.value })}
-            >
-              <option value="">Tất cả</option>
-              <option value="at_risk">Có nguy cơ dưới 80%</option>
-              <option value="on_track">Đạt tiến độ</option>
-            </Select>
-          </div>
-        ) : null}
-        <div className="w-full min-w-56 sm:w-64">
-          <SearchCombobox
-            label="Khóa học"
-            value={listState.filters.course_id}
-            onChange={(value) => updateList({ course_id: value, class_id: "" })}
-            onSearch={setCourseSearch}
-            options={courseOptions}
-            loading={courseOptionsQuery.isLoading}
-            placeholder="Tìm mã hoặc tên khóa…"
-          />
-        </div>
-        <div className="w-full min-w-56 sm:w-64">
-          <SearchCombobox
-            label="Lớp học"
-            value={listState.filters.class_id}
-            onChange={(value) => updateList({ class_id: value })}
-            onSearch={setClassSearch}
-            options={classOptions}
-            loading={classOptionsQuery.isLoading}
-            placeholder="Tìm mã hoặc tên lớp…"
-          />
-        </div>
-      </FilterBar>
+        advancedFilters={
+          <>
+            <div className="w-full min-w-44 sm:w-48">
+              <Select
+                label="Trạng thái"
+                value={listState.filters.status}
+                onChange={(event) => updateList({ status: event.target.value })}
+              >
+                <option value="">Tất cả</option>
+                {personStatusOptions[kind].map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {!isStudent ? (
+              <div className="w-full min-w-44 sm:w-52">
+                <Select
+                  label="Phân công"
+                  value={listState.filters.assignment}
+                  onChange={(event) => updateList({ assignment: event.target.value })}
+                >
+                  <option value="">Tất cả</option>
+                  <option value="assigned">Đã phân công</option>
+                  <option value="unassigned">Chưa phân công</option>
+                </Select>
+              </div>
+            ) : null}
+            {isStudent ? (
+              <div className="w-full min-w-44 sm:w-52">
+                <Select
+                  label="Nguy cơ chuyên cần"
+                  value={listState.filters.attendance_risk}
+                  onChange={(event) => updateList({ attendance_risk: event.target.value })}
+                >
+                  <option value="">Tất cả</option>
+                  <option value="at_risk">Có nguy cơ dưới 80%</option>
+                  <option value="on_track">Đạt tiến độ</option>
+                </Select>
+              </div>
+            ) : null}
+            <div className="w-full min-w-56 sm:w-64">
+              <SearchCombobox
+                label="Khóa học"
+                value={listState.filters.course_id}
+                onChange={(value) => updateList({ course_id: value, class_id: "" })}
+                onSearch={setCourseSearch}
+                options={courseOptions}
+                loading={courseOptionsQuery.isLoading}
+                placeholder="Tìm mã hoặc tên khóa…"
+              />
+            </div>
+            <div className="w-full min-w-56 sm:w-64">
+              <SearchCombobox
+                label="Lớp học"
+                value={listState.filters.class_id}
+                onChange={(value) => updateList({ class_id: value })}
+                onSearch={setClassSearch}
+                options={classOptions}
+                loading={classOptionsQuery.isLoading}
+                placeholder="Tìm mã hoặc tên lớp…"
+              />
+            </div>
+          </>
+        }
+      />
       {isStudent && importMutation.data ? (
         <Card className="mb-5 border-emerald-200 bg-emerald-50 p-4 text-sm">
           Đã nhập <b>{importMutation.data.imported}</b> học viên; lỗi{" "}
@@ -1884,9 +1896,11 @@ export function CoursesPage() {
         }
       />
       <FilterBar
+        compact
         search={searchInput}
         onSearch={setSearchInput}
         resultCount={query.data?.meta.total}
+        resultCountLabel="khóa học"
         activeFilters={
           listState.filters.status
             ? [
@@ -1897,26 +1911,28 @@ export function CoursesPage() {
               ]
             : []
         }
+        advancedFilterCount={listState.filters.status ? 1 : 0}
         onRemoveFilter={() => updateList({ status: "" })}
         onClearAll={() => {
           setSearchInput("");
           setSearchParams(new URLSearchParams(), { replace: true });
         }}
-      >
-        <div className="w-full min-w-44 sm:w-52">
-          <Select
-            label="Trạng thái"
-            value={listState.filters.status}
-            onChange={(event) => updateList({ status: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="draft">Bản nháp</option>
-            <option value="active">Hoạt động</option>
-            <option value="inactive">Không hoạt động</option>
-            <option value="archived">Lưu trữ</option>
-          </Select>
-        </div>
-      </FilterBar>
+        advancedFilters={
+          <div className="w-full min-w-44 sm:w-52">
+            <Select
+              label="Trạng thái"
+              value={listState.filters.status}
+              onChange={(event) => updateList({ status: event.target.value })}
+            >
+              <option value="">Tất cả</option>
+              <option value="draft">Bản nháp</option>
+              <option value="active">Hoạt động</option>
+              <option value="inactive">Không hoạt động</option>
+              <option value="archived">Lưu trữ</option>
+            </Select>
+          </div>
+        }
+      />
       <QueryState
         loading={query.isLoading}
         error={query.error}
@@ -2372,6 +2388,8 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   });
 
   const advancedClassFilterCount = [
+    listState.filters.status,
+    listState.filters.capacity,
     listState.filters.course_id,
     listState.filters.teacher_id,
     listState.filters.from_date,
@@ -2380,6 +2398,31 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
 
   const advancedClassFilters = (
     <>
+      <div className="w-full min-w-36 sm:w-44">
+        <Select
+          label="Trạng thái"
+          value={listState.filters.status}
+          onChange={(event) => updateList({ status: event.target.value })}
+        >
+          <option value="">Tất cả</option>
+          <option value="planning">Chuẩn bị</option>
+          <option value="open">Đang mở</option>
+          <option value="in_progress">Đang diễn ra</option>
+          <option value="completed">Hoàn thành</option>
+          <option value="cancelled">Đã hủy</option>
+        </Select>
+      </div>
+      <div className="w-full min-w-36 sm:w-44">
+        <Select
+          label="Sĩ số"
+          value={listState.filters.capacity}
+          onChange={(event) => updateList({ capacity: event.target.value })}
+        >
+          <option value="">Tất cả</option>
+          <option value="available">Còn chỗ</option>
+          <option value="full">Đã đầy</option>
+        </Select>
+      </div>
       <div className="w-full min-w-56 sm:w-64">
         <SearchCombobox
           label="Khóa học"
@@ -2444,9 +2487,11 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
         }
       />
       <FilterBar
+        compact
         search={searchInput}
         onSearch={setSearchInput}
         resultCount={query.data?.meta.total}
+        resultCountLabel="lớp"
         activeFilters={[
           ...(listState.filters.status
             ? [{ key: "status", label: `Trạng thái: ${statusLabel(listState.filters.status)}` }]
@@ -2480,33 +2525,7 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
         searchPlaceholder="Nhập mã hoặc tên lớp…"
         advancedFilters={advancedClassFilters}
         advancedFilterCount={advancedClassFilterCount}
-      >
-        <div className="w-full min-w-36 sm:w-44">
-          <Select
-            label="Trạng thái"
-            value={listState.filters.status}
-            onChange={(event) => updateList({ status: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="planning">Chuẩn bị</option>
-            <option value="open">Đang mở</option>
-            <option value="in_progress">Đang diễn ra</option>
-            <option value="completed">Hoàn thành</option>
-            <option value="cancelled">Đã hủy</option>
-          </Select>
-        </div>
-        <div className="w-full min-w-36 sm:w-44">
-          <Select
-            label="Sĩ số"
-            value={listState.filters.capacity}
-            onChange={(event) => updateList({ capacity: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="available">Còn chỗ</option>
-            <option value="full">Đã đầy</option>
-          </Select>
-        </div>
-      </FilterBar>
+      />
       <QueryState
         loading={query.isLoading}
         error={query.error}
@@ -3698,12 +3717,52 @@ export function ScheduleAdminPage({ readOnly = false }: { readOnly?: boolean } =
       : []),
   ];
   const advancedScheduleFilterCount = [
+    listState.filters.status,
+    listState.filters.session_type,
+    listState.filters.attendance_state,
     listState.filters.class_id,
     listState.filters.teacher_id,
     listState.filters.location_id,
   ].filter(Boolean).length;
   const advancedScheduleFilters = (
     <>
+      <div className="w-full min-w-40 sm:w-44">
+        <Select
+          label="Trạng thái"
+          value={listState.filters.status}
+          onChange={(event) => updateList({ status: event.target.value })}
+        >
+          <option value="">Tất cả</option>
+          <option value="scheduled">Đã lên lịch</option>
+          <option value="completed">Đã diễn ra</option>
+          <option value="locked">Đã khóa</option>
+          <option value="cancelled">Đã hủy</option>
+        </Select>
+      </div>
+      <div className="w-full min-w-40 sm:w-44">
+        <Select
+          label="Loại buổi"
+          value={listState.filters.session_type}
+          onChange={(event) => updateList({ session_type: event.target.value })}
+        >
+          <option value="">Tất cả</option>
+          <option value="theory">Lý thuyết</option>
+          <option value="workshop">Thực hành</option>
+          <option value="assessment">Đánh giá</option>
+          <option value="other">Khác</option>
+        </Select>
+      </div>
+      <div className="w-full min-w-44 sm:w-48">
+        <Select
+          label="Khóa điểm danh"
+          value={listState.filters.attendance_state}
+          onChange={(event) => updateList({ attendance_state: event.target.value })}
+        >
+          <option value="">Tất cả</option>
+          <option value="unlocked">Đang mở</option>
+          <option value="locked">Đã khóa</option>
+        </Select>
+      </div>
       <div className="w-full min-w-56 sm:w-60">
         <SearchCombobox
           label="Lớp học"
@@ -3794,9 +3853,11 @@ export function ScheduleAdminPage({ readOnly = false }: { readOnly?: boolean } =
         }
       />
       <FilterBar
+        compact
         search={searchInput}
         onSearch={setSearchInput}
         resultCount={query.data?.meta.total}
+        resultCountLabel="buổi"
         activeFilters={activeScheduleFilters}
         onRemoveFilter={(key) => updateList({ [key]: "" })}
         onClearAll={() => {
@@ -3806,45 +3867,7 @@ export function ScheduleAdminPage({ readOnly = false }: { readOnly?: boolean } =
         searchPlaceholder="Nội dung buổi học, mã lớp, giảng viên…"
         advancedFilters={advancedScheduleFilters}
         advancedFilterCount={advancedScheduleFilterCount}
-      >
-        <div className="w-full min-w-40 sm:w-44">
-          <Select
-            label="Trạng thái"
-            value={listState.filters.status}
-            onChange={(event) => updateList({ status: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="scheduled">Đã lên lịch</option>
-            <option value="completed">Đã diễn ra</option>
-            <option value="locked">Đã khóa</option>
-            <option value="cancelled">Đã hủy</option>
-          </Select>
-        </div>
-        <div className="w-full min-w-40 sm:w-44">
-          <Select
-            label="Loại buổi"
-            value={listState.filters.session_type}
-            onChange={(event) => updateList({ session_type: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="theory">Lý thuyết</option>
-            <option value="workshop">Thực hành</option>
-            <option value="assessment">Đánh giá</option>
-            <option value="other">Khác</option>
-          </Select>
-        </div>
-        <div className="w-full min-w-44 sm:w-48">
-          <Select
-            label="Khóa điểm danh"
-            value={listState.filters.attendance_state}
-            onChange={(event) => updateList({ attendance_state: event.target.value })}
-          >
-            <option value="">Tất cả</option>
-            <option value="unlocked">Đang mở</option>
-            <option value="locked">Đã khóa</option>
-          </Select>
-        </div>
-      </FilterBar>
+      />
       <QueryState loading={query.isLoading} error={query.error}>
         <WeekCalendar
           events={events}

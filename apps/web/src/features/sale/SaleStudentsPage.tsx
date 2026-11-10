@@ -154,6 +154,7 @@ export function SaleStudentsPage() {
 
       {/* Filter Bar */}
       <FilterBar
+        compact
         search={search}
         onSearch={(val) => {
           setSearch(val);
@@ -161,6 +162,8 @@ export function SaleStudentsPage() {
         }}
         searchPlaceholder="Tìm theo tên học viên, mã HV, số điện thoại..."
         resultCount={total}
+        resultCountLabel="học viên"
+        advancedFilterCount={(fromDate ? 1 : 0) + (toDate ? 1 : 0)}
         onClearAll={
           Boolean(search) || Boolean(fromDate) || Boolean(toDate)
             ? () => {
@@ -171,31 +174,34 @@ export function SaleStudentsPage() {
               }
             : undefined
         }
-      >
-        <div className="w-36 sm:w-40">
-          <Input
-            label="Từ ngày"
-            type="date"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
+        advancedFilters={
+          <>
+            <div className="w-36 sm:w-40">
+              <Input
+                label="Từ ngày"
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
 
-        <div className="w-36 sm:w-40">
-          <Input
-            label="Đến ngày"
-            type="date"
-            value={toDate}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </FilterBar>
+            <div className="w-36 sm:w-40">
+              <Input
+                label="Đến ngày"
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </>
+        }
+      />
 
       {/* Table */}
       <QueryState
