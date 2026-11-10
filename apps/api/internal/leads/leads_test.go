@@ -217,16 +217,81 @@ func TestGenerateTemplateExcelAndParse(t *testing.T) {
 	}
 
 	header := rows[0]
-	if len(header) < 10 {
-		t.Fatalf("expected at least 10 columns in header, got %d", len(header))
+	// Template must have exactly 9 columns (Nhân viên phụ trách has been removed)
+	if len(header) != 9 {
+		t.Fatalf("expected exactly 9 columns in header (excluding assigned_to), got %d: %v", len(header), header)
 	}
 	if normalizeColumnHeader(header[0]) != "full_name" {
 		t.Errorf("expected column 0 to normalize to 'full_name', got %q", normalizeColumnHeader(header[0]))
 	}
+	if normalizeColumnHeader(header[1]) != "phone" {
+		t.Errorf("expected column 1 to normalize to 'phone', got %q", normalizeColumnHeader(header[1]))
+	}
 
-	// Verify sample 1 row
+	// Verify sample rows have leading 0 preserved in phone column
 	sample1 := rows[1]
 	if sample1[0] != "Trần Văn An" {
 		t.Errorf("expected sample 1 name 'Trần Văn An', got %q", sample1[0])
+	}
+	if sample1[1] != "0901234567" {
+		t.Errorf("expected sample 1 phone to strictly keep leading zero '0901234567', got %q", sample1[1])
+	}
+
+	sample2 := rows[2]
+	if sample2[1] != "0912345678" {
+		t.Errorf("expected sample 2 phone to keep leading zero '0912345678', got %q", sample2[1])
+	}
+
+	sample3 := rows[3]
+	if sample3[1] != "0987654321" {
+		t.Errorf("expected sample 3 phone to keep leading zero '0987654321', got %q", sample3[1])
+	}
+}
+
+func TestValidateLeadWritePhone(t *testing.T) {
+	// Valid phone starting with 0
+	validPhone := "0912345678"
+	input, msg := validateLeadWrite(leadWriteRequest{
+		FullName: "Test Lead",
+		Phone:    &validPhone,
+	})
+	if msg != "" {
+		t.Fatalf("valid phone was rejected: %s", msg)
+	}
+	if input.Phone == nil || *input.Phone != "0912345678" {
+		t.Fatalf("expected phone '0912345678', got %v", input.Phone)
+	}
+
+	// Missing leading 0
+	invalidPhoneNoZero := "912345678"
+	_, msg = validateLeadWrite(leadWriteRequest{
+		FullName: "Test Lead",
+		Phone:    &invalidPhoneNoZero,
+	})
+	if msg == "" {
+		t.Fatal("phone missing leading zero should be rejected")
+	}
+
+	// Phone with non-digits
+	invalidCharsPhone := "09123abcde"
+	_, msg = validateLeadWrite(leadWriteRequest{
+		FullName: "Test Lead",
+		Phone:    &invalidCharsPhone,
+	})
+	if msg == "" {
+		t.Fatal("phone with characters should be rejected")
+	}
+
+	// Phone with spaces is sanitized
+	phoneWithSpaces := "091 234 5678"
+	input, msg = validateLeadWrite(leadWriteRequest{
+		FullName: "Test Lead",
+		Phone:    &phoneWithSpaces,
+	})
+	if msg != "" {
+		t.Fatalf("phone with spaces should be accepted after cleaning: %s", msg)
+	}
+	if input.Phone == nil || *input.Phone != "0912345678" {
+		t.Fatalf("expected sanitized phone '0912345678', got %v", input.Phone)
 	}
 }

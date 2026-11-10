@@ -794,8 +794,7 @@ export function LeadPipelinePage() {
                   Bước 1: Tải file mẫu chuẩn Excel (.xlsx)
                 </h4>
                 <p className="mt-1 text-xs text-gtext leading-relaxed">
-                  File bảng tính Microsoft Excel (.xlsx) chuẩn với giao diện trực quan, tiêu đề rõ
-                  ràng và sẵn 3 dòng dữ liệu ví dụ.
+                  File bảng tính Microsoft Excel (.xlsx) chuẩn: SĐT định dạng Text giữ nguyên số 0 đầu, có sẵn menu chọn Nguồn lead và Giới tính (Nam, Nữ, Khác).
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -827,8 +826,7 @@ export function LeadPipelinePage() {
               Bước 2: Chọn file Excel (.xlsx) hoặc CSV đã điền để tải lên
             </h4>
             <p className="mt-1 text-xs text-gtext">
-              Hệ thống tự động nhận diện mã khóa học, email nhân viên và chuẩn hóa định dạng. Hỗ trợ
-              cả file .xlsx và .csv (tối đa 500 dòng/lần).
+              Hệ thống kiểm tra SĐT bắt buộc có số 0 đầu tiên, nhận diện mã khóa học và phân bổ lead tự động. Hỗ trợ file .xlsx và .csv (tối đa 500 dòng/lần).
             </p>
 
             <div className="mt-3">

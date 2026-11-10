@@ -316,19 +316,19 @@ func (h *Handler) TemplateCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	_ = writer.Write([]string{
 		"ho_va_ten", "so_dien_thoai", "email", "khoa_hoc", "nguon", "ghi_chu",
-		"ngay_sinh", "gioi_tinh", "dia_chi", "nhan_vien_phu_trach",
+		"ngay_sinh", "gioi_tinh", "dia_chi",
 	})
 	_ = writer.Write([]string{
-		"Trần Văn An", "0901234567", "tranvanan@example.com", "AUTO-EV-HYBRID", "facebook",
-		"Quan tâm khóa kỹ thuật xe điện & Hybrid", "15/05/1998", "Nam", "Hà Nội", "sale@nsa.local",
+		"Trần Văn An", "0901234567", "tranvanan@example.com", "AUTO-EV-HYBRID", "Facebook",
+		"Quan tâm khóa kỹ thuật xe điện & Hybrid", "15/05/1998", "Nam", "Hà Nội",
 	})
 	_ = writer.Write([]string{
-		"Nguyễn Thị Mai", "0912345678", "mainguyen@example.com", "AUTO-ELEC-PRO", "tiktok",
-		"Tư vấn lịch học thực hành buổi tối", "20/10/2001", "Nữ", "TP. Hồ Chí Minh", "sale2@nsa.local",
+		"Nguyễn Thị Mai", "0912345678", "mainguyen@example.com", "AUTO-ELEC-PRO", "TikTok",
+		"Tư vấn lịch học thực hành buổi tối", "20/10/2001", "Nữ", "TP. Hồ Chí Minh",
 	})
 	_ = writer.Write([]string{
-		"Lê Quốc Huy", "0987654321", "huy.le@example.com", "AUTO-ENG-EFI", "zalo",
-		"Muốn bổ túc chẩn đoán động cơ GDI", "08/12/1995", "Nam", "Đà Nẵng", "",
+		"Lê Quốc Huy", "0987654321", "huy.le@example.com", "AUTO-ENG-EFI", "Zalo",
+		"Muốn bổ túc chẩn đoán động cơ GDI", "08/12/1995", "Nam", "Đà Nẵng",
 	})
 	writer.Flush()
 	if err := writer.Error(); err != nil {
@@ -417,6 +417,34 @@ func validateLeadWrite(body leadWriteRequest) (WriteInput, string) {
 		return WriteInput{}, "full_name must be 200 characters or fewer"
 	}
 
+	var phonePtr *string
+	if body.Phone != nil {
+		rawPhone := strings.TrimSpace(*body.Phone)
+		if rawPhone != "" {
+			cleanPhone := strings.NewReplacer(" ", "", "-", "", ".", "", "(", "", ")", "").Replace(rawPhone)
+			if !strings.HasPrefix(cleanPhone, "0") {
+				return WriteInput{}, "Số điện thoại phải bắt đầu bằng số 0 (VD: 0901234567)"
+			}
+			for _, c := range cleanPhone {
+				if c < '0' || c > '9' {
+					return WriteInput{}, "Số điện thoại chỉ được chứa ký tự số"
+				}
+			}
+			if len(cleanPhone) < 10 || len(cleanPhone) > 11 {
+				return WriteInput{}, "Số điện thoại phải gồm 10-11 chữ số và bắt đầu bằng số 0"
+			}
+			phonePtr = &cleanPhone
+		}
+	}
+
+	var genderPtr *string
+	if body.Gender != nil && strings.TrimSpace(*body.Gender) != "" {
+		norm := normalizeGenderString(*body.Gender)
+		if norm != "" {
+			genderPtr = &norm
+		}
+	}
+
 	source := db.LeadSource(body.Source)
 	if source == "" {
 		source = db.LeadSourceOther
@@ -424,10 +452,10 @@ func validateLeadWrite(body leadWriteRequest) (WriteInput, string) {
 
 	return WriteInput{
 		FullName:           name,
-		Phone:              body.Phone,
+		Phone:              phonePtr,
 		Email:              body.Email,
 		DateOfBirth:        body.DateOfBirth,
-		Gender:             body.Gender,
+		Gender:             genderPtr,
 		Address:            body.Address,
 		Source:             source,
 		SourceDetail:       body.SourceDetail,

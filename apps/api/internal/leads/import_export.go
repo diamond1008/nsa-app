@@ -31,7 +31,7 @@ func GenerateTemplateExcel() ([]byte, error) {
 
 	headers := []interface{}{
 		"Họ và tên *",
-		"Số điện thoại",
+		"Số điện thoại (bắt đầu bằng 0)",
 		"Email",
 		"Khóa học quan tâm",
 		"Nguồn lead",
@@ -39,27 +39,68 @@ func GenerateTemplateExcel() ([]byte, error) {
 		"Ngày sinh (DD/MM/YYYY)",
 		"Giới tính (Nam/Nữ)",
 		"Địa chỉ",
-		"Nhân viên phụ trách",
 	}
 	if err := f.SetSheetRow(sheet, "A1", &headers); err != nil {
 		return nil, fmt.Errorf("write headers: %w", err)
 	}
 
 	sample1 := []interface{}{
-		"Trần Văn An", "0901234567", "tranvanan@example.com", "AUTO-EV-HYBRID", "facebook",
-		"Quan tâm khóa kỹ thuật xe điện & Hybrid", "15/05/1998", "Nam", "Hà Nội", "sale@nsa.local",
+		"Trần Văn An", "0901234567", "tranvanan@example.com", "AUTO-EV-HYBRID", "Facebook",
+		"Quan tâm khóa kỹ thuật xe điện & Hybrid", "15/05/1998", "Nam", "Hà Nội",
 	}
 	sample2 := []interface{}{
-		"Nguyễn Thị Mai", "0912345678", "mainguyen@example.com", "AUTO-ELEC-PRO", "tiktok",
-		"Tư vấn lịch học thực hành buổi tối", "20/10/2001", "Nữ", "TP. Hồ Chí Minh", "sale2@nsa.local",
+		"Nguyễn Thị Mai", "0912345678", "mainguyen@example.com", "AUTO-ELEC-PRO", "TikTok",
+		"Tư vấn lịch học thực hành buổi tối", "20/10/2001", "Nữ", "TP. Hồ Chí Minh",
 	}
 	sample3 := []interface{}{
-		"Lê Quốc Huy", "0987654321", "huy.le@example.com", "AUTO-ENG-EFI", "zalo",
-		"Muốn bổ túc chẩn đoán động cơ GDI", "08/12/1995", "Nam", "Đà Nẵng", "",
+		"Lê Quốc Huy", "0987654321", "huy.le@example.com", "AUTO-ENG-EFI", "Zalo",
+		"Muốn bổ túc chẩn đoán động cơ GDI", "08/12/1995", "Nam", "Đà Nẵng",
 	}
 	_ = f.SetSheetRow(sheet, "A2", &sample1)
 	_ = f.SetSheetRow(sheet, "A3", &sample2)
 	_ = f.SetSheetRow(sheet, "A4", &sample3)
+
+	// Ensure phone numbers in sample rows are stored strictly as text type with leading zero
+	_ = f.SetCellStr(sheet, "B2", "0901234567")
+	_ = f.SetCellStr(sheet, "B3", "0912345678")
+	_ = f.SetCellStr(sheet, "B4", "0987654321")
+
+	// Set column B format to Text (@) so Excel never strips leading zeros when typing
+	textFmt := "@"
+	phoneStyle, err := f.NewStyle(&excelize.Style{
+		NumFmt:       49,
+		CustomNumFmt: &textFmt,
+		Alignment: &excelize.Alignment{
+			Horizontal: "left",
+			Vertical:   "center",
+		},
+	})
+	if err == nil {
+		_ = f.SetColStyle(sheet, "B", phoneStyle)
+		_ = f.SetCellStyle(sheet, "B2", "B1000", phoneStyle)
+	}
+
+	// Data Validation: Dropdown list for Nguồn lead (Column E)
+	dvSource := excelize.NewDataValidation(true)
+	dvSource.SetSqref("E2:E1000")
+	_ = dvSource.SetDropList([]string{
+		"Facebook",
+		"Zalo",
+		"TikTok",
+		"Website",
+		"Google",
+		"Giới thiệu",
+		"Sự kiện",
+		"Đến trực tiếp",
+		"Khác",
+	})
+	_ = f.AddDataValidation(sheet, dvSource)
+
+	// Data Validation: Dropdown list for Giới tính (Column H: Nam, Nữ, Khác)
+	dvGender := excelize.NewDataValidation(true)
+	dvGender.SetSqref("H2:H1000")
+	_ = dvGender.SetDropList([]string{"Nam", "Nữ", "Khác"})
+	_ = f.AddDataValidation(sheet, dvGender)
 
 	headerStyle, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
@@ -79,21 +120,20 @@ func GenerateTemplateExcel() ([]byte, error) {
 		},
 	})
 	if err == nil {
-		_ = f.SetCellStyle(sheet, "A1", "J1", headerStyle)
+		_ = f.SetCellStyle(sheet, "A1", "I1", headerStyle)
 	}
 	_ = f.SetRowHeight(sheet, 1, 30)
 
 	colWidths := map[string]float64{
 		"A": 22,
-		"B": 16,
+		"B": 26,
 		"C": 26,
 		"D": 22,
-		"E": 15,
+		"E": 18,
 		"F": 38,
-		"G": 22,
-		"H": 18,
-		"I": 24,
-		"J": 26,
+		"G": 24,
+		"H": 16,
+		"I": 26,
 	}
 	for col, width := range colWidths {
 		_ = f.SetColWidth(sheet, col, col, width)
@@ -250,8 +290,35 @@ func (s *Service) ImportFileData(ctx context.Context, actorID string, dataBytes 
 		}
 
 		var phonePtr *string
-		if p := val("phone"); p != "" {
-			phonePtr = &p
+		rawPhone := strings.TrimSpace(val("phone"))
+		if rawPhone != "" {
+			cleanPhone := strings.NewReplacer(" ", "", "-", "", ".", "", "(", "", ")", "").Replace(rawPhone)
+			if !strings.HasPrefix(cleanPhone, "0") {
+				result.Failed++
+				result.Errors = append(result.Errors, ImportRowError{
+					Row:     rowNumber,
+					Name:    fullName,
+					Message: fmt.Sprintf("Số điện thoại %q không hợp lệ: bắt buộc phải bắt đầu bằng số 0 (VD: 0901234567)", rawPhone),
+				})
+				continue
+			}
+			isDigits := true
+			for _, c := range cleanPhone {
+				if c < '0' || c > '9' {
+					isDigits = false
+					break
+				}
+			}
+			if !isDigits || len(cleanPhone) < 10 || len(cleanPhone) > 11 {
+				result.Failed++
+				result.Errors = append(result.Errors, ImportRowError{
+					Row:     rowNumber,
+					Name:    fullName,
+					Message: fmt.Sprintf("Số điện thoại %q không đúng định dạng (phải gồm 10-11 chữ số và bắt đầu bằng số 0)", rawPhone),
+				})
+				continue
+			}
+			phonePtr = &cleanPhone
 		}
 
 		var emailPtr *string
@@ -294,6 +361,14 @@ func (s *Service) ImportFileData(ctx context.Context, actorID string, dataBytes 
 			normGender := normalizeGenderString(g)
 			if normGender != "" {
 				genderPtr = &normGender
+			} else {
+				result.Failed++
+				result.Errors = append(result.Errors, ImportRowError{
+					Row:     rowNumber,
+					Name:    fullName,
+					Message: fmt.Sprintf("Giới tính %q không hợp lệ (vui lòng chọn Nam, Nữ hoặc Khác)", g),
+				})
+				continue
 			}
 		}
 
@@ -591,6 +666,20 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 		},
 	})
 
+	phoneTextFmt := "@"
+	phoneStyle, _ := f.NewStyle(&excelize.Style{
+		NumFmt:       49,
+		CustomNumFmt: &phoneTextFmt,
+		Font:         &excelize.Font{Size: 10, Family: "Segoe UI"},
+		Alignment:    &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#E5E7EB", Style: 1},
+			{Type: "bottom", Color: "#E5E7EB", Style: 1},
+			{Type: "left", Color: "#E5E7EB", Style: 1},
+			{Type: "right", Color: "#E5E7EB", Style: 1},
+		},
+	})
+
 	headers := []string{
 		"STT", "Họ và tên", "Số điện thoại", "Email", "Giới tính",
 		"Nguồn tiếp cận", "Khóa học quan tâm", "Trạng thái Pipeline",
@@ -673,15 +762,26 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 
 		for colIdx, v := range values {
 			cell, _ := excelize.CoordinatesToCellName(colIdx+1, row)
-			_ = f.SetCellValue(sheetName, cell, v)
-			if colIdx == 0 || colIdx == 2 || colIdx == 4 || colIdx == 7 || colIdx == 10 {
-				_ = f.SetCellStyle(sheetName, cell, cell, centerStyle)
+			if colIdx == 2 { // Số điện thoại (Column C)
+				if phoneStr != "" {
+					_ = f.SetCellStr(sheetName, cell, phoneStr)
+				} else {
+					_ = f.SetCellValue(sheetName, cell, "—")
+				}
+				_ = f.SetCellStyle(sheetName, cell, cell, phoneStyle)
 			} else {
-				_ = f.SetCellStyle(sheetName, cell, cell, dataStyle)
+				_ = f.SetCellValue(sheetName, cell, v)
+				if colIdx == 0 || colIdx == 4 || colIdx == 7 || colIdx == 10 {
+					_ = f.SetCellStyle(sheetName, cell, cell, centerStyle)
+				} else {
+					_ = f.SetCellStyle(sheetName, cell, cell, dataStyle)
+				}
 			}
 		}
 		_ = f.SetRowHeight(sheetName, row, 22)
 	}
+
+	_ = f.SetColStyle(sheetName, "C", phoneStyle)
 
 	colWidths := map[int]float64{
 		1: 8, 2: 24, 3: 16, 4: 26, 5: 12,
