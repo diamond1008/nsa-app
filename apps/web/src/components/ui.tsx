@@ -579,24 +579,37 @@ export function PageHeader({
   const headerCtx = useHeaderUtilities();
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-4 md:mb-6">
-      <div className="flex items-center gap-3 min-w-0">
-        {headerCtx?.openMobileMenu && (
-          <button
-            type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all"
-            aria-label="Mở menu"
-            onClick={headerCtx.openMobileMenu}
-          >
-            <Icon name="menu" />
-          </button>
-        )}
-        <div className="min-w-0">
+    <div className="mb-5 md:mb-6">
+      {/* Top Utility Row: Eyebrow on left (with mobile menu button if <lg), AI + Bell on far right */}
+      <div className="flex items-center justify-between gap-3 min-h-10 mb-1">
+        <div className="flex items-center gap-3 min-w-0">
+          {headerCtx?.openMobileMenu && (
+            <button
+              type="button"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all"
+              aria-label="Mở menu"
+              onClick={headerCtx.openMobileMenu}
+            >
+              <Icon name="menu" />
+            </button>
+          )}
           {eyebrow && (
-            <p className="mb-0.5 text-xs font-bold uppercase tracking-[0.16em] text-[#0532e6]">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#0532e6] select-none">
               {eyebrow}
             </p>
           )}
+        </div>
+
+        {headerCtx?.renderGlobalUtilities && (
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            {headerCtx.renderGlobalUtilities()}
+          </div>
+        )}
+      </div>
+
+      {/* Main Row: Title & Subtitle on left, Actions on right */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-navy-dark md:text-[1.75rem]">
             {title}
           </h1>
@@ -606,13 +619,10 @@ export function PageHeader({
             </p>
           )}
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2.5 shrink-0 ml-auto">
-        {actions}
-        {headerCtx?.renderGlobalUtilities && (
-          <div className="flex items-center gap-2">
-            {actions && <div className="h-6 w-px bg-slate-200/80 mx-1 hidden sm:block" />}
-            {headerCtx.renderGlobalUtilities()}
+
+        {actions && (
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 ml-auto">
+            {actions}
           </div>
         )}
       </div>

@@ -588,6 +588,7 @@ export function ExecutiveSalesDashboard() {
       <div className="space-y-6">
         {/* 1. Header & Actions (Synchronized PageHeader) */}
         <PageHeader
+          eyebrow="Trung tâm điều hành Tuyển sinh"
           title="Tổng quan Phòng Tuyển sinh"
           subtitle="Báo cáo doanh số phòng, hiệu suất đội ngũ tư vấn, tiến độ chuyển đổi và học viên mới."
           actions={

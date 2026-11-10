@@ -113,6 +113,7 @@ export function PersonalSalesDashboard() {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
+        eyebrow="Không gian làm việc Sale"
         title="Tổng quan Tuyển sinh"
         subtitle="Theo dõi chỉ tiêu doanh số cá nhân, tiến độ chăm sóc khách hàng và học viên vừa đăng ký."
         actions={

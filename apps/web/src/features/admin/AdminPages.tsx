@@ -1258,6 +1258,7 @@ function PersonDirectory({ kind }: { kind: PersonKind }) {
   return (
     <div>
       <PageHeader
+        eyebrow={isStudent ? "Quản lý Học viên" : "Quản lý Giảng viên"}
         title={title}
         subtitle={`Quản lý tài khoản và hồ sơ ${title.toLowerCase()}.`}
         actions={
@@ -1882,6 +1883,7 @@ export function CoursesPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Chương trình đào tạo"
         title="Khóa học"
         subtitle="Quản lý chương trình và yêu cầu hoàn thành."
         actions={
@@ -2467,6 +2469,7 @@ export function ClassesPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   return (
     <div>
       <PageHeader
+        eyebrow="Tổ chức lớp học"
         title="Lớp học"
         subtitle={
           readOnly

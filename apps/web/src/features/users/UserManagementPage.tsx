@@ -673,6 +673,7 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
 
       {/* Page Header */}
       <PageHeader
+        eyebrow="Hệ thống & Phân quyền"
         title={pageTitle}
         subtitle={pageSubtitle}
         actions={
