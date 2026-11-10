@@ -43,7 +43,6 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
     search,
     onSearch,
     resultCount,
-    resultCountLabel,
     activeFilters = [],
     onRemoveFilter,
     onClearAll,
@@ -113,11 +112,17 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
     >
       <div
         className={clsx(
-          "gap-3",
-          compact ? "flex flex-nowrap items-center" : "flex flex-wrap items-end",
+          "gap-2.5 sm:gap-3",
+          compact
+            ? "flex flex-wrap sm:flex-nowrap items-center justify-between"
+            : "flex flex-wrap items-end",
         )}
       >
-        <div className={clsx("flex-1", compact ? "min-w-0" : "min-w-[220px] sm:min-w-[260px]")}>
+        <div
+          className={clsx(
+            compact ? "w-full min-w-0 sm:flex-1" : "flex-1 min-w-[220px] sm:min-w-[260px]",
+          )}
+        >
           <Input
             label="Tìm kiếm"
             hideLabel={compact}
@@ -127,57 +132,66 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
             onChange={(event) => onSearch(event.target.value)}
             placeholder={searchPlaceholder}
             autoComplete="off"
-            className={compact ? "h-10" : undefined}
+            className={compact ? "h-10 text-sm" : undefined}
           />
         </div>
         {children}
-        {compact && typeof resultCount === "number" ? (
-          <div className="shrink-0 h-10 px-3 inline-flex items-center rounded-xl border border-slate-200/80 bg-slate-50/80 text-xs text-gtext shadow-2xs backdrop-blur-sm whitespace-nowrap">
-            <span>
-              {resultCountLabel ? `Tổng số ${resultCountLabel}: ` : "Tổng: "}
-              <strong className="font-bold text-navy font-calibri text-sm">
-                {new Intl.NumberFormat("vi-VN").format(resultCount)}
-              </strong>
+        <div
+          className={clsx(
+            "flex items-center gap-2",
+            compact && "w-full sm:w-auto justify-between sm:justify-end shrink-0",
+          )}
+        >
+          {compact && typeof resultCount === "number" ? (
+            <span className="shrink-0 inline-flex items-center text-xs sm:text-[13px] text-slate-500 font-medium whitespace-nowrap px-1">
+              {new Intl.NumberFormat("vi-VN").format(resultCount)} kết quả
             </span>
-          </div>
-        ) : null}
-        {compact && onClearAll ? (
-          <div className="relative group/clear shrink-0">
-            <button
-              type="button"
-              onClick={onClearAll}
-              title="Xóa bộ lọc"
-              aria-label="Xóa tất cả bộ lọc"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200/80 bg-rose-50/70 text-rose-600 shadow-2xs backdrop-blur-sm transition-all hover:bg-rose-100 hover:border-rose-300 hover:text-rose-700 active:scale-95"
-            >
-              <Icon name="rotate-ccw" className="h-4 w-4" />
-            </button>
-            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/clear:flex flex-col items-center z-30">
-              <div className="whitespace-nowrap rounded-lg bg-slate-900/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg backdrop-blur-xs">
-                Xóa bộ lọc
+          ) : null}
+          <div className="flex items-center gap-2 shrink-0">
+            {compact && onClearAll ? (
+              <div className="relative group/clear shrink-0">
+                <button
+                  type="button"
+                  onClick={onClearAll}
+                  title="Xóa bộ lọc"
+                  aria-label="Xóa tất cả bộ lọc"
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-rose-200/80 bg-rose-50/70 text-rose-600 shadow-2xs backdrop-blur-sm transition-all hover:bg-rose-100 hover:border-rose-300 hover:text-rose-700 active:scale-95"
+                >
+                  <Icon name="rotate-ccw" className="h-4 w-4" />
+                </button>
+                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/clear:flex flex-col items-center z-30">
+                  <div className="whitespace-nowrap rounded-lg bg-slate-900/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg backdrop-blur-xs">
+                    Xóa bộ lọc
+                  </div>
+                  <div className="h-1.5 w-1.5 -mt-0.5 rotate-45 bg-slate-900/95" />
+                </div>
               </div>
-              <div className="h-1.5 w-1.5 -mt-0.5 rotate-45 bg-slate-900/95" />
-            </div>
-          </div>
-        ) : null}
+            ) : null}
 
-        {advancedFilters ? (
-          <Button
-            type="button"
-            variant={advancedOpen ? "soft" : "ghost"}
-            className={clsx("shrink-0 self-end", compact ? "h-10 text-xs px-3.5" : "h-11")}
-            aria-expanded={advancedOpen}
-            aria-controls={advancedId}
-            onClick={() => setAdvancedOpen((current) => !current)}
-          >
-            <Icon name="filter" className="h-4 w-4" />
-            <span>Bộ lọc nâng cao{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}</span>
-            <Icon
-              name="chevron-down"
-              className={`h-4 w-4 transition-transform motion-reduce:transition-none ${advancedOpen ? "rotate-180" : ""}`}
-            />
-          </Button>
-        ) : null}
+            {advancedFilters ? (
+              <Button
+                type="button"
+                variant={advancedOpen ? "soft" : "ghost"}
+                className={clsx(
+                  "shrink-0",
+                  compact ? "h-9 sm:h-10 text-xs px-2.5 sm:px-3.5" : "h-11",
+                )}
+                aria-expanded={advancedOpen}
+                aria-controls={advancedId}
+                onClick={() => setAdvancedOpen((current) => !current)}
+              >
+                <Icon name="filter" className="h-4 w-4" />
+                <span>
+                  Bộ lọc nâng cao{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+                </span>
+                <Icon
+                  name="chevron-down"
+                  className={`h-4 w-4 transition-transform motion-reduce:transition-none ${advancedOpen ? "rotate-180" : ""}`}
+                />
+              </Button>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {advancedFilters && advancedOpen ? (
@@ -201,8 +215,8 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
       {!compact && (
         <div className="mt-3 flex min-h-8 flex-wrap items-center gap-2 border-t border-white/70 pt-3">
           {typeof resultCount === "number" ? (
-            <span className="mr-1 text-xs font-semibold text-gtext">
-              {new Intl.NumberFormat("vi-VN").format(resultCount)} {resultCountLabel || "kết quả"}
+            <span className="mr-1 text-xs font-medium text-slate-500">
+              {new Intl.NumberFormat("vi-VN").format(resultCount)} kết quả
             </span>
           ) : null}
           {activeFilters.map((filter) => (

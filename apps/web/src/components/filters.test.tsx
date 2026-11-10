@@ -89,8 +89,7 @@ describe("operations filters", () => {
       />,
     );
 
-    expect(screen.getByText("Tổng số lead:")).toBeInTheDocument();
-    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText("42 kết quả")).toBeInTheDocument();
   });
 
   it("renders clear icon button to the left of advanced filter in compact mode when onClearAll is present", () => {

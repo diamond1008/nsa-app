@@ -1,10 +1,8 @@
 import {
   Children,
-  createContext,
   forwardRef,
   isValidElement,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useRef,
@@ -554,18 +552,6 @@ export function Badge({ tone = "gray", children }: { tone?: BadgeTone; children:
   );
 }
 
-export interface HeaderUtilitiesContextValue {
-  renderGlobalUtilities?: () => ReactNode;
-  openMobileMenu?: () => void;
-  onPageHeaderMount?: () => () => void;
-}
-
-export const HeaderUtilitiesContext = createContext<HeaderUtilitiesContextValue | null>(null);
-
-export function useHeaderUtilities() {
-  return useContext(HeaderUtilitiesContext);
-}
-
 export function PageHeader({
   title,
   subtitle,
@@ -577,52 +563,24 @@ export function PageHeader({
   actions?: ReactNode;
   eyebrow?: string;
 }) {
-  const headerCtx = useHeaderUtilities();
-
-  useEffect(() => {
-    if (headerCtx?.onPageHeaderMount) {
-      return headerCtx.onPageHeaderMount();
-    }
-  }, [headerCtx]);
-
   return (
     <div className="mb-5 flex flex-wrap items-center justify-between gap-4 md:mb-6">
-      <div className="flex items-start gap-3 min-w-0">
-        {headerCtx?.openMobileMenu && (
-          <button
-            type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/60 backdrop-blur-md text-navy hover:bg-white/85 active:scale-90 active:bg-white/95 lg:hidden shadow-2xs transition-all mt-0.5"
-            aria-label="Mở menu"
-            onClick={headerCtx.openMobileMenu}
-          >
-            <Icon name="menu" />
-          </button>
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="mb-0.5 text-xs font-bold uppercase tracking-[0.16em] text-[#0532e6]">
+            {eyebrow}
+          </p>
         )}
-        <div className="min-w-0">
-          {eyebrow && (
-            <p className="mb-0.5 text-xs font-bold uppercase tracking-[0.16em] text-[#0532e6]">
-              {eyebrow}
-            </p>
-          )}
-          <h1 className="text-2xl font-bold tracking-tight text-navy-dark md:text-[1.75rem]">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-1 max-w-3xl text-xs sm:text-sm text-gtext leading-relaxed">
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2.5">
-        {actions}
-        {headerCtx?.renderGlobalUtilities && (
-          <div className="flex items-center gap-2">
-            {actions && <div className="h-6 w-px bg-slate-200/80 mx-1 hidden sm:block" />}
-            {headerCtx.renderGlobalUtilities()}
-          </div>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-dark md:text-[1.75rem]">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-1 max-w-3xl text-xs sm:text-sm text-gtext leading-relaxed">
+            {subtitle}
+          </p>
         )}
       </div>
+      {actions && <div className="flex flex-wrap items-center gap-2.5">{actions}</div>}
     </div>
   );
 }
