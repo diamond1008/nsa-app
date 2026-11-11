@@ -427,9 +427,17 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
               {/* Profile Header Box (Microsoft 365 + Liquid Glass Style) */}
               <div className="border-b border-gborder/60 bg-white/95 px-6 pt-5 pb-5 backdrop-blur-md">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#001258] via-[#0532e6] to-[#001258] text-xl font-bold text-white shadow-lg ring-4 ring-blue-100/90">
-                    {getInitials(lead.full_name)}
-                  </div>
+                  {lead.converted_student_avatar_url ? (
+                    <img
+                      src={lead.converted_student_avatar_url}
+                      alt={lead.full_name}
+                      className="h-16 w-16 shrink-0 rounded-2xl border border-slate-200 object-cover shadow-lg ring-4 ring-blue-100/90"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#001258] via-[#0532e6] to-[#001258] text-xl font-bold text-white shadow-lg ring-4 ring-blue-100/90">
+                      {getInitials(lead.full_name)}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <h2 className="text-xl font-bold tracking-tight text-navy-heading">
@@ -1269,7 +1277,8 @@ export function LeadDetailDrawer({ leadId, onClose, onLeadUpdated }: LeadDetailD
                 const isDisabled = isConvertedOnly && !lead?.converted_student_id;
                 return (
                   <option key={opt.value} value={opt.value} disabled={isDisabled}>
-                    {opt.label}{isDisabled ? " (Cần Chốt học viên)" : ""}
+                    {opt.label}
+                    {isDisabled ? " (Cần Chốt học viên)" : ""}
                   </option>
                 );
               })}

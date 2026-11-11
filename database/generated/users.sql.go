@@ -75,9 +75,9 @@ func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, 
 }
 
 const createUserAccount = `-- name: CreateUserAccount :one
-INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone)
-VALUES ($1, $2, $3, FALSE, $4, $5)
-RETURNING id, email, status, must_change_password, full_name, phone, created_at, updated_at
+INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone, avatar_url)
+VALUES ($1, $2, $3, FALSE, $4, $5, $6)
+RETURNING id, email, status, must_change_password, full_name, phone, avatar_url, created_at, updated_at
 `
 
 type CreateUserAccountParams struct {
@@ -86,6 +86,7 @@ type CreateUserAccountParams struct {
 	Status       UserStatus  `json:"status"`
 	FullName     pgtype.Text `json:"full_name"`
 	Phone        pgtype.Text `json:"phone"`
+	AvatarUrl    pgtype.Text `json:"avatar_url"`
 }
 
 type CreateUserAccountRow struct {
@@ -95,6 +96,7 @@ type CreateUserAccountRow struct {
 	MustChangePassword bool               `json:"must_change_password"`
 	FullName           pgtype.Text        `json:"full_name"`
 	Phone              pgtype.Text        `json:"phone"`
+	AvatarUrl          pgtype.Text        `json:"avatar_url"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
@@ -106,6 +108,7 @@ func (q *Queries) CreateUserAccount(ctx context.Context, arg CreateUserAccountPa
 		arg.Status,
 		arg.FullName,
 		arg.Phone,
+		arg.AvatarUrl,
 	)
 	var i CreateUserAccountRow
 	err := row.Scan(
@@ -115,6 +118,7 @@ func (q *Queries) CreateUserAccount(ctx context.Context, arg CreateUserAccountPa
 		&i.MustChangePassword,
 		&i.FullName,
 		&i.Phone,
+		&i.AvatarUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -132,6 +136,7 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -152,7 +157,7 @@ JOIN roles r ON r.id = ur.role_id
 LEFT JOIN student_profiles sp ON sp.user_id = u.id
 LEFT JOIN teacher_profiles tp ON tp.user_id = u.id
 WHERE u.id = $1
-GROUP BY u.id, sp.student_code, tp.teacher_code
+GROUP BY u.id, sp.student_code, tp.teacher_code, sp.avatar_url, tp.avatar_url
 `
 
 type GetUserDetailRow struct {
@@ -165,6 +170,7 @@ type GetUserDetailRow struct {
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	FullName            string             `json:"full_name"`
 	Phone               string             `json:"phone"`
+	AvatarUrl           pgtype.Text        `json:"avatar_url"`
 	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
 	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
 	RoleCodes           []string           `json:"role_codes"`
@@ -186,6 +192,7 @@ func (q *Queries) GetUserDetail(ctx context.Context, id pgtype.UUID) (GetUserDet
 		&i.UpdatedAt,
 		&i.FullName,
 		&i.Phone,
+		&i.AvatarUrl,
 		&i.IsAcceptingLeads,
 		&i.LeadAssignmentOrder,
 		&i.RoleCodes,
@@ -274,6 +281,7 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -315,7 +323,7 @@ WHERE
     OR sp.student_code ILIKE '%' || $4 || '%'
     OR tp.teacher_code ILIKE '%' || $4 || '%'
   )
-GROUP BY u.id, sp.student_code, tp.teacher_code
+GROUP BY u.id, sp.student_code, tp.teacher_code, sp.avatar_url, tp.avatar_url
 ORDER BY u.created_at DESC
 LIMIT $6 OFFSET $5
 `
@@ -339,6 +347,7 @@ type ListUsersRow struct {
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	FullName            string             `json:"full_name"`
 	Phone               string             `json:"phone"`
+	AvatarUrl           pgtype.Text        `json:"avatar_url"`
 	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
 	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
 	RoleCodes           []string           `json:"role_codes"`
@@ -374,6 +383,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.UpdatedAt,
 			&i.FullName,
 			&i.Phone,
+			&i.AvatarUrl,
 			&i.IsAcceptingLeads,
 			&i.LeadAssignmentOrder,
 			&i.RoleCodes,
@@ -407,6 +417,60 @@ func (q *Queries) ResetUserAccountPassword(ctx context.Context, arg ResetUserAcc
 	return err
 }
 
+const syncStudentProfileFromUser = `-- name: SyncStudentProfileFromUser :exec
+UPDATE student_profiles
+SET
+  full_name = CASE WHEN $1::text <> '' THEN $1::text ELSE full_name END,
+  phone = $2,
+  avatar_url = $3,
+  updated_at = NOW()
+WHERE user_id = $4
+`
+
+type SyncStudentProfileFromUserParams struct {
+	FullName  string      `json:"full_name"`
+	Phone     pgtype.Text `json:"phone"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) SyncStudentProfileFromUser(ctx context.Context, arg SyncStudentProfileFromUserParams) error {
+	_, err := q.db.Exec(ctx, syncStudentProfileFromUser,
+		arg.FullName,
+		arg.Phone,
+		arg.AvatarUrl,
+		arg.UserID,
+	)
+	return err
+}
+
+const syncTeacherProfileFromUser = `-- name: SyncTeacherProfileFromUser :exec
+UPDATE teacher_profiles
+SET
+  full_name = CASE WHEN $1::text <> '' THEN $1::text ELSE full_name END,
+  phone = $2,
+  avatar_url = $3,
+  updated_at = NOW()
+WHERE user_id = $4
+`
+
+type SyncTeacherProfileFromUserParams struct {
+	FullName  string      `json:"full_name"`
+	Phone     pgtype.Text `json:"phone"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) SyncTeacherProfileFromUser(ctx context.Context, arg SyncTeacherProfileFromUserParams) error {
+	_, err := q.db.Exec(ctx, syncTeacherProfileFromUser,
+		arg.FullName,
+		arg.Phone,
+		arg.AvatarUrl,
+		arg.UserID,
+	)
+	return err
+}
+
 const updateLeadAssignmentOrder = `-- name: UpdateLeadAssignmentOrder :exec
 UPDATE users
 SET
@@ -427,15 +491,16 @@ func (q *Queries) UpdateLeadAssignmentOrder(ctx context.Context, arg UpdateLeadA
 
 const updateUserAccountProfile = `-- name: UpdateUserAccountProfile :one
 UPDATE users
-SET full_name = $2, phone = $3, updated_at = NOW()
+SET full_name = $2, phone = $3, avatar_url = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, status, full_name, phone, updated_at
+RETURNING id, email, status, full_name, phone, avatar_url, updated_at
 `
 
 type UpdateUserAccountProfileParams struct {
-	ID       pgtype.UUID `json:"id"`
-	FullName pgtype.Text `json:"full_name"`
-	Phone    pgtype.Text `json:"phone"`
+	ID        pgtype.UUID `json:"id"`
+	FullName  pgtype.Text `json:"full_name"`
+	Phone     pgtype.Text `json:"phone"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
 }
 
 type UpdateUserAccountProfileRow struct {
@@ -444,11 +509,17 @@ type UpdateUserAccountProfileRow struct {
 	Status    UserStatus         `json:"status"`
 	FullName  pgtype.Text        `json:"full_name"`
 	Phone     pgtype.Text        `json:"phone"`
+	AvatarUrl pgtype.Text        `json:"avatar_url"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpdateUserAccountProfile(ctx context.Context, arg UpdateUserAccountProfileParams) (UpdateUserAccountProfileRow, error) {
-	row := q.db.QueryRow(ctx, updateUserAccountProfile, arg.ID, arg.FullName, arg.Phone)
+	row := q.db.QueryRow(ctx, updateUserAccountProfile,
+		arg.ID,
+		arg.FullName,
+		arg.Phone,
+		arg.AvatarUrl,
+	)
 	var i UpdateUserAccountProfileRow
 	err := row.Scan(
 		&i.ID,
@@ -456,6 +527,7 @@ func (q *Queries) UpdateUserAccountProfile(ctx context.Context, arg UpdateUserAc
 		&i.Status,
 		&i.FullName,
 		&i.Phone,
+		&i.AvatarUrl,
 		&i.UpdatedAt,
 	)
 	return i, err

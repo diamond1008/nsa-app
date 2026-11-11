@@ -78,9 +78,11 @@ func run() error {
 	defer pool.Close()
 	log.Info("connected to database")
 
-	// Ensure no accounts are blocked by mandatory password reset.
-	if _, err := pool.Exec(ctx, "UPDATE users SET must_change_password = FALSE WHERE must_change_password = TRUE"); err != nil {
-		log.Warn("startup user cleanup", "error", err)
+	// Ensure no demo accounts are blocked by mandatory password reset in non-production environments.
+	if cfg.Env != "production" {
+		if _, err := pool.Exec(ctx, "UPDATE users SET must_change_password = FALSE WHERE must_change_password = TRUE"); err != nil {
+			log.Warn("startup user cleanup", "error", err)
+		}
 	}
 
 	healthHandler := health.NewHandler(pool)
@@ -158,9 +160,11 @@ func run() error {
 	r.Get("/ready", healthHandler.Ready)
 	r.Head("/ready", healthHandler.Ready)
 
-	// API documentation (Swagger UI + the OpenAPI contract).
-	r.Get("/docs", docsHandler.SwaggerUI)
-	r.Get("/openapi.yaml", docsHandler.OpenAPISpec)
+	// API documentation (Swagger UI + the OpenAPI contract) — disabled in production unless explicitly enabled.
+	if cfg.Env != "production" || os.Getenv("ENABLE_SWAGGER_DOCS") == "true" {
+		r.Get("/docs", docsHandler.SwaggerUI)
+		r.Get("/openapi.yaml", docsHandler.OpenAPISpec)
+	}
 
 	// Business API (versioned).
 	r.Route("/api/v1", func(r chi.Router) {
@@ -179,6 +183,7 @@ func run() error {
 				r.Use(auth.Authenticate(tokenService))
 				r.Post("/change-password", authHandler.ChangePassword)
 				r.Get("/me", authHandler.Me)
+				r.Patch("/me/avatar", authHandler.UpdateMyAvatar)
 			})
 		})
 
@@ -222,8 +227,8 @@ func run() error {
 		Addr:              fmt.Sprintf(":%d", cfg.HTTPPort),
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      30 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      65 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
@@ -547,7 +552,7 @@ func mountSaleRoutes(
 		r.Route("/orders", func(r chi.Router) {
 			r.Get("/", orderHandler.List)
 			r.Post("/", orderHandler.Create)
-			r.With(saleManagerOnly).Get("/export", orderHandler.ExportExcel)
+			r.Get("/export", orderHandler.ExportExcel)
 			r.Get("/{orderID}", orderHandler.Get)
 			r.Patch("/{orderID}/status", orderHandler.UpdateStatus)
 		})

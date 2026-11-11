@@ -241,11 +241,7 @@ export function OrdersPage() {
         searchPlaceholder="Tìm theo mã đơn, tên học viên..."
         resultCount={ordersQuery.data?.meta.total}
         resultCountLabel="đơn"
-        advancedFilterCount={
-          (statusFilter ? 1 : 0) +
-          (fromDate ? 1 : 0) +
-          (toDate ? 1 : 0)
-        }
+        advancedFilterCount={(statusFilter ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0)}
         onClearAll={
           hasFilterActive
             ? () => {

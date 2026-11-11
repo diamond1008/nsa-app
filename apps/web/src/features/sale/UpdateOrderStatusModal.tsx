@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, ErrorBanner, Modal, Select } from "../../components/ui";
 import type { Order, OrderStatus } from "../../lib/domainTypes";
@@ -17,6 +17,13 @@ export function UpdateOrderStatusModal({ order, onClose, onSuccess }: UpdateOrde
   const queryClient = useQueryClient();
   const [newStatus, setNewStatus] = useState<OrderStatus>(order?.status ?? "paid");
   const [modalError, setModalError] = useState("");
+
+  useEffect(() => {
+    if (order) {
+      setNewStatus(order.status);
+      setModalError("");
+    }
+  }, [order]);
 
   const updateStatusMutation = useMutation({
     mutationFn: () => {

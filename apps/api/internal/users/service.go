@@ -16,6 +16,7 @@ import (
 
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/auth"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/audit"
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/avatar"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/dberror"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/pagination"
@@ -196,6 +197,7 @@ func (s *Service) List(ctx context.Context, claims *auth.AccessClaims, filter Li
 			UpdatedAt:           r.UpdatedAt.Time,
 			FullName:            r.FullName,
 			Phone:               r.Phone,
+			AvatarURL:           data.TextPointer(r.AvatarUrl),
 			Roles:               r.RoleCodes,
 			StudentCode:         r.StudentCode,
 			TeacherCode:         r.TeacherCode,
@@ -243,6 +245,7 @@ func (s *Service) Get(ctx context.Context, claims *auth.AccessClaims, id string)
 		UpdatedAt:           row.UpdatedAt.Time,
 		FullName:            row.FullName,
 		Phone:               row.Phone,
+		AvatarURL:           data.TextPointer(row.AvatarUrl),
 		Roles:               row.RoleCodes,
 		StudentCode:         row.StudentCode,
 		TeacherCode:         row.TeacherCode,
@@ -301,6 +304,11 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 
 	q := s.queries.WithTx(tx)
 
+	normalizedAvatarURL, ok := avatar.NormalizeWebPDataURL(input.AvatarURL)
+	if !ok {
+		return UserView{}, fmt.Errorf("%w: avatar_url must be a valid WebP data URL (<= 256 KiB)", ErrInvalidInput)
+	}
+
 	var fullNameArg, phoneArg pgtype.Text
 	fullNameTrimmed := strings.TrimSpace(input.FullName)
 	if fullNameTrimmed != "" {
@@ -310,6 +318,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 	if phoneTrimmed != "" {
 		phoneArg = data.Text(&phoneTrimmed)
 	}
+	avatarArg := data.Text(normalizedAvatarURL)
 
 	createdUser, err := q.CreateUserAccount(ctx, db.CreateUserAccountParams{
 		Email:        email,
@@ -317,6 +326,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		Status:       status,
 		FullName:     fullNameArg,
 		Phone:        phoneArg,
+		AvatarUrl:    avatarArg,
 	})
 	if err != nil {
 		if dberror.IsCode(err, dberror.UniqueViolation) {
@@ -345,7 +355,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 			UserID:                createdUser.ID,
 			StudentCode:           "",
 			FullName:              sName,
-			AvatarUrl:             pgtype.Text{},
+			AvatarUrl:             avatarArg,
 			Phone:                 phoneArg,
 			DateOfBirth:           pgtype.Date{},
 			Gender:                pgtype.Text{},
@@ -372,7 +382,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 			UserID:         createdUser.ID,
 			TeacherCode:    teacherCode,
 			FullName:       tName,
-			AvatarUrl:      pgtype.Text{},
+			AvatarUrl:      avatarArg,
 			Phone:          phoneArg,
 			Specialization: pgtype.Text{},
 			Status:         db.TeacherStatusActive,
@@ -388,6 +398,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		"status":       string(status),
 		"full_name":    fullNameTrimmed,
 		"phone":        phoneTrimmed,
+		"avatar_url":   avatar.Redact(normalizedAvatarURL),
 		"student_code": studentCode,
 		"teacher_code": teacherCode,
 	}
@@ -409,6 +420,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		UpdatedAt:           createdUser.UpdatedAt.Time,
 		FullName:            fullNameTrimmed,
 		Phone:               phoneTrimmed,
+		AvatarURL:           normalizedAvatarURL,
 		Roles:               []string{targetRole},
 		StudentCode:         studentCode,
 		TeacherCode:         teacherCode,
@@ -487,7 +499,7 @@ func (s *Service) UpdateStatus(ctx context.Context, claims *auth.AccessClaims, i
 	return s.Get(ctx, claims, id)
 }
 
-// UpdateProfile updates personal full_name and phone on the user account.
+// UpdateProfile updates personal full_name, phone, and avatar_url on the user account and synced domain profiles.
 func (s *Service) UpdateProfile(ctx context.Context, claims *auth.AccessClaims, id string, input UpdateProfileInput) (UserView, error) {
 	uid, err := data.UUID(id)
 	if err != nil {
@@ -502,8 +514,19 @@ func (s *Service) UpdateProfile(ctx context.Context, claims *auth.AccessClaims, 
 		return UserView{}, fmt.Errorf("get user detail: %w", err)
 	}
 
-	if !s.checkUserInScope(claims, existing.RoleCodes) {
+	if !s.checkUserInScope(claims, existing.RoleCodes) && (claims == nil || claims.UserID != id) {
 		return UserView{}, ErrForbidden
+	}
+
+	var normalizedAvatarURL *string
+	if input.AvatarURL != nil {
+		var ok bool
+		normalizedAvatarURL, ok = avatar.NormalizeWebPDataURL(input.AvatarURL)
+		if !ok {
+			return UserView{}, fmt.Errorf("%w: avatar_url must be a valid WebP data URL (<= 256 KiB)", ErrInvalidInput)
+		}
+	} else {
+		normalizedAvatarURL = data.TextPointer(existing.AvatarUrl)
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -516,18 +539,41 @@ func (s *Service) UpdateProfile(ctx context.Context, claims *auth.AccessClaims, 
 
 	fn := strings.TrimSpace(input.FullName)
 	ph := strings.TrimSpace(input.Phone)
+	avatarArg := data.Text(normalizedAvatarURL)
 
 	_, err = q.UpdateUserAccountProfile(ctx, db.UpdateUserAccountProfileParams{
-		ID:       uid,
-		FullName: data.Text(&fn),
-		Phone:    data.Text(&ph),
+		ID:        uid,
+		FullName:  data.Text(&fn),
+		Phone:     data.Text(&ph),
+		AvatarUrl: avatarArg,
 	})
 	if err != nil {
 		return UserView{}, fmt.Errorf("update profile: %w", err)
 	}
 
-	oldValues := map[string]any{"full_name": existing.FullName, "phone": existing.Phone}
-	newValues := map[string]any{"full_name": fn, "phone": ph}
+	_ = q.SyncStudentProfileFromUser(ctx, db.SyncStudentProfileFromUserParams{
+		UserID:    uid,
+		FullName:  fn,
+		Phone:     data.Text(&ph),
+		AvatarUrl: avatarArg,
+	})
+	_ = q.SyncTeacherProfileFromUser(ctx, db.SyncTeacherProfileFromUserParams{
+		UserID:    uid,
+		FullName:  fn,
+		Phone:     data.Text(&ph),
+		AvatarUrl: avatarArg,
+	})
+
+	oldValues := map[string]any{
+		"full_name":  existing.FullName,
+		"phone":      existing.Phone,
+		"avatar_url": avatar.Redact(data.TextPointer(existing.AvatarUrl)),
+	}
+	newValues := map[string]any{
+		"full_name":  fn,
+		"phone":      ph,
+		"avatar_url": avatar.Redact(normalizedAvatarURL),
+	}
 
 	if err := audit.Write(ctx, q, claims.UserID, "user.update_profile", "user", uid, oldValues, newValues); err != nil {
 		return UserView{}, fmt.Errorf("write profile audit: %w", err)
@@ -535,6 +581,32 @@ func (s *Service) UpdateProfile(ctx context.Context, claims *auth.AccessClaims, 
 
 	if err := tx.Commit(ctx); err != nil {
 		return UserView{}, fmt.Errorf("commit profile update: %w", err)
+	}
+
+	if claims != nil && claims.UserID == id && !s.checkUserInScope(claims, existing.RoleCodes) {
+		var lastLogin *time.Time
+		if existing.LastLoginAt.Valid {
+			t := existing.LastLoginAt.Time
+			lastLogin = &t
+		}
+		return UserView{
+			ID:                  data.UUIDString(existing.ID),
+			Email:               existing.Email,
+			Status:              string(existing.Status),
+			MustChangePassword:  existing.MustChangePassword,
+			LastLoginAt:         lastLogin,
+			CreatedAt:           existing.CreatedAt.Time,
+			UpdatedAt:           time.Now().UTC(),
+			FullName:            fn,
+			Phone:               ph,
+			AvatarURL:           normalizedAvatarURL,
+			Roles:               existing.RoleCodes,
+			StudentCode:         existing.StudentCode,
+			TeacherCode:         existing.TeacherCode,
+			CreatedByEmail:      existing.CreatedByEmail,
+			IsAcceptingLeads:    existing.IsAcceptingLeads,
+			LeadAssignmentOrder: int(existing.LeadAssignmentOrder),
+		}, nil
 	}
 
 	return s.Get(ctx, claims, id)

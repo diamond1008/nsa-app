@@ -47,9 +47,25 @@ services:
       ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
       BCRYPT_COST: ${BCRYPT_COST:-12}
-      CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN},https://www.${APP_DOMAIN},http://103.72.99.116
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SHUTDOWN_TIMEOUT_SECONDS: ${SHUTDOWN_TIMEOUT_SECONDS:-20}
+      FRONTEND_URL: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-nvidia/nemotron-3-ultra-550b-a55b:free}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-nsa-diplomas}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+    volumes:
+      - storage_data:/var/lib/nsa/storage
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -89,5 +105,6 @@ networks:
 
 volumes:
   postgres_data:
+  storage_data:
   caddy_data:
   caddy_config:

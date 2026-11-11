@@ -35,11 +35,13 @@ SELECT
   l.*,
   c.code AS course_code,
   c.name AS course_name,
+  u_assignee.full_name AS assigned_to_name,
   u_assignee.email AS assigned_to_email,
   u_assigner.email AS assigned_by_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name,
   sp.status AS converted_student_status,
+  sp.avatar_url AS converted_student_avatar_url,
   u_creator.email AS created_by_email
 FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
@@ -54,10 +56,12 @@ SELECT
   l.*,
   c.code AS course_code,
   c.name AS course_name,
+  u_assignee.full_name AS assigned_to_name,
   u_assignee.email AS assigned_to_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name,
-  sp.status AS converted_student_status
+  sp.status AS converted_student_status,
+  sp.avatar_url AS converted_student_avatar_url
 FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
@@ -301,6 +305,7 @@ SELECT
   l.created_at,
   c.code AS course_code,
   c.name AS course_name,
+  u_assignee.full_name AS assigned_to_name,
   u_assignee.email AS assigned_to_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name

@@ -75,7 +75,7 @@ func (a *AgentOrchestrator) buildSystemPrompt(claims *auth.AccessClaims) string 
     * Báo cáo rõ ràng: "Theo phân quyền tài khoản Sale của bạn (%s), bạn hiện đang phụ trách tổng cộng X khách hàng..."
     * Liệt kê chi tiết phễu khách của RIÊNG nhân viên này (data mới, đang chăm sóc, đã đăng ký).
   + NẾU SALE HỎI VỀ SỐ LEAD TOÀN CÔNG TY HOẶC YÊU CẦU GÁN LEAD:
-    * BẮT BUỘC TỪ CHỐI RÕ RÀNG & LỊCH SỰ: "Theo chính sách bảo mật và phân quyền của Trung tâm NSA, tài khoản Chuyên viên Tư vấn (Sale) chỉ xem được số lượng khách hàng được phân công cho chính mình. Để xem số liệu tổng thể toàn trung tâm hoặc điều phối phân bổ lead, bạn vui lòng liên hệ Trưởng phòng Tuyển sinh (SALE_ADMIN) hoặc Admin."
+    * BẮT BUỘC TỪ CHỐI RÕ RÀNG & LỊCH SỰ: "Theo chính sách bảo mật và phân quyền của Trung tâm NSA, tài khoản Chuyên viên Tư vấn (Sale) chỉ xem được số lượng khách hàng được phân công cho chính mình. Để xem số liệu tổng thể toàn trung tâm hoặc điều phối phân bổ lead, bạn vui lòng liên hệ Sale Manager (Trưởng phòng Tuyển sinh) hoặc Admin."
   + BẠN TUYỆT ĐỐI KHÔNG CÓ QUYỀN gán lead mới, cướp lead hoặc chuyển gán khách hàng cho bất kỳ ai.
   + Bạn ĐƯỢC PHÉP: Tra cứu khách hàng của chính bạn, tra cứu danh sách công việc/lịch hẹn nhắc việc của bạn ('list_lead_tasks'), tạo việc cần làm (task) cho chính bạn, và cập nhật trạng thái phễu tư vấn cho khách của mình.`, roleStr, claims.Email, claims.Email)
 	} else {
@@ -118,11 +118,11 @@ QUY TẮC THỰC THI & SỬ DỤNG CÔNG CỤ (TOOLS):
    - Tuyệt đối KHÔNG trả lời từ chối rằng "hệ thống chưa có tính năng tạo phiếu thu/phiếu đăng ký". Bạn ĐÃ CÓ tool 'create_registration_order' để trực tiếp tạo/cập nhật phiếu đăng ký chuẩn tự động!
    - Hệ thống tự sinh mã phiếu chuẩn DH000000xx, chia các đợt học phí (3 đợt: 40%% - 30%% - 30%%), cập nhật khách sang Đã đăng ký và tạo task nhắc thu học phí đợt 1.
    - Báo cáo kết quả chi tiết kèm bảng lộ trình đóng học phí và link [Quản lý Phiếu đăng ký](/sale/phieu-dang-ky).
-6. Khi người dùng hỏi về nhắc việc, lịch hẹn, công việc cần làm, to-do list (ví dụ: "sale admin có nhắc việc gì cho tôi ko", "tôi có lịch hẹn/công việc gì hôm nay không", "danh sách việc cần làm", "admin có giao việc gì không"):
+6. Khi người dùng hỏi về nhắc việc, lịch hẹn, công việc cần làm, to-do list (ví dụ: "sale manager có nhắc việc gì cho tôi ko", "tôi có lịch hẹn/công việc gì hôm nay không", "danh sách việc cần làm", "admin có giao việc gì không"):
    - BẮT BUỘC GỌI TOOL 'list_lead_tasks' để tra cứu các công việc / lịch hẹn trong hệ thống.
    - Nếu là tài khoản Sale: tool sẽ tự động lọc các công việc được giao cho chính Sale đó.
    - Báo cáo rõ ràng từng công việc: Tiêu đề công việc, Tên khách hàng (kèm SĐT nếu có), Nội dung ghi chú/hướng dẫn của quản lý/người giao, Hạn hoàn thành, Người giao việc (VD: admin@nsa.local), và trạng thái (Chờ xử lý / Quá hạn / Đã xong).
-   - TUYỆT ĐỐI KHÔNG tự bịa đặt rằng "không có việc nào" hay "Sale Admin chưa giao việc nào" khi chưa gọi tool 'list_lead_tasks' để tra cứu trong cơ sở dữ liệu!
+   - TUYỆT ĐỐI KHÔNG tự bịa đặt rằng "không có việc nào" hay "Sale Manager chưa giao việc nào" khi chưa gọi tool 'list_lead_tasks' để tra cứu trong cơ sở dữ liệu!
 7. Khi người dùng muốn đánh dấu xong việc / hoàn thành task (ví dụ: "đã gọi cho anh Long rồi", "hoàn thành việc nhắc thu học phí", "đánh dấu xong"):
    - Dùng tool 'complete_lead_task' để cập nhật hoàn thành công việc.
 8. Khi người dùng muốn ghi chú cuộc gọi, lịch sử tư vấn, tin nhắn Zalo hoặc ghi nhận kết quả trao đổi:
@@ -366,7 +366,7 @@ func (a *AgentOrchestrator) buildTools(claims *auth.AccessClaims) []OpenRouterTo
 						},
 						"assigned_to_email": map[string]any{
 							"type":        "string",
-							"description": "Email của nhân viên được giao việc (chỉ dành cho Admin/Sale Admin tra cứu nhân viên khác).",
+							"description": "Email của nhân viên được giao việc (chỉ dành cho Admin/Sale Manager tra cứu nhân viên khác).",
 						},
 						"lead_id": map[string]any{
 							"type":        "string",
@@ -627,7 +627,7 @@ func (a *AgentOrchestrator) buildTools(claims *auth.AccessClaims) []OpenRouterTo
 			Type: "function",
 			Function: OpenRouterFunction{
 				Name:        "assign_lead_to_sale",
-				Description: "Phân bổ hoặc chuyển gán một khách hàng (lead) cho một nhân viên tư vấn (sale) cụ thể. Hệ thống sẽ cập nhật người phụ trách, tự động tạo việc gọi điện đầu tiên (task) và gửi thông báo chuông cho Sale. CHỈ DÀNH CHO ADMIN VÀ SALE_ADMIN.",
+				Description: "Phân bổ hoặc chuyển gán một khách hàng (lead) cho một nhân viên tư vấn (sale) cụ thể. Hệ thống sẽ cập nhật người phụ trách, tự động tạo việc gọi điện đầu tiên (task) và gửi thông báo chuông cho Sale. CHỈ DÀNH CHO ADMIN VÀ SALE MANAGER.",
 				Parameters: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -656,7 +656,7 @@ func (a *AgentOrchestrator) buildTools(claims *auth.AccessClaims) []OpenRouterTo
 			Type: "function",
 			Function: OpenRouterFunction{
 				Name:        "auto_distribute_unassigned_leads",
-				Description: "Tự động phân bổ cân bằng danh sách khách hàng mới chưa gán cho toàn bộ nhân viên tư vấn (Sale) đang trực. Hệ thống sẽ phân chia công bằng theo số lượng khách mỗi sale đang giữ, tự động tạo task liên hệ trong 2h và gửi thông báo chuông. CHỈ DÀNH CHO ADMIN VÀ SALE_ADMIN.",
+				Description: "Tự động phân bổ cân bằng danh sách khách hàng mới chưa gán cho toàn bộ nhân viên tư vấn (Sale) đang trực. Hệ thống sẽ phân chia công bằng theo số lượng khách mỗi sale đang giữ, tự động tạo task liên hệ trong 2h và gửi thông báo chuông. CHỈ DÀNH CHO ADMIN VÀ SALE MANAGER.",
 				Parameters: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -1074,7 +1074,7 @@ func (a *AgentOrchestrator) executeTool(ctx context.Context, claims *auth.Access
 	case "assign_lead_to_sale":
 		// CRITICAL RBAC CHECK:
 		if !isManager {
-			return `{"error": "PERMISSION_DENIED: Bạn đang đăng nhập với vai trò Chuyên viên Sale. Chỉ Trưởng phòng Tuyển sinh (SALE_ADMIN) hoặc Quản trị viên (ADMIN) mới có quyền phân bổ hoặc chuyển gán khách hàng."}`, nil
+			return `{"error": "PERMISSION_DENIED: Bạn đang đăng nhập với vai trò Chuyên viên Sale. Chỉ Sale Manager (Trưởng phòng Tuyển sinh) hoặc Quản trị viên (ADMIN) mới có quyền phân bổ hoặc chuyển gán khách hàng."}`, nil
 		}
 
 		var args struct {
@@ -1280,7 +1280,7 @@ func (a *AgentOrchestrator) executeTool(ctx context.Context, claims *auth.Access
 			assignedToArg = uid
 		} else if strings.TrimSpace(args.AssignedToEmail) != "" {
 			var staffID pgtype.UUID
-			err := a.pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL", strings.TrimSpace(args.AssignedToEmail)).Scan(&staffID)
+			err := a.pool.QueryRow(ctx, "SELECT id FROM users WHERE LOWER(email) = LOWER($1)", strings.TrimSpace(args.AssignedToEmail)).Scan(&staffID)
 			if err == nil && staffID.Valid {
 				assignedToArg = staffID
 			}
@@ -1990,7 +1990,7 @@ func (a *AgentOrchestrator) executeTool(ctx context.Context, claims *auth.Access
 
 	case "scan_unassigned_leads":
 		if !isManager {
-			return `{"error": "PERMISSION_DENIED: Bạn đang đăng nhập với vai trò Chuyên viên Sale. Chỉ Trưởng phòng Tuyển sinh (SALE_ADMIN) hoặc Quản trị viên (ADMIN) mới có quyền truy cập danh sách khách hàng chưa phân bổ của toàn trung tâm."}`, nil
+			return `{"error": "PERMISSION_DENIED: Bạn đang đăng nhập với vai trò Chuyên viên Sale. Chỉ Sale Manager (Trưởng phòng Tuyển sinh) hoặc Quản trị viên (ADMIN) mới có quyền truy cập danh sách khách hàng chưa phân bổ của toàn trung tâm."}`, nil
 		}
 
 		// Query exact total count in database
@@ -2072,7 +2072,7 @@ func (a *AgentOrchestrator) executeTool(ctx context.Context, claims *auth.Access
 
 	case "auto_distribute_unassigned_leads":
 		if !isManager {
-			return `{"error": "PERMISSION_DENIED: Bạn đang đăng nhập với vai trò Chuyên viên Sale. Chỉ Trưởng phòng Tuyển sinh (SALE_ADMIN) hoặc Quản trị viên (ADMIN) mới có quyền phân bổ hàng loạt."}`, nil
+			return `{"error": "PERMISSION_DENIED: Bạn đang đăng nhập với vai trò Chuyên viên Sale. Chỉ Sale Manager (Trưởng phòng Tuyển sinh) hoặc Quản trị viên (ADMIN) mới có quyền phân bổ hàng loạt."}`, nil
 		}
 
 		var args struct {
@@ -2336,7 +2336,7 @@ func (a *AgentOrchestrator) executeTool(ctx context.Context, claims *auth.Access
 
 	case "trigger_full_scan_and_generate_proposals":
 		if !isManager {
-			return `{"error": "PERMISSION_DENIED: Chỉ Quản trị viên (ADMIN) hoặc Trưởng phòng Tuyển sinh (SALE_ADMIN) mới có quyền quét toàn bộ hệ thống để sinh đề xuất phân công."}`, nil
+			return `{"error": "PERMISSION_DENIED: Chỉ Quản trị viên (ADMIN) hoặc Sale Manager (Trưởng phòng Tuyển sinh) mới có quyền quét toàn bộ hệ thống để sinh đề xuất phân công."}`, nil
 		}
 		created, updated, err := a.engine.ScanAndGenerateProposals(ctx, a.queries, claims)
 		if err != nil {
@@ -2629,7 +2629,7 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 				}
 
 				sb.WriteString("\n---\n")
-				sb.WriteString("💡 *Lưu ý bảo mật: Theo chính sách phân quyền của Trung tâm NSA, chuyên viên tư vấn chỉ xem và quản lý khách hàng được phân công cho mình. Để xem số liệu toàn trung tâm hoặc điều phối chia lead, cần tài khoản Trưởng phòng Tuyển sinh (SALE_ADMIN) hoặc Admin.*")
+				sb.WriteString("💡 *Lưu ý bảo mật: Theo chính sách phân quyền của Trung tâm NSA, chuyên viên tư vấn chỉ xem và quản lý khách hàng được phân công cho mình. Để xem số liệu toàn trung tâm hoặc điều phối chia lead, cần tài khoản Sale Manager (Trưởng phòng Tuyển sinh) hoặc Admin.*")
 
 				return AgentChatResponse{
 					Reply:     sb.String(),
@@ -2855,7 +2855,7 @@ func (a *AgentOrchestrator) deterministicFallbackChat(ctx context.Context, claim
 
 		if strings.Contains(lower, "quét") || strings.Contains(lower, "chưa chia") || strings.Contains(lower, "chưa gán") || strings.Contains(lower, "chia đều") {
 			return AgentChatResponse{
-				Reply:     "Theo chính sách phân quyền của Trung tâm NSA, tài khoản Chuyên viên Tư vấn (Sale) chỉ quản lý khách hàng được phân bổ cho riêng mình. Quyền quét danh sách khách chưa gán hoặc chia đều lead toàn trung tâm thuộc về Trưởng phòng Tuyển sinh (SALE_ADMIN) và Quản trị viên (ADMIN).",
+				Reply:     "Theo chính sách phân quyền của Trung tâm NSA, tài khoản Chuyên viên Tư vấn (Sale) chỉ quản lý khách hàng được phân bổ cho riêng mình. Quyền quét danh sách khách chưa gán hoặc chia đều lead toàn trung tâm thuộc về Sale Manager (Trưởng phòng Tuyển sinh) và Quản trị viên (ADMIN).",
 				ModelUsed: "deterministic-domain-engine",
 				ToolsUsed: []string{},
 			}, nil

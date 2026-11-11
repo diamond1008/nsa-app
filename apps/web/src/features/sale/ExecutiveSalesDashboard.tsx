@@ -620,7 +620,7 @@ export function ExecutiveSalesDashboard() {
                   <span>Báo cáo</span>
                 </Button>
               </Link>
-              <Link to="/sale/doi-ngu">
+              <Link to="/sale/users">
                 <Button
                   variant="soft"
                   className="bg-white/80 transition-all duration-200 hover:bg-white active:scale-95"
@@ -1134,7 +1134,7 @@ export function ExecutiveSalesDashboard() {
             <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100 pt-2.5">
               <span>{sortedStaff.length} chuyên viên</span>
               <Link
-                to="/sale/doi-ngu"
+                to="/sale/users"
                 className="group inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 text-xs sm:text-sm"
               >
                 <span>Đội ngũ</span>

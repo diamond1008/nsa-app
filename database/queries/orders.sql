@@ -93,6 +93,7 @@ AND (
 AND (
   sqlc.narg(created_by)::uuid IS NULL
   OR o.created_by = sqlc.narg(created_by)::uuid
+  OR l.assigned_to = sqlc.narg(created_by)::uuid
 )
 AND (
   sqlc.narg(created_from)::timestamptz IS NULL
@@ -135,6 +136,7 @@ AND (
 AND (
   sqlc.narg(created_by)::uuid IS NULL
   OR o.created_by = sqlc.narg(created_by)::uuid
+  OR l.assigned_to = sqlc.narg(created_by)::uuid
 )
 AND (
   sqlc.narg(created_from)::timestamptz IS NULL
@@ -266,6 +268,11 @@ AND (
   OR o.lead_id = sqlc.narg(lead_id)::uuid
 )
 AND (
+  sqlc.narg(created_by)::uuid IS NULL
+  OR o.created_by = sqlc.narg(created_by)::uuid
+  OR l.assigned_to = sqlc.narg(created_by)::uuid
+)
+AND (
   sqlc.narg(created_from)::timestamptz IS NULL
   OR o.created_at >= sqlc.narg(created_from)::timestamptz
 )
@@ -287,6 +294,7 @@ SELECT EXISTS (
     WHERE student_id = $1
       AND class_id = $2
       AND status NOT IN ('cancelled', 'refunded')
+      AND deleted_at IS NULL
 ) AS exists;
 
 -- name: GetDailyRevenueTrend :many

@@ -17,6 +17,52 @@ import (
 	db "github.com/diamond1008/nsa-training-platform/database/generated"
 )
 
+type pillFormatSpec struct {
+	Value       string
+	FillColor   string
+	FontColor   string
+	BorderColor string
+}
+
+func applySelectPillConditionalFormats(f *excelize.File, sheet, rangeRef string, specs []pillFormatSpec) {
+	opts := make([]excelize.ConditionalFormatOptions, 0, len(specs))
+	for _, spec := range specs {
+		condStyleID, err := f.NewConditionalStyle(&excelize.Style{
+			Font: &excelize.Font{
+				Bold:   true,
+				Color:  spec.FontColor,
+				Family: "Segoe UI",
+				Size:   10,
+			},
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{spec.FillColor},
+				Pattern: 1,
+			},
+			Border: []excelize.Border{
+				{Type: "top", Color: spec.BorderColor, Style: 1},
+				{Type: "bottom", Color: spec.BorderColor, Style: 1},
+				{Type: "left", Color: spec.BorderColor, Style: 1},
+				{Type: "right", Color: spec.BorderColor, Style: 1},
+			},
+		})
+		if err != nil {
+			continue
+		}
+		styleID := condStyleID
+		opts = append(opts, excelize.ConditionalFormatOptions{
+			Type:       "cell",
+			Criteria:   "==",
+			Value:      fmt.Sprintf("%q", spec.Value),
+			Format:     &styleID,
+			StopIfTrue: true,
+		})
+	}
+	if len(opts) > 0 {
+		_ = f.SetConditionalFormat(sheet, rangeRef, opts)
+	}
+}
+
 func GenerateTemplateExcel() ([]byte, error) {
 	f := excelize.NewFile()
 	defer f.Close()
@@ -37,7 +83,7 @@ func GenerateTemplateExcel() ([]byte, error) {
 		"Nguồn lead",
 		"Ghi chú tư vấn",
 		"Ngày sinh (DD/MM/YYYY)",
-		"Giới tính (Nam/Nữ)",
+		"Giới tính (Nam/Nữ/Khác)",
 		"Địa chỉ",
 	}
 	if err := f.SetSheetRow(sheet, "A1", &headers); err != nil {
@@ -65,20 +111,81 @@ func GenerateTemplateExcel() ([]byte, error) {
 	_ = f.SetCellStr(sheet, "B3", "0912345678")
 	_ = f.SetCellStr(sheet, "B4", "0987654321")
 
-	// Set column B format to Text (@) so Excel never strips leading zeros when typing
-	textFmt := "@"
-	phoneStyle, err := f.NewStyle(&excelize.Style{
-		NumFmt:       49,
-		CustomNumFmt: &textFmt,
+	thinBorders := []excelize.Border{
+		{Type: "top", Color: "#E2E8F0", Style: 1},
+		{Type: "bottom", Color: "#E2E8F0", Style: 1},
+		{Type: "left", Color: "#E2E8F0", Style: 1},
+		{Type: "right", Color: "#E2E8F0", Style: 1},
+	}
+	selectBorders := []excelize.Border{
+		{Type: "top", Color: "#CBD5E1", Style: 1},
+		{Type: "bottom", Color: "#94A3B8", Style: 1},
+		{Type: "left", Color: "#CBD5E1", Style: 1},
+		{Type: "right", Color: "#CBD5E1", Style: 1},
+	}
+
+	baseDataStyle, errBase := f.NewStyle(&excelize.Style{
+		Font:   &excelize.Font{Size: 10, Family: "Segoe UI", Color: "#0F172A"},
+		Border: thinBorders,
 		Alignment: &excelize.Alignment{
 			Horizontal: "left",
 			Vertical:   "center",
 		},
 	})
-	if err == nil {
+	centerDataStyle, errCenter := f.NewStyle(&excelize.Style{
+		Font:   &excelize.Font{Size: 10, Family: "Segoe UI", Color: "#0F172A"},
+		Border: thinBorders,
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+	// Button-like select cell style for dropdown columns (Nguồn lead & Giới tính)
+	selectButtonStyle, errSelect := f.NewStyle(&excelize.Style{
+		Font:   &excelize.Font{Size: 10, Bold: true, Family: "Segoe UI", Color: "#334155"},
+		Fill:   excelize.Fill{Type: "pattern", Color: []string{"#F8FAFC"}, Pattern: 1},
+		Border: selectBorders,
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+
+	// Set column B format to Text (@) so Excel never strips leading zeros when typing
+	textFmt := "@"
+	phoneStyle, errPhone := f.NewStyle(&excelize.Style{
+		NumFmt:       49,
+		CustomNumFmt: &textFmt,
+		Font:         &excelize.Font{Size: 10, Family: "Segoe UI", Color: "#0F172A"},
+		Border:       thinBorders,
+		Alignment: &excelize.Alignment{
+			Horizontal: "left",
+			Vertical:   "center",
+		},
+	})
+
+	const templateStyledRows = 200
+	if errBase == nil {
+		for _, col := range []string{"A", "C", "D", "F", "I"} {
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("%s2", col), fmt.Sprintf("%s%d", col, templateStyledRows), baseDataStyle)
+		}
+	}
+	if errCenter == nil {
+		_ = f.SetCellStyle(sheet, "G2", fmt.Sprintf("G%d", templateStyledRows), centerDataStyle)
+	}
+	if errSelect == nil {
+		_ = f.SetColStyle(sheet, "E", selectButtonStyle)
+		_ = f.SetColStyle(sheet, "H", selectButtonStyle)
+		_ = f.SetCellStyle(sheet, "E2", fmt.Sprintf("E%d", templateStyledRows), selectButtonStyle)
+		_ = f.SetCellStyle(sheet, "H2", fmt.Sprintf("H%d", templateStyledRows), selectButtonStyle)
+	}
+	if errPhone == nil {
 		_ = f.SetColStyle(sheet, "B", phoneStyle)
 		_ = f.SetCellStyle(sheet, "B2", "B1000", phoneStyle)
 	}
+
+	// Suppress Excel "Number Stored as Text" green corner triangle on phone numbers
+	_ = f.AddIgnoredErrors(sheet, "B2:B1000", excelize.IgnoredErrorsNumberStoredAsText)
 
 	// Data Validation: Dropdown list for Nguồn lead (Column E)
 	dvSource := excelize.NewDataValidation(true)
@@ -102,16 +209,41 @@ func GenerateTemplateExcel() ([]byte, error) {
 	_ = dvGender.SetDropList([]string{"Nam", "Nữ", "Khác"})
 	_ = f.AddDataValidation(sheet, dvGender)
 
+	// Conditional Formatting: Render Nguồn lead & Giới tính selections as colored tag/pill buttons
+	applySelectPillConditionalFormats(f, sheet, "E2:E1000", []pillFormatSpec{
+		{Value: "Facebook", FillColor: "#DBEAFE", FontColor: "#1D4ED8", BorderColor: "#60A5FA"},
+		{Value: "Zalo", FillColor: "#E0F2FE", FontColor: "#0369A1", BorderColor: "#38BDF8"},
+		{Value: "TikTok", FillColor: "#FCE7F3", FontColor: "#BE185D", BorderColor: "#F472B6"},
+		{Value: "Website", FillColor: "#DCFCE7", FontColor: "#15803D", BorderColor: "#4ADE80"},
+		{Value: "Google", FillColor: "#FEF3C7", FontColor: "#B45309", BorderColor: "#FBBF24"},
+		{Value: "Giới thiệu", FillColor: "#F3E8FF", FontColor: "#7E22CE", BorderColor: "#C084FC"},
+		{Value: "Sự kiện", FillColor: "#E0E7FF", FontColor: "#4338CA", BorderColor: "#818CF8"},
+		{Value: "Đến trực tiếp", FillColor: "#CCFBF1", FontColor: "#0F766E", BorderColor: "#2DD4BF"},
+		{Value: "Khác", FillColor: "#E2E8F0", FontColor: "#334155", BorderColor: "#94A3B8"},
+	})
+	applySelectPillConditionalFormats(f, sheet, "H2:H1000", []pillFormatSpec{
+		{Value: "Nam", FillColor: "#DBEAFE", FontColor: "#1D4ED8", BorderColor: "#60A5FA"},
+		{Value: "Nữ", FillColor: "#FCE7F3", FontColor: "#BE185D", BorderColor: "#F472B6"},
+		{Value: "Khác", FillColor: "#E2E8F0", FontColor: "#334155", BorderColor: "#94A3B8"},
+	})
+
 	headerStyle, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
-			Bold:  true,
-			Color: "#FFFFFF",
-			Size:  11,
+			Bold:   true,
+			Color:  "#FFFFFF",
+			Size:   10.5,
+			Family: "Segoe UI",
 		},
 		Fill: excelize.Fill{
 			Type:    "pattern",
 			Color:   []string{"#0A2540"},
 			Pattern: 1,
+		},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#0A2540", Style: 1},
+			{Type: "bottom", Color: "#2563EB", Style: 2},
+			{Type: "left", Color: "#1E3A5F", Style: 1},
+			{Type: "right", Color: "#1E3A5F", Style: 1},
 		},
 		Alignment: &excelize.Alignment{
 			Horizontal: "center",
@@ -122,18 +254,31 @@ func GenerateTemplateExcel() ([]byte, error) {
 	if err == nil {
 		_ = f.SetCellStyle(sheet, "A1", "I1", headerStyle)
 	}
-	_ = f.SetRowHeight(sheet, 1, 30)
+	_ = f.SetRowHeight(sheet, 1, 34)
+	for row := 2; row <= templateStyledRows; row++ {
+		_ = f.SetRowHeight(sheet, row, 25)
+	}
+
+	// Freeze header row so column labels stay visible while scrolling
+	_ = f.SetPanes(sheet, &excelize.Panes{
+		Freeze:      true,
+		Split:       false,
+		XSplit:      0,
+		YSplit:      1,
+		TopLeftCell: "A2",
+		ActivePane:  "bottomLeft",
+	})
 
 	colWidths := map[string]float64{
 		"A": 22,
-		"B": 26,
+		"B": 28,
 		"C": 26,
 		"D": 22,
 		"E": 18,
 		"F": 38,
 		"G": 24,
-		"H": 16,
-		"I": 26,
+		"H": 22,
+		"I": 24,
 	}
 	for col, width := range colWidths {
 		_ = f.SetColWidth(sheet, col, col, width)
@@ -540,6 +685,29 @@ func normalizeGenderString(s string) string {
 	}
 }
 
+func formatGenderVietnamese(s string) string {
+	switch normalizeGenderString(s) {
+	case "male":
+		return "Nam"
+	case "female":
+		return "Nữ"
+	case "other":
+		return "Khác"
+	default:
+		return strings.TrimSpace(s)
+	}
+}
+
+func formatAssigneeDisplay(name, email pgtype.Text) string {
+	if name.Valid && strings.TrimSpace(name.String) != "" {
+		return strings.TrimSpace(name.String)
+	}
+	if email.Valid && strings.TrimSpace(email.String) != "" {
+		return strings.TrimSpace(email.String)
+	}
+	return "Chưa phân bổ"
+}
+
 func normalizeLeadSource(s string) db.LeadSource {
 	s = strings.ToLower(strings.TrimSpace(s))
 	switch s {
@@ -555,7 +723,7 @@ func normalizeLeadSource(s string) db.LeadSource {
 		return db.LeadSourceWebsite
 	case "referral", "gioi thieu", "giới thiệu":
 		return db.LeadSourceReferral
-	case "walk_in", "walkin", "truc tiep", "trực tiếp":
+	case "walk_in", "walkin", "truc tiep", "trực tiếp", "đến trực tiếp", "den truc tiep":
 		return db.LeadSourceWalkIn
 	case "event", "su kien", "sự kiện":
 		return db.LeadSourceEvent
@@ -730,7 +898,7 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 		}
 		genderStr := ""
 		if l.Gender.Valid {
-			genderStr = l.Gender.String
+			genderStr = formatGenderVietnamese(l.Gender.String)
 		}
 		srcStr := sourceMap[string(l.Source)]
 		if srcStr == "" {
@@ -744,10 +912,7 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 		if statusStr == "" {
 			statusStr = string(l.PipelineStatus)
 		}
-		saleStr := "Chưa phân bổ"
-		if l.AssignedToEmail.Valid && l.AssignedToEmail.String != "" {
-			saleStr = l.AssignedToEmail.String
-		}
+		saleStr := formatAssigneeDisplay(l.AssignedToName, l.AssignedToEmail)
 		notesStr := ""
 		if l.Notes.Valid {
 			notesStr = l.Notes.String
@@ -782,6 +947,19 @@ func (s *Service) ExportLeadsExcel(ctx context.Context, filter ListFilter) (*exc
 	}
 
 	_ = f.SetColStyle(sheetName, "C", phoneStyle)
+	maxRow := len(leadsList) + 1
+	if maxRow < 2 {
+		maxRow = 2
+	}
+	_ = f.AddIgnoredErrors(sheetName, fmt.Sprintf("C2:C%d", maxRow), excelize.IgnoredErrorsNumberStoredAsText)
+	_ = f.SetPanes(sheetName, &excelize.Panes{
+		Freeze:      true,
+		Split:       false,
+		XSplit:      0,
+		YSplit:      1,
+		TopLeftCell: "A2",
+		ActivePane:  "bottomLeft",
+	})
 
 	colWidths := map[int]float64{
 		1: 8, 2: 24, 3: 16, 4: 26, 5: 12,

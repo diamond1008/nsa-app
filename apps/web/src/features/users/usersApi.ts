@@ -13,6 +13,7 @@ export interface ManagedUser {
   updated_at: string;
   full_name: string;
   phone: string;
+  avatar_url?: string | null;
   roles: Role[];
   student_code?: string;
   teacher_code?: string;
@@ -47,6 +48,7 @@ export interface CreateUserInput {
   role: Role;
   full_name?: string;
   phone?: string;
+  avatar_url?: string | null;
   status?: string;
 }
 
@@ -58,6 +60,7 @@ export interface UpdateStatusInput {
 export interface UpdateProfileInput {
   full_name: string;
   phone: string;
+  avatar_url?: string | null;
 }
 
 export interface ResetPasswordInput {

@@ -17,11 +17,14 @@ export interface ProfileRef {
   id: string;
   code: string;
   full_name: string;
+  avatar_url?: string | null;
 }
 
 export interface UserInfo {
   id: string;
   email: string;
+  full_name?: string;
+  avatar_url?: string | null;
   roles: Role[];
   must_change_password: boolean;
   student_profile?: ProfileRef;

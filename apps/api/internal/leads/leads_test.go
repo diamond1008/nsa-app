@@ -1,8 +1,12 @@
 package leads
 
 import (
+	"bytes"
 	"testing"
 	"unicode"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/xuri/excelize/v2"
 
 	db "github.com/diamond1008/nsa-training-platform/database/generated"
 )
@@ -246,6 +250,32 @@ func TestGenerateTemplateExcelAndParse(t *testing.T) {
 	if sample3[1] != "0987654321" {
 		t.Errorf("expected sample 3 phone to keep leading zero '0987654321', got %q", sample3[1])
 	}
+
+	// Verify DataValidations and ConditionalFormats are embedded cleanly
+	xl, err := excelize.OpenReader(bytes.NewReader(excelBytes))
+	if err != nil {
+		t.Fatalf("excelize.OpenReader failed: %v", err)
+	}
+	defer xl.Close()
+
+	dvs, err := xl.GetDataValidations("MauNhapLead")
+	if err != nil {
+		t.Fatalf("GetDataValidations failed: %v", err)
+	}
+	if len(dvs) != 2 {
+		t.Fatalf("expected 2 data validations (source and gender), got %d", len(dvs))
+	}
+
+	cfs, err := xl.GetConditionalFormats("MauNhapLead")
+	if err != nil {
+		t.Fatalf("GetConditionalFormats failed: %v", err)
+	}
+	if len(cfs["E2:E1000"]) != 9 {
+		t.Errorf("expected 9 conditional formatting rules for Nguồn lead E2:E1000, got %d", len(cfs["E2:E1000"]))
+	}
+	if len(cfs["H2:H1000"]) != 3 {
+		t.Errorf("expected 3 conditional formatting rules for Giới tính H2:H1000, got %d", len(cfs["H2:H1000"]))
+	}
 }
 
 func TestValidateLeadWritePhone(t *testing.T) {
@@ -293,5 +323,61 @@ func TestValidateLeadWritePhone(t *testing.T) {
 	}
 	if input.Phone == nil || *input.Phone != "0912345678" {
 		t.Fatalf("expected sanitized phone '0912345678', got %v", input.Phone)
+	}
+}
+
+func TestFormatGenderVietnamese(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"male", "Nam"},
+		{"Nam", "Nam"},
+		{"female", "Nữ"},
+		{"Nữ", "Nữ"},
+		{"other", "Khác"},
+		{"Khác", "Khác"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := formatGenderVietnamese(tt.input)
+		if got != tt.expected {
+			t.Errorf("formatGenderVietnamese(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestFormatAssigneeDisplay(t *testing.T) {
+	tests := []struct {
+		name     pgtype.Text
+		email    pgtype.Text
+		expected string
+	}{
+		{
+			name:     pgtype.Text{String: "Nguyễn Văn Sale", Valid: true},
+			email:    pgtype.Text{String: "sale@nsa.local", Valid: true},
+			expected: "Nguyễn Văn Sale",
+		},
+		{
+			name:     pgtype.Text{String: "   ", Valid: true},
+			email:    pgtype.Text{String: "sale2@nsa.local", Valid: true},
+			expected: "sale2@nsa.local",
+		},
+		{
+			name:     pgtype.Text{Valid: false},
+			email:    pgtype.Text{String: "sale3@nsa.local", Valid: true},
+			expected: "sale3@nsa.local",
+		},
+		{
+			name:     pgtype.Text{Valid: false},
+			email:    pgtype.Text{Valid: false},
+			expected: "Chưa phân bổ",
+		},
+	}
+	for _, tt := range tests {
+		got := formatAssigneeDisplay(tt.name, tt.email)
+		if got != tt.expected {
+			t.Errorf("formatAssigneeDisplay(%v, %v) = %q, want %q", tt.name, tt.email, got, tt.expected)
+		}
 	}
 }

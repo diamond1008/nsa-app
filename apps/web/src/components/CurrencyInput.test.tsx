@@ -56,13 +56,7 @@ describe("CurrencyInput component", () => {
   });
 
   it("displays error message when provided", () => {
-    render(
-      <CurrencyInput
-        value={100000}
-        onChange={() => {}}
-        error="Số tiền vượt quá quy định"
-      />,
-    );
+    render(<CurrencyInput value={100000} onChange={() => {}} error="Số tiền vượt quá quy định" />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("Số tiền vượt quá quy định");
   });

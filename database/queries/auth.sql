@@ -2,12 +2,12 @@
 -- Naming: sqlc generates one Go method per "name:" annotation.
 
 -- name: GetUserByEmail :one
-SELECT id, email, password_hash, status, must_change_password
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
 FROM users
 WHERE email = $1;
 
 -- name: GetUserByID :one
-SELECT id, email, password_hash, status, must_change_password
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
 FROM users
 WHERE id = $1;
 
@@ -49,11 +49,26 @@ UPDATE refresh_tokens SET revoked_at = NOW()
 WHERE user_id = $1 AND revoked_at IS NULL;
 
 -- name: GetStudentProfileByUserID :one
-SELECT id, student_code, full_name
+SELECT id, student_code, full_name, avatar_url
 FROM student_profiles
 WHERE user_id = $1;
 
 -- name: GetTeacherProfileByUserID :one
-SELECT id, teacher_code, full_name
+SELECT id, teacher_code, full_name, avatar_url
 FROM teacher_profiles
+WHERE user_id = $1;
+
+-- name: UpdateUserAvatar :exec
+UPDATE users
+SET avatar_url = $2, updated_at = NOW()
+WHERE id = $1;
+
+-- name: UpdateStudentAvatarByUserID :exec
+UPDATE student_profiles
+SET avatar_url = $2, updated_at = NOW()
+WHERE user_id = $1;
+
+-- name: UpdateTeacherAvatarByUserID :exec
+UPDATE teacher_profiles
+SET avatar_url = $2, updated_at = NOW()
 WHERE user_id = $1;

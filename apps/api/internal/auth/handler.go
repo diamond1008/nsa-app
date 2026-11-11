@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -105,8 +106,12 @@ func (h *Handler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, bundle)
 }
 
-// SSOLogin handles POST /api/v1/auth/sso.
+// SSOLogin handles POST /api/v1/auth/sso (development simulation only; blocked in production).
 func (h *Handler) SSOLogin(w http.ResponseWriter, r *http.Request) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
+		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "Direct SSO email login is disabled in production; please use OAuth 2.0 redirect flow.")
+		return
+	}
 	var req ssoLoginRequest
 	if err := decodeJSON(w, r, &req); err != nil {
 		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
@@ -244,6 +249,37 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.InternalError(w, h.log, RequestIDFrom(r.Context()), err)
+		return
+	}
+	response.OK(w, info)
+}
+
+type updateAvatarRequest struct {
+	AvatarURL *string `json:"avatar_url"`
+}
+
+// UpdateMyAvatar handles PATCH /api/v1/auth/me/avatar (requires auth).
+func (h *Handler) UpdateMyAvatar(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFrom(r.Context())
+	if !ok {
+		response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 512*1024)
+	var req updateAvatarRequest
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+	info, err := h.svc.UpdateMyAvatar(r.Context(), userID, req.AvatarURL)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Account no longer exists")
+			return
+		}
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
 	response.OK(w, info)

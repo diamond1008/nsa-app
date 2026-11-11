@@ -78,7 +78,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	actorID, _ := auth.UserIDFrom(r.Context())
 	claims, _ := auth.ClaimsFrom(r.Context())
-	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin)
+	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin)
 
 	filter := ListFilter{
 		AssignedTo:   r.URL.Query().Get("assigned_to"),
@@ -110,7 +110,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	taskID := chi.URLParam(r, "taskID")
 	actorID, _ := auth.UserIDFrom(r.Context())
 	claims, _ := auth.ClaimsFrom(r.Context())
-	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin)
+	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin)
 
 	var body taskUpdateRequest
 	if err := request.DecodeJSON(w, r, &body); err != nil {
@@ -145,7 +145,7 @@ func (h *Handler) Complete(w http.ResponseWriter, r *http.Request) {
 	taskID := chi.URLParam(r, "taskID")
 	actorID, _ := auth.UserIDFrom(r.Context())
 	claims, _ := auth.ClaimsFrom(r.Context())
-	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin)
+	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin, auth.RoleSaleAdmin)
 
 	view, err := h.service.Complete(r.Context(), actorID, isAdmin, taskID)
 	if err != nil {

@@ -17,6 +17,15 @@ SET email = $2, status = $3
 WHERE id = $1
 RETURNING id, email, status, must_change_password, created_at, updated_at;
 
+-- name: SyncManagedUserIdentity :exec
+UPDATE users
+SET
+  full_name = sqlc.narg(full_name),
+  phone = sqlc.narg(phone),
+  avatar_url = sqlc.narg(avatar_url),
+  updated_at = NOW()
+WHERE id = sqlc.arg(id);
+
 -- name: InsertAuditLog :exec
 INSERT INTO audit_logs (
   actor_user_id, action, entity_type, entity_id, old_values, new_values, reason

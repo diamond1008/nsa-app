@@ -15,6 +15,7 @@ type UserView struct {
 	UpdatedAt           time.Time  `json:"updated_at"`
 	FullName            string     `json:"full_name"`
 	Phone               string     `json:"phone"`
+	AvatarURL           *string    `json:"avatar_url"`
 	Roles               []string   `json:"roles"`
 	StudentCode         string     `json:"student_code,omitempty"`
 	TeacherCode         string     `json:"teacher_code,omitempty"`
@@ -47,12 +48,13 @@ type ListFilter struct {
 
 // CreateUserInput carries payload to register a managed user account.
 type CreateUserInput struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
-	FullName string `json:"full_name"`
-	Phone    string `json:"phone"`
-	Status   string `json:"status"`
+	Email     string  `json:"email"`
+	Password  string  `json:"password"`
+	Role      string  `json:"role"`
+	FullName  string  `json:"full_name"`
+	Phone     string  `json:"phone"`
+	AvatarURL *string `json:"avatar_url"`
+	Status    string  `json:"status"`
 }
 
 // UpdateStatusInput carries state transition details.
@@ -63,8 +65,9 @@ type UpdateStatusInput struct {
 
 // UpdateProfileInput carries profile details.
 type UpdateProfileInput struct {
-	FullName string `json:"full_name"`
-	Phone    string `json:"phone"`
+	FullName  string  `json:"full_name"`
+	Phone     string  `json:"phone"`
+	AvatarURL *string `json:"avatar_url"`
 }
 
 // ResetPasswordInput carries temporary password details.

@@ -47,7 +47,7 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 }
 
 const getStudentProfileByUserID = `-- name: GetStudentProfileByUserID :one
-SELECT id, student_code, full_name
+SELECT id, student_code, full_name, avatar_url
 FROM student_profiles
 WHERE user_id = $1
 `
@@ -56,17 +56,23 @@ type GetStudentProfileByUserIDRow struct {
 	ID          pgtype.UUID `json:"id"`
 	StudentCode string      `json:"student_code"`
 	FullName    string      `json:"full_name"`
+	AvatarUrl   pgtype.Text `json:"avatar_url"`
 }
 
 func (q *Queries) GetStudentProfileByUserID(ctx context.Context, userID pgtype.UUID) (GetStudentProfileByUserIDRow, error) {
 	row := q.db.QueryRow(ctx, getStudentProfileByUserID, userID)
 	var i GetStudentProfileByUserIDRow
-	err := row.Scan(&i.ID, &i.StudentCode, &i.FullName)
+	err := row.Scan(
+		&i.ID,
+		&i.StudentCode,
+		&i.FullName,
+		&i.AvatarUrl,
+	)
 	return i, err
 }
 
 const getTeacherProfileByUserID = `-- name: GetTeacherProfileByUserID :one
-SELECT id, teacher_code, full_name
+SELECT id, teacher_code, full_name, avatar_url
 FROM teacher_profiles
 WHERE user_id = $1
 `
@@ -75,18 +81,24 @@ type GetTeacherProfileByUserIDRow struct {
 	ID          pgtype.UUID `json:"id"`
 	TeacherCode string      `json:"teacher_code"`
 	FullName    string      `json:"full_name"`
+	AvatarUrl   pgtype.Text `json:"avatar_url"`
 }
 
 func (q *Queries) GetTeacherProfileByUserID(ctx context.Context, userID pgtype.UUID) (GetTeacherProfileByUserIDRow, error) {
 	row := q.db.QueryRow(ctx, getTeacherProfileByUserID, userID)
 	var i GetTeacherProfileByUserIDRow
-	err := row.Scan(&i.ID, &i.TeacherCode, &i.FullName)
+	err := row.Scan(
+		&i.ID,
+		&i.TeacherCode,
+		&i.FullName,
+		&i.AvatarUrl,
+	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
 
-SELECT id, email, password_hash, status, must_change_password
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
 FROM users
 WHERE email = $1
 `
@@ -97,6 +109,8 @@ type GetUserByEmailRow struct {
 	PasswordHash       string      `json:"password_hash"`
 	Status             UserStatus  `json:"status"`
 	MustChangePassword bool        `json:"must_change_password"`
+	FullName           string      `json:"full_name"`
+	AvatarUrl          pgtype.Text `json:"avatar_url"`
 }
 
 // Authentication and identity queries (PostgreSQL, pgx/v5).
@@ -110,12 +124,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.PasswordHash,
 		&i.Status,
 		&i.MustChangePassword,
+		&i.FullName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, status, must_change_password
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
 FROM users
 WHERE id = $1
 `
@@ -126,6 +142,8 @@ type GetUserByIDRow struct {
 	PasswordHash       string      `json:"password_hash"`
 	Status             UserStatus  `json:"status"`
 	MustChangePassword bool        `json:"must_change_password"`
+	FullName           string      `json:"full_name"`
+	AvatarUrl          pgtype.Text `json:"avatar_url"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error) {
@@ -137,6 +155,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDR
 		&i.PasswordHash,
 		&i.Status,
 		&i.MustChangePassword,
+		&i.FullName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
@@ -215,6 +235,54 @@ WHERE id = $1
 
 func (q *Queries) UpdateLastLogin(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, updateLastLogin, id)
+	return err
+}
+
+const updateStudentAvatarByUserID = `-- name: UpdateStudentAvatarByUserID :exec
+UPDATE student_profiles
+SET avatar_url = $2, updated_at = NOW()
+WHERE user_id = $1
+`
+
+type UpdateStudentAvatarByUserIDParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+}
+
+func (q *Queries) UpdateStudentAvatarByUserID(ctx context.Context, arg UpdateStudentAvatarByUserIDParams) error {
+	_, err := q.db.Exec(ctx, updateStudentAvatarByUserID, arg.UserID, arg.AvatarUrl)
+	return err
+}
+
+const updateTeacherAvatarByUserID = `-- name: UpdateTeacherAvatarByUserID :exec
+UPDATE teacher_profiles
+SET avatar_url = $2, updated_at = NOW()
+WHERE user_id = $1
+`
+
+type UpdateTeacherAvatarByUserIDParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+}
+
+func (q *Queries) UpdateTeacherAvatarByUserID(ctx context.Context, arg UpdateTeacherAvatarByUserIDParams) error {
+	_, err := q.db.Exec(ctx, updateTeacherAvatarByUserID, arg.UserID, arg.AvatarUrl)
+	return err
+}
+
+const updateUserAvatar = `-- name: UpdateUserAvatar :exec
+UPDATE users
+SET avatar_url = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateUserAvatarParams struct {
+	ID        pgtype.UUID `json:"id"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+}
+
+func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) error {
+	_, err := q.db.Exec(ctx, updateUserAvatar, arg.ID, arg.AvatarUrl)
 	return err
 }
 

@@ -2,9 +2,9 @@
 
 The supported deployment is Docker Compose behind Caddy. PostgreSQL and the app containers share an internal network; only Caddy publishes ports 80/443.
 
-## First deployment
+## First deployment (Ubuntu 24.04 LTS VPS on iNET)
 
-1. Install Docker Engine with the Compose plugin on a Linux host. Point the DNS A/AAAA record for the application domain at that host and allow inbound TCP 80/443 plus UDP 443.
+1. Provision an Ubuntu 24.04 LTS VPS (`>= 2 vCPU`, `4 GB RAM`, `40 GB SSD` recommended) with a 2 GB swapfile (`/swapfile`). Install Docker Engine (`>= 26`) with the Compose v2 plugin. Point the DNS A/AAAA record for `APP_DOMAIN` at the VPS public IP and allow inbound TCP 22, 80, 443 plus UDP 443 via UFW (`ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 443/udp && ufw enable`).
 2. Clone a reviewed release commit. Copy `.env.production.example` to `.env.production` and replace every example value. Generate the database password and JWT secret from a cryptographically secure source.
 3. Keep `.env.production` readable only by the deployment account. Do not paste it into tickets, logs, or commits.
 4. Validate and start:

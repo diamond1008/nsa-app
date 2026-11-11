@@ -134,6 +134,12 @@ func (s *Service) Create(ctx context.Context, actorID string, input WriteInput) 
 	}); err != nil {
 		return View{}, fmt.Errorf("assign teacher role: %w", err)
 	}
+	_ = q.SyncManagedUserIdentity(ctx, db.SyncManagedUserIdentityParams{
+		ID:        user.ID,
+		FullName:  data.Text(&input.FullName),
+		Phone:     data.Text(input.Phone),
+		AvatarUrl: data.Text(input.AvatarURL),
+	})
 	profile, err := q.CreateTeacherProfile(ctx, db.CreateTeacherProfileParams{
 		UserID: user.ID, TeacherCode: input.TeacherCode, FullName: input.FullName,
 		AvatarUrl: data.Text(input.AvatarURL),
@@ -290,6 +296,12 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input WriteInp
 	}); err != nil {
 		return View{}, mapWriteError(err)
 	}
+	_ = q.SyncManagedUserIdentity(ctx, db.SyncManagedUserIdentityParams{
+		ID:        existing.UserID,
+		FullName:  data.Text(&input.FullName),
+		Phone:     data.Text(input.Phone),
+		AvatarUrl: data.Text(input.AvatarURL),
+	})
 	if _, err := q.UpdateTeacherProfile(ctx, db.UpdateTeacherProfileParams{
 		ID: teacherID, TeacherCode: input.TeacherCode, FullName: input.FullName,
 		AvatarUrl: data.Text(input.AvatarURL),

@@ -115,7 +115,6 @@ body {
 }
 
 .app-custom-scroll.is-scrolling::-webkit-scrollbar-thumb {
-
   background-color: rgba(100, 116, 139, 0.65) !important;
 }
 
@@ -129,7 +128,6 @@ body {
     scrollbar-color: transparent transparent;
   }
   .app-custom-scroll.is-scrolling {
-
     scrollbar-color: rgba(100, 116, 139, 0.65) transparent;
   }
 }
@@ -156,8 +154,6 @@ body {
   border-radius: 9999px !important;
   transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-
 
 .is-scrolling::-webkit-scrollbar-thumb,
 .is-scrolling *::-webkit-scrollbar-thumb {

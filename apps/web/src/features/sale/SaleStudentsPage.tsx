@@ -73,9 +73,18 @@ export function SaleStudentsPage() {
             className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
             title="Nhấn để mở bảng chi tiết học viên"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-xs group-hover:shadow-md transition-shadow">
-              {initials || "HV"}
-            </div>
+            {lead.converted_student_avatar_url ? (
+              <img
+                src={lead.converted_student_avatar_url}
+                alt={lead.full_name}
+                loading="lazy"
+                className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 object-cover shadow-xs group-hover:shadow-md transition-shadow"
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-xs font-bold text-white shadow-xs group-hover:shadow-md transition-shadow">
+                {initials || "HV"}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors duration-150">

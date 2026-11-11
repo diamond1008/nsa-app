@@ -1111,7 +1111,8 @@ export function LeadProfilePage() {
               const isDisabled = isConvertedOnly && !lead?.converted_student_id;
               return (
                 <option key={opt.value} value={opt.value} disabled={isDisabled}>
-                  {opt.label}{isDisabled ? " (Cần Chốt học viên)" : ""}
+                  {opt.label}
+                  {isDisabled ? " (Cần Chốt học viên)" : ""}
                 </option>
               );
             })}

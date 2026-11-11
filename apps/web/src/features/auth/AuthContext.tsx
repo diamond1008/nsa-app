@@ -24,6 +24,8 @@ interface AuthContextValue {
     redirectUri?: string,
   ) => Promise<UserInfo>;
   logout: () => Promise<void>;
+  refreshUser?: () => Promise<UserInfo>;
+  updateMyAvatar?: (avatarUrl: string | null) => Promise<UserInfo>;
   hasRole: (...roles: Role[]) => boolean;
   homePath: (u?: UserInfo | null) => string;
 }
@@ -114,6 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
+  const refreshUser = useCallback(async () => {
+    const updated = await authApi.me();
+    setUser(updated);
+    return updated;
+  }, []);
+
+  const updateMyAvatar = useCallback(async (avatarUrl: string | null) => {
+    const updated = await authApi.updateMyAvatar(avatarUrl);
+    setUser(updated);
+    return updated;
+  }, []);
+
   const value = useMemo(
     () => ({
       status,
@@ -122,10 +136,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginSSO,
       exchangeOAuthCode,
       logout,
+      refreshUser,
+      updateMyAvatar,
       hasRole,
       homePath: homePathFor,
     }),
-    [status, user, login, loginSSO, exchangeOAuthCode, logout, hasRole],
+    [
+      status,
+      user,
+      login,
+      loginSSO,
+      exchangeOAuthCode,
+      logout,
+      refreshUser,
+      updateMyAvatar,
+      hasRole,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -245,7 +245,9 @@ export function CreateRegistrationOrderModal({
               <div className="mt-2 text-[11px] text-blue-800 bg-blue-50/90 border border-blue-200/80 rounded-lg p-2 flex items-center gap-1.5">
                 <Icon name="info" className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                 <span>
-                  Chọn 1 đợt: Học viên sẽ thanh toán <b>full 100%</b> học phí. Trường hợp sau này học viên muốn thanh toán nhiều đợt, bạn có thể bấm nút <b>Sửa đợt</b> trên phiếu đăng ký để chia lại số đợt còn lại bất kỳ lúc nào.
+                  Chọn 1 đợt: Học viên sẽ thanh toán <b>full 100%</b> học phí. Trường hợp sau này
+                  học viên muốn thanh toán nhiều đợt, bạn có thể bấm nút <b>Sửa đợt</b> trên phiếu
+                  đăng ký để chia lại số đợt còn lại bất kỳ lúc nào.
                 </span>
               </div>
             )}

@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/audit"
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/avatar"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/dberror"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/pagination"
@@ -153,7 +154,7 @@ func (s *Service) Get(ctx context.Context, actorID string, isAdmin bool, leadIDV
 		return View{}, fmt.Errorf("get lead: %w", err)
 	}
 
-	if !isAdmin && row.AssignedTo.Valid && data.UUIDString(row.AssignedTo) != actorID {
+	if !isAdmin && (!row.AssignedTo.Valid || data.UUIDString(row.AssignedTo) != actorID) {
 		return View{}, ErrUnauthorizedAccess
 	}
 
@@ -284,7 +285,7 @@ func (s *Service) Update(ctx context.Context, actorID string, isAdmin bool, lead
 		return View{}, fmt.Errorf("get lead for update: %w", err)
 	}
 
-	if !isAdmin && existing.AssignedTo.Valid && data.UUIDString(existing.AssignedTo) != actorID {
+	if !isAdmin && (!existing.AssignedTo.Valid || data.UUIDString(existing.AssignedTo) != actorID) {
 		return View{}, ErrUnauthorizedAccess
 	}
 
@@ -388,7 +389,7 @@ func (s *Service) Update(ctx context.Context, actorID string, isAdmin bool, lead
 	}
 
 	view := viewFromGet(updated)
-	if err := audit.Write(ctx, q, actorID, "lead.update", "lead", leadID, viewFromGet(existing), view); err != nil {
+	if err := audit.Write(ctx, q, actorID, "lead.update", "lead", leadID, auditLeadView(viewFromGet(existing)), auditLeadView(view)); err != nil {
 		return View{}, err
 	}
 
@@ -413,7 +414,7 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, isAdmin bool
 		return View{}, fmt.Errorf("get lead for status update: %w", err)
 	}
 
-	if !isAdmin && existing.AssignedTo.Valid && data.UUIDString(existing.AssignedTo) != actorID {
+	if !isAdmin && (!existing.AssignedTo.Valid || data.UUIDString(existing.AssignedTo) != actorID) {
 		return View{}, ErrUnauthorizedAccess
 	}
 
@@ -466,7 +467,7 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, isAdmin bool
 	}
 
 	view := viewFromGet(updated)
-	if err := audit.Write(ctx, q, actorID, "lead.update_status", "lead", leadID, viewFromGet(existing), view); err != nil {
+	if err := audit.Write(ctx, q, actorID, "lead.update_status", "lead", leadID, auditLeadView(viewFromGet(existing)), auditLeadView(view)); err != nil {
 		return View{}, err
 	}
 
@@ -492,7 +493,7 @@ func (s *Service) Delete(ctx context.Context, actorID string, isAdmin bool, lead
 		return fmt.Errorf("get lead for delete: %w", err)
 	}
 
-	if !isAdmin && lead.AssignedTo.Valid && data.UUIDString(lead.AssignedTo) != actorID {
+	if !isAdmin && (!lead.AssignedTo.Valid || data.UUIDString(lead.AssignedTo) != actorID) {
 		return ErrUnauthorizedAccess
 	}
 
@@ -500,8 +501,13 @@ func (s *Service) Delete(ctx context.Context, actorID string, isAdmin bool, lead
 		return fmt.Errorf("soft delete lead: %w", err)
 	}
 
-	_ = audit.Write(ctx, s.queries, actorID, "lead.delete", "lead", leadID, viewFromGet(lead), nil)
+	_ = audit.Write(ctx, s.queries, actorID, "lead.delete", "lead", leadID, auditLeadView(viewFromGet(lead)), nil)
 	return nil
+}
+
+func auditLeadView(view View) View {
+	view.ConvertedStudentAvatarURL = avatar.Redact(view.ConvertedStudentAvatarURL)
+	return view
 }
 
 func (s *Service) DashboardOverview(ctx context.Context) (DashboardOverviewView, error) {
@@ -682,77 +688,81 @@ func (s *Service) CheckDuplicate(ctx context.Context, phone, email, excludeIDStr
 
 func viewFromGet(row db.GetLeadRow) View {
 	return View{
-		ID:                     data.UUIDString(row.ID),
-		FullName:               row.FullName,
-		Phone:                  data.TextPointer(row.Phone),
-		Email:                  data.TextPointer(row.Email),
-		DateOfBirth:            data.DateString(row.DateOfBirth),
-		Gender:                 data.TextPointer(row.Gender),
-		Address:                data.TextPointer(row.Address),
-		Source:                 string(row.Source),
-		SourceDetail:           data.TextPointer(row.SourceDetail),
-		UTMSource:              data.TextPointer(row.UtmSource),
-		UTMMedium:              data.TextPointer(row.UtmMedium),
-		UTMCampaign:            data.TextPointer(row.UtmCampaign),
-		UTMContent:             data.TextPointer(row.UtmContent),
-		UTMTerm:                data.TextPointer(row.UtmTerm),
-		InterestedCourseID:     data.UUIDPointer(row.InterestedCourseID),
-		InterestedCourseCode:   data.TextPointer(row.CourseCode),
-		InterestedCourseName:   data.TextPointer(row.CourseName),
-		Notes:                  data.TextPointer(row.Notes),
-		PipelineStatus:         string(row.PipelineStatus),
-		AssignedTo:             data.UUIDPointer(row.AssignedTo),
-		AssignedToEmail:        data.TextPointer(row.AssignedToEmail),
-		AssignedAt:             timestamptzString(row.AssignedAt),
-		AssignedBy:             data.UUIDPointer(row.AssignedBy),
-		AssignedByEmail:        data.TextPointer(row.AssignedByEmail),
-		ConvertedStudentID:     data.UUIDPointer(row.ConvertedStudentID),
-		ConvertedStudentCode:   data.TextPointer(row.ConvertedStudentCode),
-		ConvertedStudentName:   data.TextPointer(row.ConvertedStudentName),
-		ConvertedStudentStatus: studentStatusPtr(row.ConvertedStudentStatus),
-		ConvertedAt:            timestamptzString(row.ConvertedAt),
-		ConvertedBy:            data.UUIDPointer(row.ConvertedBy),
-		CreatedBy:              data.UUIDString(row.CreatedBy),
-		CreatedByEmail:         data.TextPointer(row.CreatedByEmail),
-		CreatedAt:              row.CreatedAt.Time.UTC().Format(time.RFC3339),
-		UpdatedAt:              row.UpdatedAt.Time.UTC().Format(time.RFC3339),
+		ID:                        data.UUIDString(row.ID),
+		FullName:                  row.FullName,
+		Phone:                     data.TextPointer(row.Phone),
+		Email:                     data.TextPointer(row.Email),
+		DateOfBirth:               data.DateString(row.DateOfBirth),
+		Gender:                    data.TextPointer(row.Gender),
+		Address:                   data.TextPointer(row.Address),
+		Source:                    string(row.Source),
+		SourceDetail:              data.TextPointer(row.SourceDetail),
+		UTMSource:                 data.TextPointer(row.UtmSource),
+		UTMMedium:                 data.TextPointer(row.UtmMedium),
+		UTMCampaign:               data.TextPointer(row.UtmCampaign),
+		UTMContent:                data.TextPointer(row.UtmContent),
+		UTMTerm:                   data.TextPointer(row.UtmTerm),
+		InterestedCourseID:        data.UUIDPointer(row.InterestedCourseID),
+		InterestedCourseCode:      data.TextPointer(row.CourseCode),
+		InterestedCourseName:      data.TextPointer(row.CourseName),
+		Notes:                     data.TextPointer(row.Notes),
+		PipelineStatus:            string(row.PipelineStatus),
+		AssignedTo:                data.UUIDPointer(row.AssignedTo),
+		AssignedToEmail:           data.TextPointer(row.AssignedToEmail),
+		AssignedToName:            data.TextPointer(row.AssignedToName),
+		AssignedAt:                timestamptzString(row.AssignedAt),
+		AssignedBy:                data.UUIDPointer(row.AssignedBy),
+		AssignedByEmail:           data.TextPointer(row.AssignedByEmail),
+		ConvertedStudentID:        data.UUIDPointer(row.ConvertedStudentID),
+		ConvertedStudentCode:      data.TextPointer(row.ConvertedStudentCode),
+		ConvertedStudentName:      data.TextPointer(row.ConvertedStudentName),
+		ConvertedStudentStatus:    studentStatusPtr(row.ConvertedStudentStatus),
+		ConvertedStudentAvatarURL: data.TextPointer(row.ConvertedStudentAvatarUrl),
+		ConvertedAt:               timestamptzString(row.ConvertedAt),
+		ConvertedBy:               data.UUIDPointer(row.ConvertedBy),
+		CreatedBy:                 data.UUIDString(row.CreatedBy),
+		CreatedByEmail:            data.TextPointer(row.CreatedByEmail),
+		CreatedAt:                 row.CreatedAt.Time.UTC().Format(time.RFC3339),
+		UpdatedAt:                 row.UpdatedAt.Time.UTC().Format(time.RFC3339),
 	}
 }
 
 func viewFromListRow(row db.ListLeadsRow) View {
 	return View{
-		ID:                     data.UUIDString(row.ID),
-		FullName:               row.FullName,
-		Phone:                  data.TextPointer(row.Phone),
-		Email:                  data.TextPointer(row.Email),
-		DateOfBirth:            data.DateString(row.DateOfBirth),
-		Gender:                 data.TextPointer(row.Gender),
-		Address:                data.TextPointer(row.Address),
-		Source:                 string(row.Source),
-		SourceDetail:           data.TextPointer(row.SourceDetail),
-		UTMSource:              data.TextPointer(row.UtmSource),
-		UTMMedium:              data.TextPointer(row.UtmMedium),
-		UTMCampaign:            data.TextPointer(row.UtmCampaign),
-		UTMContent:             data.TextPointer(row.UtmContent),
-		UTMTerm:                data.TextPointer(row.UtmTerm),
-		InterestedCourseID:     data.UUIDPointer(row.InterestedCourseID),
-		InterestedCourseCode:   data.TextPointer(row.CourseCode),
-		InterestedCourseName:   data.TextPointer(row.CourseName),
-		Notes:                  data.TextPointer(row.Notes),
-		PipelineStatus:         string(row.PipelineStatus),
-		AssignedTo:             data.UUIDPointer(row.AssignedTo),
-		AssignedToEmail:        data.TextPointer(row.AssignedToEmail),
-		AssignedAt:             timestamptzString(row.AssignedAt),
-		AssignedBy:             data.UUIDPointer(row.AssignedBy),
-		ConvertedStudentID:     data.UUIDPointer(row.ConvertedStudentID),
-		ConvertedStudentCode:   data.TextPointer(row.ConvertedStudentCode),
-		ConvertedStudentName:   data.TextPointer(row.ConvertedStudentName),
-		ConvertedStudentStatus: studentStatusPtr(row.ConvertedStudentStatus),
-		ConvertedAt:            timestamptzString(row.ConvertedAt),
-		ConvertedBy:            data.UUIDPointer(row.ConvertedBy),
-		CreatedBy:              data.UUIDString(row.CreatedBy),
-		CreatedAt:              row.CreatedAt.Time.UTC().Format(time.RFC3339),
-		UpdatedAt:              row.UpdatedAt.Time.UTC().Format(time.RFC3339),
+		ID:                        data.UUIDString(row.ID),
+		FullName:                  row.FullName,
+		Phone:                     data.TextPointer(row.Phone),
+		Email:                     data.TextPointer(row.Email),
+		DateOfBirth:               data.DateString(row.DateOfBirth),
+		Gender:                    data.TextPointer(row.Gender),
+		Address:                   data.TextPointer(row.Address),
+		Source:                    string(row.Source),
+		SourceDetail:              data.TextPointer(row.SourceDetail),
+		UTMSource:                 data.TextPointer(row.UtmSource),
+		UTMMedium:                 data.TextPointer(row.UtmMedium),
+		UTMCampaign:               data.TextPointer(row.UtmCampaign),
+		UTMContent:                data.TextPointer(row.UtmContent),
+		UTMTerm:                   data.TextPointer(row.UtmTerm),
+		InterestedCourseID:        data.UUIDPointer(row.InterestedCourseID),
+		InterestedCourseCode:      data.TextPointer(row.CourseCode),
+		InterestedCourseName:      data.TextPointer(row.CourseName),
+		Notes:                     data.TextPointer(row.Notes),
+		PipelineStatus:            string(row.PipelineStatus),
+		AssignedTo:                data.UUIDPointer(row.AssignedTo),
+		AssignedToEmail:           data.TextPointer(row.AssignedToEmail),
+		AssignedToName:            data.TextPointer(row.AssignedToName),
+		AssignedAt:                timestamptzString(row.AssignedAt),
+		AssignedBy:                data.UUIDPointer(row.AssignedBy),
+		ConvertedStudentID:        data.UUIDPointer(row.ConvertedStudentID),
+		ConvertedStudentCode:      data.TextPointer(row.ConvertedStudentCode),
+		ConvertedStudentName:      data.TextPointer(row.ConvertedStudentName),
+		ConvertedStudentStatus:    studentStatusPtr(row.ConvertedStudentStatus),
+		ConvertedStudentAvatarURL: data.TextPointer(row.ConvertedStudentAvatarUrl),
+		ConvertedAt:               timestamptzString(row.ConvertedAt),
+		ConvertedBy:               data.UUIDPointer(row.ConvertedBy),
+		CreatedBy:                 data.UUIDString(row.CreatedBy),
+		CreatedAt:                 row.CreatedAt.Time.UTC().Format(time.RFC3339),
+		UpdatedAt:                 row.UpdatedAt.Time.UTC().Format(time.RFC3339),
 	}
 }
 

@@ -405,7 +405,7 @@ export default function LoginPage() {
                 onClick={() => void handleQuickLogin("sale_admin@nsa.local")}
                 className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
               >
-                Sale Admin
+                Sale Manager
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2">

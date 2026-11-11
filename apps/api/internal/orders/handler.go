@@ -247,10 +247,22 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 }
 
 func (h *Handler) ExportExcel(w http.ResponseWriter, r *http.Request) {
+	claims, _ := auth.ClaimsFrom(r.Context())
+	isManager := claims != nil && claims.HasAnyRole(auth.RoleAdmin, "SALE_ADMIN", "ACADEMIC_ADMIN")
+
+	var createdBy string
+	if !isManager {
+		actorID, _ := auth.UserIDFrom(r.Context())
+		createdBy = actorID
+	} else {
+		createdBy = r.URL.Query().Get("created_by")
+	}
+
 	filter := ListFilter{
 		Status:      r.URL.Query().Get("status"),
 		StudentID:   r.URL.Query().Get("student_id"),
 		LeadID:      r.URL.Query().Get("lead_id"),
+		CreatedBy:   createdBy,
 		Search:      r.URL.Query().Get("search"),
 		CreatedFrom: r.URL.Query().Get("created_from"),
 		CreatedTo:   r.URL.Query().Get("created_to"),

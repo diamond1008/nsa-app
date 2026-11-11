@@ -312,7 +312,9 @@ export function CreateReceiptModal({
                   </span>
                 </div>
                 <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
-                  <span className="block text-[11px] text-amber-700 font-medium">Còn lại cần nộp</span>
+                  <span className="block text-[11px] text-amber-700 font-medium">
+                    Còn lại cần nộp
+                  </span>
                   <span className="font-bold text-amber-800 text-xs">
                     {formatVND(remainingBefore)}
                   </span>
@@ -428,7 +430,8 @@ export function CreateReceiptModal({
                     <div>
                       <span className="font-bold">Không được thu vượt quá số tiền còn lại!</span>
                       <p className="mt-0.5">
-                        Số tiền tối đa có thể thu là <b>{formatVND(remainingBefore)}</b>. Vui lòng điều chỉnh lại số tiền thu thực tế.
+                        Số tiền tối đa có thể thu là <b>{formatVND(remainingBefore)}</b>. Vui lòng
+                        điều chỉnh lại số tiền thu thực tế.
                       </p>
                     </div>
                   </div>
@@ -441,7 +444,9 @@ export function CreateReceiptModal({
                     <div>
                       <span className="font-bold">✓ Thanh toán hoàn tất 100% học phí (Full):</span>
                       <p className="mt-0.5">
-                        Sau khi lập phiếu thu này, toàn bộ học phí sẽ được thanh toán đủ. Hệ thống sẽ tự động cập nhật phiếu đăng ký thành <b>Đã thanh toán tất cả</b> và đóng các đợt thừa phía sau.
+                        Sau khi lập phiếu thu này, toàn bộ học phí sẽ được thanh toán đủ. Hệ thống
+                        sẽ tự động cập nhật phiếu đăng ký thành <b>Đã thanh toán tất cả</b> và đóng
+                        các đợt thừa phía sau.
                       </p>
                     </div>
                   </div>

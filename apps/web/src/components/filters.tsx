@@ -91,8 +91,7 @@ export const FilterBar = forwardRef<HTMLElement, FilterBarProps>(function Filter
     };
   }, [sticky]);
 
-  const hasFilters =
-    Boolean(search.trim()) || activeFilters.length > 0 || advancedFilterCount > 0;
+  const hasFilters = Boolean(search.trim()) || activeFilters.length > 0 || advancedFilterCount > 0;
   return (
     <section
       ref={(node) => {

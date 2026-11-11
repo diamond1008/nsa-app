@@ -218,7 +218,7 @@ func (s *Service) Decide(ctx context.Context, actorID, classIDValue, studentIDVa
 			return DecisionResult{}, fmt.Errorf("complete enrollment: %w", e)
 		}
 	} else {
-		// A rejected re-review must invalidate any previously issued certificate.
+		// A rejected re-review must invalidate any previously issued certificate and revert enrollment status.
 		if _, certErr := q.GetCurrentCertificateByCompletion(ctx, completion.ID); certErr == nil {
 			if _, err := q.RevokeCurrentCertificate(ctx, db.RevokeCurrentCertificateParams{
 				CompletionID: completion.ID,
@@ -227,13 +227,19 @@ func (s *Service) Decide(ctx context.Context, actorID, classIDValue, studentIDVa
 			}); err != nil {
 				return DecisionResult{}, fmt.Errorf("revoke rejected certificate: %w", err)
 			}
+			if enrollmentID, e := q.GetEnrollmentByClassStudent(ctx, db.GetEnrollmentByClassStudentParams{ClassID: classID, StudentID: studentID}); e == nil {
+				_, _ = q.UpdateClassEnrollmentStatus(ctx, db.UpdateClassEnrollmentStatusParams{ID: enrollmentID, ClassID: classID, Status: db.EnrollmentStatusEnrolled})
+			}
 		} else if !errors.Is(certErr, pgx.ErrNoRows) {
 			return DecisionResult{}, fmt.Errorf("get certificate for rejection: %w", certErr)
 		}
 	}
 	actionURL := "/student/tien-do"
 	title := "Kết quả hoàn thành khóa học"
-	message := "Hồ sơ hoàn thành của bạn đã được duyệt: " + status
+	message := "Hồ sơ hoàn thành khóa học của bạn đã được phê duyệt."
+	if status == "rejected" {
+		message = "Hồ sơ hoàn thành khóa học của bạn chưa được duyệt: " + note
+	}
 	if err := notifications.Create(ctx, q, row.StudentUserID, title, message, "completion", &actionURL); err != nil {
 		return DecisionResult{}, err
 	}

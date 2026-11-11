@@ -122,11 +122,7 @@ export function EditInstallmentsModal({
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Sửa Kế Hoạch Đợt Đóng: ${order.order_code}`}
-    >
+    <Modal open={open} onClose={onClose} title={`Sửa Kế Hoạch Đợt Đóng: ${order.order_code}`}>
       <div className="space-y-4">
         {formError && <ErrorBanner message={formError} />}
 
@@ -153,15 +149,13 @@ export function EditInstallmentsModal({
             </div>
             <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
               <span className="block text-[11px] text-emerald-600">Đã thu lũy kế</span>
-              <span className="font-bold text-emerald-700 text-xs">
-                {formatVND(totalPaid)}
-              </span>
+              <span className="font-bold text-emerald-700 text-xs">{formatVND(totalPaid)}</span>
             </div>
             <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
-              <span className="block text-[11px] text-amber-700 font-medium">Còn lại cần chia đợt</span>
-              <span className="font-bold text-amber-800 text-xs">
-                {formatVND(remainingAmount)}
+              <span className="block text-[11px] text-amber-700 font-medium">
+                Còn lại cần chia đợt
               </span>
+              <span className="font-bold text-amber-800 text-xs">{formatVND(remainingAmount)}</span>
             </div>
           </div>
         </div>
@@ -170,7 +164,8 @@ export function EditInstallmentsModal({
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-800 flex items-center gap-2">
             <Icon name="check" className="h-5 w-5 text-emerald-600 shrink-0" />
             <span>
-              Phiếu đăng ký này đã thanh toán đủ 100% học phí. Không còn số tiền nào chưa thu để chia đợt.
+              Phiếu đăng ký này đã thanh toán đủ 100% học phí. Không còn số tiền nào chưa thu để
+              chia đợt.
             </span>
           </div>
         ) : (
@@ -188,7 +183,9 @@ export function EditInstallmentsModal({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-800">Số đợt còn lại tùy ý:</span>
+                      <span className="text-xs font-bold text-slate-800">
+                        Số đợt còn lại tùy ý:
+                      </span>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-[11px] font-bold text-[#0532e6] border border-blue-200/80">
                         {newRemainingRounds === 1
                           ? "1 đợt (Thu hết phần còn lại)"
@@ -260,7 +257,9 @@ export function EditInstallmentsModal({
                           <span
                             className={clsx(
                               "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold",
-                              isPaid ? "bg-emerald-200 text-emerald-800" : "bg-blue-100 text-[#0532e6]",
+                              isPaid
+                                ? "bg-emerald-200 text-emerald-800"
+                                : "bg-blue-100 text-[#0532e6]",
                             )}
                           >
                             {inst.round}
@@ -284,7 +283,9 @@ export function EditInstallmentsModal({
                   })}
                 </div>
                 <p className="text-[11px] text-slate-500 italic pt-1">
-                  * Các đợt đã thu tiền trước đây ({paidInstallments.length} đợt) được bảo lưu nguyên trạng. Số tiền còn lại được phân bổ đều cho {newRemainingRounds} đợt kế tiếp.
+                  * Các đợt đã thu tiền trước đây ({paidInstallments.length} đợt) được bảo lưu
+                  nguyên trạng. Số tiền còn lại được phân bổ đều cho {newRemainingRounds} đợt kế
+                  tiếp.
                 </p>
               </div>
             )}

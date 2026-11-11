@@ -258,7 +258,9 @@ export function ConfirmChotLeadModal({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
               </span>
-              <span>Tự động đóng popup sau <b>{countdown}s</b>...</span>
+              <span>
+                Tự động đóng popup sau <b>{countdown}s</b>...
+              </span>
             </div>
 
             <Button
@@ -288,7 +290,9 @@ export function ConfirmChotLeadModal({
         {/* Verification Warning Alert */}
         <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-2 text-xs text-amber-900 flex items-center gap-2">
           <Icon name="lock" className="h-4 w-4 text-amber-700 shrink-0" />
-          <span>Email sẽ là tài khoản đăng nhập và được khóa thông tin định danh sau khi chốt.</span>
+          <span>
+            Email sẽ là tài khoản đăng nhập và được khóa thông tin định danh sau khi chốt.
+          </span>
         </div>
 
         {/* Form Fields: Clean 3-Row Layout */}

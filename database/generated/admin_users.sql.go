@@ -104,6 +104,33 @@ func (q *Queries) InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) 
 	return err
 }
 
+const syncManagedUserIdentity = `-- name: SyncManagedUserIdentity :exec
+UPDATE users
+SET
+  full_name = $1,
+  phone = $2,
+  avatar_url = $3,
+  updated_at = NOW()
+WHERE id = $4
+`
+
+type SyncManagedUserIdentityParams struct {
+	FullName  pgtype.Text `json:"full_name"`
+	Phone     pgtype.Text `json:"phone"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+	ID        pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) SyncManagedUserIdentity(ctx context.Context, arg SyncManagedUserIdentityParams) error {
+	_, err := q.db.Exec(ctx, syncManagedUserIdentity,
+		arg.FullName,
+		arg.Phone,
+		arg.AvatarUrl,
+		arg.ID,
+	)
+	return err
+}
+
 const updateManagedUser = `-- name: UpdateManagedUser :one
 UPDATE users
 SET email = $2, status = $3

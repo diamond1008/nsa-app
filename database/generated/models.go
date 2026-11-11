@@ -1322,6 +1322,19 @@ type Order struct {
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type OrderReceipt struct {
+	ID            pgtype.UUID        `json:"id"`
+	ReceiptCode   string             `json:"receipt_code"`
+	OrderID       pgtype.UUID        `json:"order_id"`
+	InstallmentNo int32              `json:"installment_no"`
+	Amount        pgtype.Numeric     `json:"amount"`
+	PaymentMethod string             `json:"payment_method"`
+	Notes         pgtype.Text        `json:"notes"`
+	PaidAt        pgtype.Timestamptz `json:"paid_at"`
+	CollectedBy   pgtype.UUID        `json:"collected_by"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type RefreshToken struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    pgtype.UUID        `json:"user_id"`
@@ -1485,6 +1498,7 @@ type User struct {
 	Phone               pgtype.Text        `json:"phone"`
 	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
 	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
+	AvatarUrl           pgtype.Text        `json:"avatar_url"`
 }
 
 type UserRole struct {

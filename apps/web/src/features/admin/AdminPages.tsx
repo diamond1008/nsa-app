@@ -1486,6 +1486,7 @@ function PersonDirectory({ kind }: { kind: PersonKind }) {
         }}
       >
         <PersonForm
+          key={editing?.id ?? "new"}
           kind={kind}
           initial={editing}
           loading={mutation.isPending}
@@ -2009,6 +2010,7 @@ export function CoursesPage() {
         onClose={() => setOpen(false)}
       >
         <CourseForm
+          key={editing?.id ?? "new"}
           initial={editing}
           loading={mutation.isPending}
           error={mutation.error}

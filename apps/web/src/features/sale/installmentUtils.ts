@@ -117,9 +117,7 @@ export function calculateInstallments(finalAmount: number, planType: number): In
  * Gets total amount already paid across all paid installments.
  */
 export function getOrderTotalPaid(meta: InstallmentMetadata): number {
-  return meta.installments
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + i.amount, 0);
+  return meta.installments.filter((i) => i.status === "paid").reduce((sum, i) => sum + i.amount, 0);
 }
 
 /**

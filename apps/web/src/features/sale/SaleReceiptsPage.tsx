@@ -401,11 +401,7 @@ export function SaleReceiptsPage() {
         searchPlaceholder="Tìm theo mã phiếu thu, mã đơn, tên học viên..."
         resultCount={filteredRows.length}
         resultCountLabel="phiếu"
-        advancedFilterCount={
-          (methodFilter ? 1 : 0) +
-          (fromDate ? 1 : 0) +
-          (toDate ? 1 : 0)
-        }
+        advancedFilterCount={(methodFilter ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0)}
         onClearAll={
           Boolean(search) || Boolean(methodFilter) || Boolean(fromDate) || Boolean(toDate)
             ? () => {

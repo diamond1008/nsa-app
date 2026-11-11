@@ -563,11 +563,13 @@ SELECT
   l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at, l.deleted_at,
   c.code AS course_code,
   c.name AS course_name,
+  u_assignee.full_name AS assigned_to_name,
   u_assignee.email AS assigned_to_email,
   u_assigner.email AS assigned_by_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name,
   sp.status AS converted_student_status,
+  sp.avatar_url AS converted_student_avatar_url,
   u_creator.email AS created_by_email
 FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
@@ -579,41 +581,43 @@ WHERE l.id = $1 AND l.deleted_at IS NULL
 `
 
 type GetLeadRow struct {
-	ID                     pgtype.UUID        `json:"id"`
-	FullName               string             `json:"full_name"`
-	Phone                  pgtype.Text        `json:"phone"`
-	Email                  pgtype.Text        `json:"email"`
-	DateOfBirth            pgtype.Date        `json:"date_of_birth"`
-	Gender                 pgtype.Text        `json:"gender"`
-	Address                pgtype.Text        `json:"address"`
-	Source                 LeadSource         `json:"source"`
-	SourceDetail           pgtype.Text        `json:"source_detail"`
-	UtmSource              pgtype.Text        `json:"utm_source"`
-	UtmMedium              pgtype.Text        `json:"utm_medium"`
-	UtmCampaign            pgtype.Text        `json:"utm_campaign"`
-	UtmContent             pgtype.Text        `json:"utm_content"`
-	UtmTerm                pgtype.Text        `json:"utm_term"`
-	InterestedCourseID     pgtype.UUID        `json:"interested_course_id"`
-	Notes                  pgtype.Text        `json:"notes"`
-	PipelineStatus         LeadPipelineStatus `json:"pipeline_status"`
-	AssignedTo             pgtype.UUID        `json:"assigned_to"`
-	AssignedAt             pgtype.Timestamptz `json:"assigned_at"`
-	AssignedBy             pgtype.UUID        `json:"assigned_by"`
-	ConvertedStudentID     pgtype.UUID        `json:"converted_student_id"`
-	ConvertedAt            pgtype.Timestamptz `json:"converted_at"`
-	ConvertedBy            pgtype.UUID        `json:"converted_by"`
-	CreatedBy              pgtype.UUID        `json:"created_by"`
-	CreatedAt              pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt              pgtype.Timestamptz `json:"deleted_at"`
-	CourseCode             pgtype.Text        `json:"course_code"`
-	CourseName             pgtype.Text        `json:"course_name"`
-	AssignedToEmail        pgtype.Text        `json:"assigned_to_email"`
-	AssignedByEmail        pgtype.Text        `json:"assigned_by_email"`
-	ConvertedStudentCode   pgtype.Text        `json:"converted_student_code"`
-	ConvertedStudentName   pgtype.Text        `json:"converted_student_name"`
-	ConvertedStudentStatus NullStudentStatus  `json:"converted_student_status"`
-	CreatedByEmail         pgtype.Text        `json:"created_by_email"`
+	ID                        pgtype.UUID        `json:"id"`
+	FullName                  string             `json:"full_name"`
+	Phone                     pgtype.Text        `json:"phone"`
+	Email                     pgtype.Text        `json:"email"`
+	DateOfBirth               pgtype.Date        `json:"date_of_birth"`
+	Gender                    pgtype.Text        `json:"gender"`
+	Address                   pgtype.Text        `json:"address"`
+	Source                    LeadSource         `json:"source"`
+	SourceDetail              pgtype.Text        `json:"source_detail"`
+	UtmSource                 pgtype.Text        `json:"utm_source"`
+	UtmMedium                 pgtype.Text        `json:"utm_medium"`
+	UtmCampaign               pgtype.Text        `json:"utm_campaign"`
+	UtmContent                pgtype.Text        `json:"utm_content"`
+	UtmTerm                   pgtype.Text        `json:"utm_term"`
+	InterestedCourseID        pgtype.UUID        `json:"interested_course_id"`
+	Notes                     pgtype.Text        `json:"notes"`
+	PipelineStatus            LeadPipelineStatus `json:"pipeline_status"`
+	AssignedTo                pgtype.UUID        `json:"assigned_to"`
+	AssignedAt                pgtype.Timestamptz `json:"assigned_at"`
+	AssignedBy                pgtype.UUID        `json:"assigned_by"`
+	ConvertedStudentID        pgtype.UUID        `json:"converted_student_id"`
+	ConvertedAt               pgtype.Timestamptz `json:"converted_at"`
+	ConvertedBy               pgtype.UUID        `json:"converted_by"`
+	CreatedBy                 pgtype.UUID        `json:"created_by"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+	CourseCode                pgtype.Text        `json:"course_code"`
+	CourseName                pgtype.Text        `json:"course_name"`
+	AssignedToName            pgtype.Text        `json:"assigned_to_name"`
+	AssignedToEmail           pgtype.Text        `json:"assigned_to_email"`
+	AssignedByEmail           pgtype.Text        `json:"assigned_by_email"`
+	ConvertedStudentCode      pgtype.Text        `json:"converted_student_code"`
+	ConvertedStudentName      pgtype.Text        `json:"converted_student_name"`
+	ConvertedStudentStatus    NullStudentStatus  `json:"converted_student_status"`
+	ConvertedStudentAvatarUrl pgtype.Text        `json:"converted_student_avatar_url"`
+	CreatedByEmail            pgtype.Text        `json:"created_by_email"`
 }
 
 func (q *Queries) GetLead(ctx context.Context, id pgtype.UUID) (GetLeadRow, error) {
@@ -649,11 +653,13 @@ func (q *Queries) GetLead(ctx context.Context, id pgtype.UUID) (GetLeadRow, erro
 		&i.DeletedAt,
 		&i.CourseCode,
 		&i.CourseName,
+		&i.AssignedToName,
 		&i.AssignedToEmail,
 		&i.AssignedByEmail,
 		&i.ConvertedStudentCode,
 		&i.ConvertedStudentName,
 		&i.ConvertedStudentStatus,
+		&i.ConvertedStudentAvatarUrl,
 		&i.CreatedByEmail,
 	)
 	return i, err
@@ -754,6 +760,7 @@ SELECT
   l.created_at,
   c.code AS course_code,
   c.name AS course_name,
+  u_assignee.full_name AS assigned_to_name,
   u_assignee.email AS assigned_to_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name
@@ -831,6 +838,7 @@ type ListAllLeadsForExportRow struct {
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	CourseCode           pgtype.Text        `json:"course_code"`
 	CourseName           pgtype.Text        `json:"course_name"`
+	AssignedToName       pgtype.Text        `json:"assigned_to_name"`
 	AssignedToEmail      pgtype.Text        `json:"assigned_to_email"`
 	ConvertedStudentCode pgtype.Text        `json:"converted_student_code"`
 	ConvertedStudentName pgtype.Text        `json:"converted_student_name"`
@@ -869,6 +877,7 @@ func (q *Queries) ListAllLeadsForExport(ctx context.Context, arg ListAllLeadsFor
 			&i.CreatedAt,
 			&i.CourseCode,
 			&i.CourseName,
+			&i.AssignedToName,
 			&i.AssignedToEmail,
 			&i.ConvertedStudentCode,
 			&i.ConvertedStudentName,
@@ -888,10 +897,12 @@ SELECT
   l.id, l.full_name, l.phone, l.email, l.date_of_birth, l.gender, l.address, l.source, l.source_detail, l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.interested_course_id, l.notes, l.pipeline_status, l.assigned_to, l.assigned_at, l.assigned_by, l.converted_student_id, l.converted_at, l.converted_by, l.created_by, l.created_at, l.updated_at, l.deleted_at,
   c.code AS course_code,
   c.name AS course_name,
+  u_assignee.full_name AS assigned_to_name,
   u_assignee.email AS assigned_to_email,
   sp.student_code AS converted_student_code,
   sp.full_name AS converted_student_name,
-  sp.status AS converted_student_status
+  sp.status AS converted_student_status,
+  sp.avatar_url AS converted_student_avatar_url
 FROM leads l
 LEFT JOIN courses c ON c.id = l.interested_course_id
 LEFT JOIN users u_assignee ON u_assignee.id = l.assigned_to
@@ -963,39 +974,41 @@ type ListLeadsParams struct {
 }
 
 type ListLeadsRow struct {
-	ID                     pgtype.UUID        `json:"id"`
-	FullName               string             `json:"full_name"`
-	Phone                  pgtype.Text        `json:"phone"`
-	Email                  pgtype.Text        `json:"email"`
-	DateOfBirth            pgtype.Date        `json:"date_of_birth"`
-	Gender                 pgtype.Text        `json:"gender"`
-	Address                pgtype.Text        `json:"address"`
-	Source                 LeadSource         `json:"source"`
-	SourceDetail           pgtype.Text        `json:"source_detail"`
-	UtmSource              pgtype.Text        `json:"utm_source"`
-	UtmMedium              pgtype.Text        `json:"utm_medium"`
-	UtmCampaign            pgtype.Text        `json:"utm_campaign"`
-	UtmContent             pgtype.Text        `json:"utm_content"`
-	UtmTerm                pgtype.Text        `json:"utm_term"`
-	InterestedCourseID     pgtype.UUID        `json:"interested_course_id"`
-	Notes                  pgtype.Text        `json:"notes"`
-	PipelineStatus         LeadPipelineStatus `json:"pipeline_status"`
-	AssignedTo             pgtype.UUID        `json:"assigned_to"`
-	AssignedAt             pgtype.Timestamptz `json:"assigned_at"`
-	AssignedBy             pgtype.UUID        `json:"assigned_by"`
-	ConvertedStudentID     pgtype.UUID        `json:"converted_student_id"`
-	ConvertedAt            pgtype.Timestamptz `json:"converted_at"`
-	ConvertedBy            pgtype.UUID        `json:"converted_by"`
-	CreatedBy              pgtype.UUID        `json:"created_by"`
-	CreatedAt              pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt              pgtype.Timestamptz `json:"deleted_at"`
-	CourseCode             pgtype.Text        `json:"course_code"`
-	CourseName             pgtype.Text        `json:"course_name"`
-	AssignedToEmail        pgtype.Text        `json:"assigned_to_email"`
-	ConvertedStudentCode   pgtype.Text        `json:"converted_student_code"`
-	ConvertedStudentName   pgtype.Text        `json:"converted_student_name"`
-	ConvertedStudentStatus NullStudentStatus  `json:"converted_student_status"`
+	ID                        pgtype.UUID        `json:"id"`
+	FullName                  string             `json:"full_name"`
+	Phone                     pgtype.Text        `json:"phone"`
+	Email                     pgtype.Text        `json:"email"`
+	DateOfBirth               pgtype.Date        `json:"date_of_birth"`
+	Gender                    pgtype.Text        `json:"gender"`
+	Address                   pgtype.Text        `json:"address"`
+	Source                    LeadSource         `json:"source"`
+	SourceDetail              pgtype.Text        `json:"source_detail"`
+	UtmSource                 pgtype.Text        `json:"utm_source"`
+	UtmMedium                 pgtype.Text        `json:"utm_medium"`
+	UtmCampaign               pgtype.Text        `json:"utm_campaign"`
+	UtmContent                pgtype.Text        `json:"utm_content"`
+	UtmTerm                   pgtype.Text        `json:"utm_term"`
+	InterestedCourseID        pgtype.UUID        `json:"interested_course_id"`
+	Notes                     pgtype.Text        `json:"notes"`
+	PipelineStatus            LeadPipelineStatus `json:"pipeline_status"`
+	AssignedTo                pgtype.UUID        `json:"assigned_to"`
+	AssignedAt                pgtype.Timestamptz `json:"assigned_at"`
+	AssignedBy                pgtype.UUID        `json:"assigned_by"`
+	ConvertedStudentID        pgtype.UUID        `json:"converted_student_id"`
+	ConvertedAt               pgtype.Timestamptz `json:"converted_at"`
+	ConvertedBy               pgtype.UUID        `json:"converted_by"`
+	CreatedBy                 pgtype.UUID        `json:"created_by"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+	CourseCode                pgtype.Text        `json:"course_code"`
+	CourseName                pgtype.Text        `json:"course_name"`
+	AssignedToName            pgtype.Text        `json:"assigned_to_name"`
+	AssignedToEmail           pgtype.Text        `json:"assigned_to_email"`
+	ConvertedStudentCode      pgtype.Text        `json:"converted_student_code"`
+	ConvertedStudentName      pgtype.Text        `json:"converted_student_name"`
+	ConvertedStudentStatus    NullStudentStatus  `json:"converted_student_status"`
+	ConvertedStudentAvatarUrl pgtype.Text        `json:"converted_student_avatar_url"`
 }
 
 func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error) {
@@ -1050,10 +1063,12 @@ func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLea
 			&i.DeletedAt,
 			&i.CourseCode,
 			&i.CourseName,
+			&i.AssignedToName,
 			&i.AssignedToEmail,
 			&i.ConvertedStudentCode,
 			&i.ConvertedStudentName,
 			&i.ConvertedStudentStatus,
+			&i.ConvertedStudentAvatarUrl,
 		); err != nil {
 			return nil, err
 		}

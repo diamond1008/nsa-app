@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 
@@ -99,7 +100,17 @@ export function LeadPipelinePage() {
   const [exportError, setExportError] = useState("");
 
   // Create Modal & Duplicate Check
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("action") === "create") {
+      setIsCreateOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("action");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [formError, setFormError] = useState("");
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateCheckResponse | null>(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
@@ -373,9 +384,9 @@ export function LeadPipelinePage() {
       cell: (lead) => (
         <span
           className="text-xs text-navy/80 truncate block max-w-[150px]"
-          title={lead.assigned_to_email || "Chưa phân bổ"}
+          title={lead.assigned_to_name || lead.assigned_to_email || "Chưa phân bổ"}
         >
-          {lead.assigned_to_email || "Chưa phân bổ"}
+          {lead.assigned_to_name || lead.assigned_to_email || "Chưa phân bổ"}
         </span>
       ),
     },
@@ -794,7 +805,8 @@ export function LeadPipelinePage() {
                   Bước 1: Tải file mẫu chuẩn Excel (.xlsx)
                 </h4>
                 <p className="mt-1 text-xs text-gtext leading-relaxed">
-                  File bảng tính Microsoft Excel (.xlsx) chuẩn: SĐT định dạng Text giữ nguyên số 0 đầu, có sẵn menu chọn Nguồn lead và Giới tính (Nam, Nữ, Khác).
+                  File bảng tính Microsoft Excel (.xlsx) chuẩn: SĐT định dạng Text giữ nguyên số 0
+                  đầu, có sẵn menu chọn Nguồn lead và Giới tính (Nam, Nữ, Khác).
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -826,7 +838,8 @@ export function LeadPipelinePage() {
               Bước 2: Chọn file Excel (.xlsx) hoặc CSV đã điền để tải lên
             </h4>
             <p className="mt-1 text-xs text-gtext">
-              Hệ thống kiểm tra SĐT bắt buộc có số 0 đầu tiên, nhận diện mã khóa học và phân bổ lead tự động. Hỗ trợ file .xlsx và .csv (tối đa 500 dòng/lần).
+              Hệ thống kiểm tra SĐT bắt buộc có số 0 đầu tiên, nhận diện mã khóa học và phân bổ lead
+              tự động. Hỗ trợ file .xlsx và .csv (tối đa 500 dòng/lần).
             </p>
 
             <div className="mt-3">

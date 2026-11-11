@@ -99,7 +99,7 @@ func (h *Handler) RecordAttempt(w http.ResponseWriter, r *http.Request) {
 	}
 	user, _ := auth.UserIDFrom(r.Context())
 	claims, _ := auth.ClaimsFrom(r.Context())
-	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin)
+	isAdmin := claims != nil && claims.HasAnyRole(auth.RoleAdmin, auth.RoleAcademicAdmin)
 	view, err := h.service.RecordAttempt(r.Context(), user, chi.URLParam(r, "classID"), chi.URLParam(r, "studentID"), chi.URLParam(r, "testID"), input, isAdmin)
 	if err != nil {
 		h.writeError(w, r, err)

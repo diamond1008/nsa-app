@@ -437,9 +437,17 @@ export function StudentSelectorDropdown({
         <div className="flex items-center justify-between gap-3">
           {selectedLead ? (
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                {selectedLead.full_name?.slice(0, 1).toUpperCase() || "H"}
-              </div>
+              {selectedLead.converted_student_avatar_url ? (
+                <img
+                  src={selectedLead.converted_student_avatar_url}
+                  alt={selectedLead.full_name}
+                  className="h-8 w-8 rounded-full object-cover shrink-0 shadow-2xs ring-1 ring-slate-200"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                  {selectedLead.full_name?.slice(0, 1).toUpperCase() || "H"}
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">
                   {selectedLead.full_name}
@@ -552,16 +560,24 @@ export function StudentSelectorDropdown({
                       )}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={clsx(
-                            "h-7 w-7 rounded-full text-white font-bold text-[11px] flex items-center justify-center shrink-0 shadow-2xs",
-                            isSelected
-                              ? "bg-[#0532e6]"
-                              : "bg-gradient-to-tr from-slate-600 to-slate-800 group-hover:from-blue-600 group-hover:to-indigo-600",
-                          )}
-                        >
-                          {l.full_name?.slice(0, 1).toUpperCase() || "H"}
-                        </div>
+                        {l.converted_student_avatar_url ? (
+                          <img
+                            src={l.converted_student_avatar_url}
+                            alt={l.full_name}
+                            className="h-7 w-7 rounded-full object-cover shrink-0 shadow-2xs ring-1 ring-slate-200"
+                          />
+                        ) : (
+                          <div
+                            className={clsx(
+                              "h-7 w-7 rounded-full text-white font-bold text-[11px] flex items-center justify-center shrink-0 shadow-2xs",
+                              isSelected
+                                ? "bg-[#0532e6]"
+                                : "bg-gradient-to-tr from-slate-600 to-slate-800 group-hover:from-blue-600 group-hover:to-indigo-600",
+                            )}
+                          >
+                            {l.full_name?.slice(0, 1).toUpperCase() || "H"}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <div
                             className={clsx(

@@ -20,6 +20,7 @@ import { FilterBar } from "../../components/filters";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 import { formatDateTime } from "../../lib/format";
+import { compressImageToWebP } from "../../lib/image";
 import type { Role } from "../../lib/types";
 import type { Paginated } from "../../lib/domainTypes";
 import { useAuth } from "../auth/AuthContext";
@@ -139,7 +140,7 @@ interface UserManagementPageProps {
 
 export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const isOnlyAcademic = Boolean(
     user?.roles.includes("ACADEMIC_ADMIN") && !user?.roles.includes("ADMIN"),
@@ -163,6 +164,9 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [createAvatarUploading, setCreateAvatarUploading] = useState(false);
 
   // Modals & Inline forms state (Actions triggered from Drawer or Header)
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -224,6 +228,7 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
         role: isSaleMode ? "SALE" : isAcademicMode ? "TEACHER" : "SALE",
         full_name: "",
         phone: "",
+        avatar_url: null,
         status: "active",
       });
       setActionSuccess(`Đã tạo thành công tài khoản cho ${created.email}`);
@@ -263,7 +268,11 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setSelectedUser(updated);
+      setEditAvatarUrl(updated.avatar_url ?? null);
       setIsEditingProfile(false);
+      if (updated.id === user?.id) {
+        void refreshUser?.();
+      }
       setActionSuccess(`Đã cập nhật thông tin tài khoản ${updated.email}`);
       setTimeout(() => setActionSuccess(null), 4000);
     },
@@ -623,24 +632,26 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
   }
 
   // Available roles for filter & create
-  const availableRoles: { value: Role; label: string }[] = isSaleMode
-    ? [
-        { value: "SALE", label: "Nhân viên Sale" },
-        { value: "SALE_ADMIN", label: "Sale Manager (Trưởng phòng)" },
-      ]
-    : isAcademicMode
+  const availableRoles: { value: Role; label: string }[] = isOnlySaleAdmin
+    ? [{ value: "SALE", label: "Nhân viên Sale" }]
+    : isSaleMode
       ? [
-          { value: "TEACHER", label: "Giảng viên" },
-          { value: "STUDENT", label: "Học viên" },
-        ]
-      : [
-          { value: "ADMIN", label: "Admin tổng" },
-          { value: "ACADEMIC_ADMIN", label: "Admin Đào tạo" },
-          { value: "SALE_ADMIN", label: "Sale Manager (Trưởng phòng Tuyển sinh)" },
           { value: "SALE", label: "Nhân viên Sale" },
-          { value: "TEACHER", label: "Giảng viên" },
-          { value: "STUDENT", label: "Học viên" },
-        ];
+          { value: "SALE_ADMIN", label: "Sale Manager (Trưởng phòng)" },
+        ]
+      : isAcademicMode
+        ? [
+            { value: "TEACHER", label: "Giảng viên" },
+            { value: "STUDENT", label: "Học viên" },
+          ]
+        : [
+            { value: "ADMIN", label: "Admin tổng" },
+            { value: "ACADEMIC_ADMIN", label: "Admin Đào tạo" },
+            { value: "SALE_ADMIN", label: "Sale Manager (Trưởng phòng Tuyển sinh)" },
+            { value: "SALE", label: "Nhân viên Sale" },
+            { value: "TEACHER", label: "Giảng viên" },
+            { value: "STUDENT", label: "Học viên" },
+          ];
 
   const handleRowClick = (u: ManagedUser) => {
     setSelectedUser(u);
@@ -649,6 +660,7 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
     setIsResettingPassword(false);
     setEditFullName(u.full_name || "");
     setEditPhone(u.phone || "");
+    setEditAvatarUrl(u.avatar_url ?? null);
     setNewPassword("");
     setResetReason("");
   };
@@ -661,8 +673,49 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
       data: {
         full_name: editFullName.trim(),
         phone: editPhone.trim(),
+        avatar_url: editAvatarUrl ?? "",
       },
     });
+  };
+
+  const handleQuickAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !selectedUser) return;
+    try {
+      setAvatarUploading(true);
+      setActionError(null);
+      const webpDataUrl = await compressImageToWebP(file);
+      setEditAvatarUrl(webpDataUrl);
+      updateProfileMutation.mutate({
+        id: selectedUser.id,
+        data: {
+          full_name: (editFullName || selectedUser.full_name || "").trim(),
+          phone: (editPhone || selectedUser.phone || "").trim(),
+          avatar_url: webpDataUrl,
+        },
+      });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Không thể nén ảnh đại diện");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleCreateAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      setCreateAvatarUploading(true);
+      setActionError(null);
+      const webpDataUrl = await compressImageToWebP(file);
+      setCreateForm((prev) => ({ ...prev, avatar_url: webpDataUrl }));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Không thể nén ảnh đại diện");
+    } finally {
+      setCreateAvatarUploading(false);
+    }
   };
 
   return (
@@ -891,9 +944,18 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
 
                         {/* Cột 1: Avatar riêng biệt */}
                         <td className="w-16 border-b border-white/60 px-3 py-4 text-center">
-                          <div className="mx-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#001258] to-[#0532e6] text-xs font-bold text-white shadow-2xs transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md">
-                            {initials}
-                          </div>
+                          {u.avatar_url ? (
+                            <img
+                              src={u.avatar_url}
+                              alt={u.full_name || u.email}
+                              loading="lazy"
+                              className="mx-auto h-9 w-9 shrink-0 rounded-xl border border-slate-200 object-cover shadow-2xs transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md"
+                            />
+                          ) : (
+                            <div className="mx-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#001258] to-[#0532e6] text-xs font-bold text-white shadow-2xs transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md">
+                              {initials}
+                            </div>
+                          )}
                         </td>
 
                         {/* Cột 2: Tên nhân viên riêng biệt, đã bỏ tag STT */}
@@ -1152,9 +1214,17 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
               <span className="text-[#0532e6] p-1">
                 <Icon name="grip-vertical" className="h-4 w-4" />
               </span>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#001258] to-[#0532e6] text-xs font-bold text-white shadow-md">
-                {getInitials(draggedUser.full_name, draggedUser.email)}
-              </div>
+              {draggedUser.avatar_url ? (
+                <img
+                  src={draggedUser.avatar_url}
+                  alt={draggedUser.full_name || draggedUser.email}
+                  className="h-9 w-9 shrink-0 rounded-xl border border-slate-200 object-cover shadow-md"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#001258] to-[#0532e6] text-xs font-bold text-white shadow-md">
+                  {getInitials(draggedUser.full_name, draggedUser.email)}
+                </div>
+              )}
               <div>
                 <p className="font-bold text-navy text-sm">
                   {draggedUser.full_name || "Chưa cập nhật tên"}
@@ -1225,9 +1295,30 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
             {/* Profile Header Box (Microsoft 365 + Liquid Glass Style) */}
             <div className="shrink-0 border-b border-gborder/60 bg-white/95 px-6 pt-6 pb-4 backdrop-blur-md">
               <div className="flex items-start gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#001258] via-[#0532e6] to-[#001258] text-xl font-bold text-white shadow-lg ring-4 ring-blue-100/90 transition-all duration-300 hover:scale-105 hover:rotate-1">
-                  {getInitials(selectedUser.full_name, selectedUser.email)}
-                </div>
+                <label
+                  title="Bấm để tải lên ảnh đại diện mới (tự động nén WebP)"
+                  className="group relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#001258] via-[#0532e6] to-[#001258] text-xl font-bold text-white shadow-lg ring-4 ring-blue-100/90 transition-all duration-300 hover:scale-105 hover:rotate-1"
+                >
+                  {selectedUser.avatar_url ? (
+                    <img
+                      src={selectedUser.avatar_url}
+                      alt={selectedUser.full_name || selectedUser.email}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    getInitials(selectedUser.full_name, selectedUser.email)
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-[#001258]/65 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    {avatarUploading ? "..." : "Đổi ảnh"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => void handleQuickAvatarUpload(e)}
+                    disabled={avatarUploading || updateProfileMutation.isPending}
+                    className="hidden"
+                  />
+                </label>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <h2 className="truncate text-xl font-bold tracking-tight text-navy-heading">
@@ -1428,6 +1519,63 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                         <span className="text-[11px] font-medium text-blue-800 bg-blue-100/80 px-2 py-0.5 rounded-md">
                           Tự động ghi vết kiểm toán
                         </span>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-xl border border-blue-200/80 bg-white/90 p-3">
+                        {editAvatarUrl ? (
+                          <img
+                            src={editAvatarUrl}
+                            alt={editFullName || selectedUser.email}
+                            className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#001258] to-[#0532e6] text-sm font-bold text-white">
+                            {getInitials(
+                              editFullName || selectedUser.full_name,
+                              selectedUser.email,
+                            )}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-navy">Ảnh đại diện (WebP)</p>
+                          <p className="text-[11px] text-gtext">
+                            Tự động nén chuẩn WebP tối ưu dung lượng
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-[#0532e6] hover:bg-blue-100">
+                              {avatarUploading ? "Đang nén WebP..." : "Chọn ảnh mới"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (!file) return;
+                                  try {
+                                    setAvatarUploading(true);
+                                    const webp = await compressImageToWebP(file);
+                                    setEditAvatarUrl(webp);
+                                  } catch (err) {
+                                    setActionError(
+                                      err instanceof Error ? err.message : "Không thể nén ảnh",
+                                    );
+                                  } finally {
+                                    setAvatarUploading(false);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                            {editAvatarUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setEditAvatarUrl("")}
+                                className="text-[11px] font-semibold text-rose-600 hover:underline"
+                              >
+                                Xóa ảnh
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <Input
                         label="Họ và tên"
@@ -1837,13 +1985,32 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
           {/* Profile Header Box (Microsoft 365 + Liquid Glass Style) */}
           <div className="shrink-0 border-b border-gborder/60 bg-white/95 px-6 pt-6 pb-4 backdrop-blur-md">
             <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#001258] via-[#0532e6] to-[#001258] text-xl font-bold text-white shadow-lg ring-4 ring-blue-100/90 transition-all duration-300">
-                {createForm.full_name || createForm.email ? (
+              <label
+                title="Chọn ảnh đại diện (nén WebP)"
+                className="group relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#001258] via-[#0532e6] to-[#001258] text-xl font-bold text-white shadow-lg ring-4 ring-blue-100/90 transition-all duration-300"
+              >
+                {createForm.avatar_url ? (
+                  <img
+                    src={createForm.avatar_url}
+                    alt={createForm.full_name || createForm.email || "Avatar"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : createForm.full_name || createForm.email ? (
                   getInitials(createForm.full_name, createForm.email)
                 ) : (
                   <Icon name="user-check" className="h-7 w-7 text-white" />
                 )}
-              </div>
+                <span className="absolute inset-0 flex items-center justify-center bg-[#001258]/65 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  {createAvatarUploading ? "..." : "Chọn ảnh"}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => void handleCreateAvatarUpload(e)}
+                  disabled={createAvatarUploading}
+                  className="hidden"
+                />
+              </label>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h2 className="truncate text-xl font-bold tracking-tight text-navy-heading">
@@ -1935,6 +2102,46 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                   <h3 className="text-xs font-bold text-navy uppercase tracking-wider">
                     Hồ sơ cá nhân
                   </h3>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+                  {createForm.avatar_url ? (
+                    <img
+                      src={createForm.avatar_url}
+                      alt="Avatar preview"
+                      className="h-11 w-11 shrink-0 rounded-xl border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#001258] to-[#0532e6] text-xs font-bold text-white">
+                      {getInitials(createForm.full_name, createForm.email)}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-navy">
+                      Ảnh đại diện (tự động nén WebP)
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#0532e6] hover:bg-blue-50">
+                        {createAvatarUploading ? "Đang nén WebP..." : "Tải ảnh lên"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => void handleCreateAvatarUpload(e)}
+                          disabled={createAvatarUploading}
+                          className="hidden"
+                        />
+                      </label>
+                      {createForm.avatar_url && (
+                        <button
+                          type="button"
+                          onClick={() => setCreateForm((prev) => ({ ...prev, avatar_url: null }))}
+                          className="text-[11px] font-semibold text-rose-600 hover:underline"
+                        >
+                          Xóa ảnh
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

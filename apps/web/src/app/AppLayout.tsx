@@ -12,6 +12,7 @@ import { aiWorkflowApi } from "../features/ai-workflows/aiWorkflowApi";
 import { AIWorkflowDrawer, GeminiSparkleStar } from "../features/ai-workflows/AIWorkflowDrawer";
 import type { NotificationList } from "../lib/domainTypes";
 import { formatDateTime } from "../lib/format";
+import { compressImageToWebP } from "../lib/image";
 import type { Role } from "../lib/types";
 
 export interface NavSubItem {
@@ -236,13 +237,14 @@ function isGroupActive(pathname: string, group: NavGroup): boolean {
 }
 
 export default function AppLayout() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole, updateMyAvatar } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isClosingMenu, setIsClosingMenu] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [avatarUpdating, setAvatarUpdating] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const mainScrollRef = useRef<HTMLElement | null>(null);
@@ -406,9 +408,7 @@ export default function AppLayout() {
             <div className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/90 bg-white/85 backdrop-blur-3xl shadow-elevated animate-in fade-in zoom-in-95 duration-150">
               <div className="border-b border-white/70 bg-white/40 px-4 py-3">
                 <b className="text-sm text-navy">Thông báo</b>
-                <p className="text-xs text-gtext">
-                  {notifications.data?.unread ?? 0} chưa đọc
-                </p>
+                <p className="text-xs text-gtext">{notifications.data?.unread ?? 0} chưa đọc</p>
               </div>
               <div className="max-h-[26rem] overflow-y-auto">
                 {notifications.data?.items.map((item) => (
@@ -424,9 +424,7 @@ export default function AppLayout() {
                       if (item.action_url?.startsWith("/")) navigate(item.action_url);
                     }}
                   >
-                    <span className="block text-sm font-semibold text-navy">
-                      {item.title}
-                    </span>
+                    <span className="block text-sm font-semibold text-navy">{item.title}</span>
                     <span className="mt-1 block text-xs text-gtext">{item.message}</span>
                     <span className="mt-1 block text-[10px] text-gtext">
                       {formatDateTime(item.created_at)}
@@ -590,7 +588,12 @@ export default function AppLayout() {
 
   const groups = navGroupsFor(user.roles);
   const displayName =
-    user.teacher_profile?.full_name ?? user.student_profile?.full_name ?? user.email;
+    user.full_name ||
+    user.teacher_profile?.full_name ||
+    user.student_profile?.full_name ||
+    user.email;
+  const userAvatarUrl =
+    user.avatar_url || user.teacher_profile?.avatar_url || user.student_profile?.avatar_url || null;
   const initials = displayName
     .split(" ")
     .filter(Boolean)
@@ -598,6 +601,22 @@ export default function AppLayout() {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+
+  const handleSelfAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !updateMyAvatar) return;
+    try {
+      setAvatarUpdating(true);
+      const webpDataUrl = await compressImageToWebP(file);
+      await updateMyAvatar(webpDataUrl);
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
+    } catch {
+      // ignore invalid image
+    } finally {
+      setAvatarUpdating(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -917,9 +936,30 @@ export default function AppLayout() {
             <div className="flex h-11 w-full items-center overflow-hidden rounded-lg">
               {/* Left slot: exactly w-14 (56px) shrink-0, centered at 28px in ALL states */}
               <div className="flex h-11 w-14 shrink-0 items-center justify-center">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-xs font-bold text-white cursor-pointer transition-all duration-150 ease-out active:duration-75 active:scale-90 hover:scale-105 shadow-2xs">
-                  {initials}
-                </div>
+                <label
+                  title="Bấm để cập nhật ảnh đại diện (tự động nén WebP)"
+                  className="group/avatar relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-navy text-xs font-bold text-white shadow-2xs transition-all duration-150 ease-out active:duration-75 active:scale-90 hover:scale-105"
+                >
+                  {userAvatarUrl ? (
+                    <img
+                      src={userAvatarUrl}
+                      alt={displayName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-[9px] font-bold text-white opacity-0 transition-opacity group-hover/avatar:opacity-100">
+                    {avatarUpdating ? "..." : "Sửa"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={avatarUpdating}
+                    onChange={(e) => void handleSelfAvatarChange(e)}
+                    className="hidden"
+                  />
+                </label>
               </div>
               {/* Right slot */}
               <div
@@ -975,59 +1015,59 @@ export default function AppLayout() {
   return (
     <HeaderUtilitiesContext.Provider value={{ renderGlobalUtilities, openMobileMenu }}>
       <div className="relative flex h-dvh w-full max-w-full overflow-hidden bg-[#f8fafc] select-none">
-      {/* Soft ambient lighting halos matching oceanic blue theme */}
-      <div className="pointer-events-none fixed -top-32 -left-32 h-[560px] w-[560px] rounded-full bg-[#0532e6]/10 blur-[140px]" />
-      <div className="pointer-events-none fixed top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-[#0ea5e9]/12 blur-[150px]" />
-      <div className="pointer-events-none fixed -bottom-32 left-1/4 h-[480px] w-[480px] rounded-full bg-[#2563eb]/8 blur-[140px]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(#0532e60a_1px,transparent_1px)] [background-size:24px_24px] opacity-80" />
+        {/* Soft ambient lighting halos matching oceanic blue theme */}
+        <div className="pointer-events-none fixed -top-32 -left-32 h-[560px] w-[560px] rounded-full bg-[#0532e6]/10 blur-[140px]" />
+        <div className="pointer-events-none fixed top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-[#0ea5e9]/12 blur-[150px]" />
+        <div className="pointer-events-none fixed -bottom-32 left-1/4 h-[480px] w-[480px] rounded-full bg-[#2563eb]/8 blur-[140px]" />
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(#0532e60a_1px,transparent_1px)] [background-size:24px_24px] opacity-80" />
 
-      <a
-        href="#main-content"
-        className="sr-only z-[100] rounded-lg bg-navy px-4 py-2 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
-      >
-        Chuyển đến nội dung chính
-      </a>
-      <div className="hidden h-full shrink-0 lg:block z-30 relative overflow-visible">
-        {renderSidebarContent(false)}
-      </div>
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden overflow-hidden touch-none">
-          <button
-            className={clsx(
-              "absolute inset-0 bg-navy/40 backdrop-blur-md touch-none overscroll-none",
-              isClosingMenu ? "animate-backdrop-out" : "animate-backdrop-in",
-            )}
-            onClick={closeMobileMenu}
-            onTouchMove={(e) => e.preventDefault()}
-            aria-label="Đóng menu"
-          />
-          <div
-            className={clsx(
-              "absolute inset-y-0 left-0 z-50 shadow-2xl flex",
-              isClosingMenu ? "animate-drawer-out" : "animate-drawer-in",
-            )}
-          >
-            {renderSidebarContent(true)}
-          </div>
-        </div>
-      )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col relative z-10">
-        <main
-          id="main-content"
-          ref={mainScrollRef}
-          onScroll={handleMainScroll}
-          tabIndex={-1}
-          className="min-h-0 flex-1 overflow-y-auto app-custom-scroll"
+        <a
+          href="#main-content"
+          className="sr-only z-[100] rounded-lg bg-navy px-4 py-2 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
         >
-          <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 lg:p-8">
-            <Outlet />
+          Chuyển đến nội dung chính
+        </a>
+        <div className="hidden h-full shrink-0 lg:block z-30 relative overflow-visible">
+          {renderSidebarContent(false)}
+        </div>
+        {menuOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden overflow-hidden touch-none">
+            <button
+              className={clsx(
+                "absolute inset-0 bg-navy/40 backdrop-blur-md touch-none overscroll-none",
+                isClosingMenu ? "animate-backdrop-out" : "animate-backdrop-in",
+              )}
+              onClick={closeMobileMenu}
+              onTouchMove={(e) => e.preventDefault()}
+              aria-label="Đóng menu"
+            />
+            <div
+              className={clsx(
+                "absolute inset-y-0 left-0 z-50 shadow-2xl flex",
+                isClosingMenu ? "animate-drawer-out" : "animate-drawer-in",
+              )}
+            >
+              {renderSidebarContent(true)}
+            </div>
           </div>
-        </main>
+        )}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col relative z-10">
+          <main
+            id="main-content"
+            ref={mainScrollRef}
+            onScroll={handleMainScroll}
+            tabIndex={-1}
+            className="min-h-0 flex-1 overflow-y-auto app-custom-scroll"
+          >
+            <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 lg:p-8">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+        {canAccessAI && (
+          <AIWorkflowDrawer isOpen={aiDrawerOpen} onClose={() => setAiDrawerOpen(false)} />
+        )}
       </div>
-      {canAccessAI && (
-        <AIWorkflowDrawer isOpen={aiDrawerOpen} onClose={() => setAiDrawerOpen(false)} />
-      )}
-    </div>
     </HeaderUtilitiesContext.Provider>
   );
 }

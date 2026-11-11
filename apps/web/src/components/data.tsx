@@ -445,9 +445,17 @@ export function AttendanceRoster({
             className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-gbg"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/8 text-xs font-bold text-navy">
-                {item.full_name.trim().split(" ").at(-1)?.[0] ?? "H"}
-              </div>
+              {item.avatar_url ? (
+                <img
+                  src={item.avatar_url}
+                  alt={item.full_name}
+                  className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/8 text-xs font-bold text-navy">
+                  {item.full_name.trim().split(" ").at(-1)?.[0] ?? "H"}
+                </div>
+              )}
               <div className="min-w-0">
                 <b className="block truncate text-sm text-navy">{item.full_name}</b>
                 <p className="text-[11px] text-gtext">{item.student_code}</p>

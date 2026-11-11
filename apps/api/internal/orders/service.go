@@ -367,6 +367,9 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, orderIDValue
 	if !isManager && existing.CreatedBy != actorUUID {
 		return View{}, ErrForbiddenOrderAccess
 	}
+	if !isManager && (targetStatus == db.OrderStatusPaid || targetStatus == db.OrderStatusRefunded) {
+		return View{}, ErrForbiddenOrderAccess
+	}
 
 	var paidAt pgtype.Timestamptz
 	if targetStatus == db.OrderStatusPaid {
@@ -630,6 +633,14 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 		}
 	}
 
+	var createdBy pgtype.UUID
+	if filter.CreatedBy != "" {
+		parsed, err := data.UUID(filter.CreatedBy)
+		if err == nil {
+			createdBy = parsed
+		}
+	}
+
 	var createdFrom pgtype.Timestamptz
 	if filter.CreatedFrom != "" {
 		t, err := time.Parse(time.RFC3339, filter.CreatedFrom)
@@ -651,6 +662,7 @@ func (s *Service) ExportOrdersExcel(ctx context.Context, filter ListFilter) (*ex
 		Status:      status,
 		StudentID:   studentID,
 		LeadID:      leadID,
+		CreatedBy:   createdBy,
 		CreatedFrom: createdFrom,
 		CreatedTo:   createdTo,
 	})

@@ -18,7 +18,7 @@ import { EditInstallmentsModal } from "./EditInstallmentsModal";
 import { parseOrderInstallmentPlan } from "./installmentUtils";
 
 export function SaleRegistrationOrdersPage() {
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const isAdmin = hasRole("ADMIN", "SALE_ADMIN");
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -301,16 +301,9 @@ export function SaleRegistrationOrdersPage() {
     },
   ];
 
-  const items = useMemo(() => {
-    const all = ordersQuery.data?.items ?? [];
-    if (isAdmin) return all;
-    return all.filter((ord) => ord.created_by === user?.id || ord.created_by_email === user?.email);
-  }, [ordersQuery.data?.items, isAdmin, user]);
-
-  const total = isAdmin ? (ordersQuery.data?.meta.total ?? 0) : items.length;
-  const totalPages = isAdmin
-    ? (ordersQuery.data?.meta.total_pages ?? 1)
-    : Math.ceil(items.length / perPage) || 1;
+  const items = ordersQuery.data?.items ?? [];
+  const total = ordersQuery.data?.meta.total ?? 0;
+  const totalPages = ordersQuery.data?.meta.total_pages ?? 1;
   const hasFilterActive =
     Boolean(search) || Boolean(statusFilter) || Boolean(fromDate) || Boolean(toDate);
 
@@ -322,17 +315,15 @@ export function SaleRegistrationOrdersPage() {
         subtitle="Lập phiếu đăng ký học và theo dõi toàn bộ học phí phát sinh từ học viên đã chốt."
         actions={
           <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Button
-                variant="ghost"
-                onClick={handleExportOrders}
-                loading={isExporting}
-                title="Xuất danh sách phiếu đăng ký ra file Excel"
-              >
-                <Icon name="download" className="h-4 w-4 mr-1.5" />
-                Xuất Excel
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              onClick={handleExportOrders}
+              loading={isExporting}
+              title="Xuất danh sách phiếu đăng ký ra file Excel"
+            >
+              <Icon name="download" className="h-4 w-4 mr-1.5" />
+              Xuất Excel
+            </Button>
             <Button type="button" variant="primary" onClick={() => setIsCreateOpen(true)}>
               <Icon name="plus" className="h-4 w-4 mr-1.5" />
               Tạo phiếu đăng ký
@@ -352,11 +343,7 @@ export function SaleRegistrationOrdersPage() {
         searchPlaceholder="Tìm theo mã phiếu, tên học viên..."
         resultCount={total}
         resultCountLabel="phiếu"
-        advancedFilterCount={
-          (statusFilter ? 1 : 0) +
-          (fromDate ? 1 : 0) +
-          (toDate ? 1 : 0)
-        }
+        advancedFilterCount={(statusFilter ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0)}
         onClearAll={
           hasFilterActive
             ? () => {

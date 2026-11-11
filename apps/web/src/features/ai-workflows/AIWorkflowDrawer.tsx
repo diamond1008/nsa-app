@@ -154,9 +154,10 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
 
   const isInitialWelcome = messages.length === 0;
 
-  // Extract display name for the greeting (e.g. "The mic is yours, Trung")
+  // Extract display name for the greeting
   const displayName = useMemo(() => {
-    const rawFullName = user?.student_profile?.full_name || user?.teacher_profile?.full_name;
+    const rawFullName =
+      user?.full_name || user?.student_profile?.full_name || user?.teacher_profile?.full_name;
     if (rawFullName?.trim()) {
       const parts = rawFullName.trim().split(" ");
       return parts[parts.length - 1];
@@ -165,7 +166,7 @@ export function AIWorkflowDrawer({ isOpen, onClose }: AIWorkflowDrawerProps) {
       const raw = user.email.split("@")[0].split(".")[0];
       return raw.charAt(0).toUpperCase() + raw.slice(1);
     }
-    return "Trung";
+    return "bạn";
   }, [user]);
 
   // Handle Drag Resizing between 30% and 80% (without displaying the percentage number)

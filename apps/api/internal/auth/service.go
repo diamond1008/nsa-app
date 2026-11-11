@@ -11,12 +11,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/avatar"
 	"github.com/diamond1008/nsa-training-platform/apps/api/internal/platform/data"
 	db "github.com/diamond1008/nsa-training-platform/database/generated"
 )
@@ -45,15 +47,18 @@ const minPasswordLength = 8
 
 // ProfileInfo is a lightweight reference to a student/teacher profile.
 type ProfileInfo struct {
-	ID       string `json:"id"`
-	Code     string `json:"code"`
-	FullName string `json:"full_name"`
+	ID        string  `json:"id"`
+	Code      string  `json:"code"`
+	FullName  string  `json:"full_name"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
 }
 
 // UserInfo describes the authenticated user for /auth/me and login responses.
 type UserInfo struct {
 	ID                 string       `json:"id"`
 	Email              string       `json:"email"`
+	FullName           string       `json:"full_name,omitempty"`
+	AvatarURL          *string      `json:"avatar_url,omitempty"`
 	Roles              []string     `json:"roles"`
 	MustChangePassword bool         `json:"must_change_password"`
 	StudentProfile     *ProfileInfo `json:"student_profile,omitempty"`
@@ -129,7 +134,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*TokenBund
 		return nil, fmt.Errorf("login roles: %w", err)
 	}
 
-	bundle, err := s.issueBundle(ctx, user.ID, user.Email, roles, false)
+	bundle, err := s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +177,7 @@ func (s *Service) LoginSSO(ctx context.Context, provider, email string) (*TokenB
 		}
 	}
 
-	bundle, err := s.issueBundle(ctx, user.ID, user.Email, roles, false)
+	bundle, err := s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false)
 	if err != nil {
 		return nil, err
 	}
@@ -207,6 +212,9 @@ func (s *Service) ExchangeOAuthCode(ctx context.Context, provider, code, redirec
 	var verifiedEmail string
 
 	if strings.HasPrefix(code, "mock_") {
+		if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
+			return nil, "", errors.New("mock oauth codes are disabled in production")
+		}
 		// Development / Local simulation mode: code is mock_<base64_or_plain_email>
 		raw := strings.TrimPrefix(code, "mock_")
 		if decoded, err := base64.URLEncoding.DecodeString(raw); err == nil && len(decoded) > 0 {
@@ -467,7 +475,7 @@ func (s *Service) Refresh(ctx context.Context, presentedToken string) (*TokenBun
 	if err != nil {
 		return nil, fmt.Errorf("refresh roles: %w", err)
 	}
-	return s.issueBundle(ctx, user.ID, user.Email, roles, false)
+	return s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false)
 }
 
 // Logout revokes the presented refresh token. Idempotent by design.
@@ -538,6 +546,8 @@ func (s *Service) Me(ctx context.Context, userID string) (*UserInfo, error) {
 	info := &UserInfo{
 		ID:                 userID,
 		Email:              user.Email,
+		FullName:           user.FullName,
+		AvatarURL:          data.TextPointer(user.AvatarUrl),
 		Roles:              roles,
 		MustChangePassword: user.MustChangePassword,
 	}
@@ -545,8 +555,36 @@ func (s *Service) Me(ctx context.Context, userID string) (*UserInfo, error) {
 	return info, nil
 }
 
+// UpdateMyAvatar updates the authenticated user's WebP avatar across users, student_profiles, and teacher_profiles.
+func (s *Service) UpdateMyAvatar(ctx context.Context, userID string, rawAvatarURL *string) (*UserInfo, error) {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+	normalized, ok := avatar.NormalizeWebPDataURL(rawAvatarURL)
+	if !ok {
+		return nil, errors.New("avatar_url must be a valid WebP data URL (<= 256 KiB)")
+	}
+	avatarArg := data.Text(normalized)
+	if err := s.queries.UpdateUserAvatar(ctx, db.UpdateUserAvatarParams{
+		ID:        uid,
+		AvatarUrl: avatarArg,
+	}); err != nil {
+		return nil, fmt.Errorf("update user avatar: %w", err)
+	}
+	_ = s.queries.UpdateStudentAvatarByUserID(ctx, db.UpdateStudentAvatarByUserIDParams{
+		UserID:    uid,
+		AvatarUrl: avatarArg,
+	})
+	_ = s.queries.UpdateTeacherAvatarByUserID(ctx, db.UpdateTeacherAvatarByUserIDParams{
+		UserID:    uid,
+		AvatarUrl: avatarArg,
+	})
+	return s.Me(ctx, userID)
+}
+
 // issueBundle creates the access token + persisted refresh token pair.
-func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email string, roles []string, mustChangePassword bool) (*TokenBundle, error) {
+func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email string, fullName string, avatarURL *string, roles []string, mustChangePassword bool) (*TokenBundle, error) {
 	userIDStr := data.UUIDString(userID)
 	accessToken, accessExpiresAt, err := s.tokens.Issue(userIDStr, email, roles)
 	if err != nil {
@@ -569,6 +607,8 @@ func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email str
 	info := &UserInfo{
 		ID:                 userIDStr,
 		Email:              email,
+		FullName:           fullName,
+		AvatarURL:          avatarURL,
 		Roles:              roles,
 		MustChangePassword: mustChangePassword,
 	}
@@ -589,13 +629,37 @@ func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email str
 func (s *Service) attachProfiles(ctx context.Context, userID pgtype.UUID, info *UserInfo) {
 	student, err := s.queries.GetStudentProfileByUserID(ctx, userID)
 	if err == nil {
-		info.StudentProfile = &ProfileInfo{ID: data.UUIDString(student.ID), Code: student.StudentCode, FullName: student.FullName}
+		spAvatar := data.TextPointer(student.AvatarUrl)
+		info.StudentProfile = &ProfileInfo{
+			ID:        data.UUIDString(student.ID),
+			Code:      student.StudentCode,
+			FullName:  student.FullName,
+			AvatarURL: spAvatar,
+		}
+		if info.FullName == "" {
+			info.FullName = student.FullName
+		}
+		if info.AvatarURL == nil && spAvatar != nil {
+			info.AvatarURL = spAvatar
+		}
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		s.log.Warn("failed to load student profile", "error", err)
 	}
 	teacher, err := s.queries.GetTeacherProfileByUserID(ctx, userID)
 	if err == nil {
-		info.TeacherProfile = &ProfileInfo{ID: data.UUIDString(teacher.ID), Code: teacher.TeacherCode, FullName: teacher.FullName}
+		tpAvatar := data.TextPointer(teacher.AvatarUrl)
+		info.TeacherProfile = &ProfileInfo{
+			ID:        data.UUIDString(teacher.ID),
+			Code:      teacher.TeacherCode,
+			FullName:  teacher.FullName,
+			AvatarURL: tpAvatar,
+		}
+		if info.FullName == "" {
+			info.FullName = teacher.FullName
+		}
+		if info.AvatarURL == nil && tpAvatar != nil {
+			info.AvatarURL = tpAvatar
+		}
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		s.log.Warn("failed to load teacher profile", "error", err)
 	}

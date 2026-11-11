@@ -618,6 +618,7 @@ export interface Lead {
   pipeline_status: LeadPipelineStatus;
   assigned_to?: string | null;
   assigned_to_email?: string | null;
+  assigned_to_name?: string | null;
   assigned_at?: string | null;
   assigned_by?: string | null;
   assigned_by_email?: string | null;
@@ -625,6 +626,7 @@ export interface Lead {
   converted_student_code?: string | null;
   converted_student_name?: string | null;
   converted_student_status?: string | null;
+  converted_student_avatar_url?: string | null;
   converted_at?: string | null;
   converted_by?: string | null;
   created_by: string;

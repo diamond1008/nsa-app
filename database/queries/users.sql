@@ -11,6 +11,7 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -52,7 +53,7 @@ WHERE
     OR sp.student_code ILIKE '%' || sqlc.narg('search') || '%'
     OR tp.teacher_code ILIKE '%' || sqlc.narg('search') || '%'
   )
-GROUP BY u.id, sp.student_code, tp.teacher_code
+GROUP BY u.id, sp.student_code, tp.teacher_code, sp.avatar_url, tp.avatar_url
 ORDER BY u.created_at DESC
 LIMIT @limit_val OFFSET @offset_val;
 
@@ -97,6 +98,7 @@ SELECT
   u.updated_at,
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
+  COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -117,12 +119,12 @@ JOIN roles r ON r.id = ur.role_id
 LEFT JOIN student_profiles sp ON sp.user_id = u.id
 LEFT JOIN teacher_profiles tp ON tp.user_id = u.id
 WHERE u.id = $1
-GROUP BY u.id, sp.student_code, tp.teacher_code;
+GROUP BY u.id, sp.student_code, tp.teacher_code, sp.avatar_url, tp.avatar_url;
 
 -- name: CreateUserAccount :one
-INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone)
-VALUES ($1, $2, $3, FALSE, $4, $5)
-RETURNING id, email, status, must_change_password, full_name, phone, created_at, updated_at;
+INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone, avatar_url)
+VALUES ($1, $2, $3, FALSE, $4, $5, $6)
+RETURNING id, email, status, must_change_password, full_name, phone, avatar_url, created_at, updated_at;
 
 -- name: UpdateUserStatus :one
 UPDATE users
@@ -132,9 +134,27 @@ RETURNING id, email, status, updated_at;
 
 -- name: UpdateUserAccountProfile :one
 UPDATE users
-SET full_name = $2, phone = $3, updated_at = NOW()
+SET full_name = $2, phone = $3, avatar_url = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, status, full_name, phone, updated_at;
+RETURNING id, email, status, full_name, phone, avatar_url, updated_at;
+
+-- name: SyncStudentProfileFromUser :exec
+UPDATE student_profiles
+SET
+  full_name = CASE WHEN sqlc.arg('full_name')::text <> '' THEN sqlc.arg('full_name')::text ELSE full_name END,
+  phone = sqlc.narg('phone'),
+  avatar_url = sqlc.narg('avatar_url'),
+  updated_at = NOW()
+WHERE user_id = sqlc.arg('user_id');
+
+-- name: SyncTeacherProfileFromUser :exec
+UPDATE teacher_profiles
+SET
+  full_name = CASE WHEN sqlc.arg('full_name')::text <> '' THEN sqlc.arg('full_name')::text ELSE full_name END,
+  phone = sqlc.narg('phone'),
+  avatar_url = sqlc.narg('avatar_url'),
+  updated_at = NOW()
+WHERE user_id = sqlc.arg('user_id');
 
 -- name: UpdateUserLeadRouting :one
 UPDATE users

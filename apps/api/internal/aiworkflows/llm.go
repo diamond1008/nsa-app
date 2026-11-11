@@ -53,8 +53,9 @@ type LLMClient struct {
 }
 
 func NewLLMClient() *LLMClient {
+	isProd := strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
 	key := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
-	if key == "" {
+	if key == "" && !isProd {
 		key = decodeEmbeddedKey(embeddedOpenRouterKeyB64)
 	}
 
@@ -64,7 +65,7 @@ func NewLLMClient() *LLMClient {
 	}
 
 	geminiKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
-	if geminiKey == "" {
+	if geminiKey == "" && !isProd {
 		geminiKey = decodeEmbeddedKey(embeddedGeminiKeyB64)
 	}
 
@@ -249,7 +250,11 @@ func (c *LLMClient) sendRequest(ctx context.Context, reqPayload OpenRouterReques
 
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("HTTP-Referer", "http://localhost:5173")
+	referer := strings.TrimSpace(os.Getenv("FRONTEND_URL"))
+	if referer == "" {
+		referer = "http://localhost:5173"
+	}
+	httpReq.Header.Set("HTTP-Referer", referer)
 	httpReq.Header.Set("X-Title", "NSA Training Platform")
 
 	httpResp, err := c.httpClient.Do(httpReq)

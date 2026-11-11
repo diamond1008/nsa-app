@@ -2,7 +2,7 @@
 	email {$TLS_EMAIL}
 }
 
-{$APP_DOMAIN:localhost} {
+(app_proxy) {
 	encode zstd gzip
 	log {
 		output stdout
@@ -10,7 +10,7 @@
 	}
 
 	header {
-		Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https:; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
@@ -20,6 +20,23 @@
 	}
 
 	@api path /api/* /health /ready /docs /openapi.yaml
-	reverse_proxy @api api:8080
+	reverse_proxy @api api:8080 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up -True-Client-IP
+	}
 	reverse_proxy web:80
 }
+
+{$APP_DOMAIN:localhost} {
+	import app_proxy
+}
+
+www.{$APP_DOMAIN:localhost} {
+	redir https://{$APP_DOMAIN:localhost}{uri} permanent
+}
+
+http://103.72.99.116 {
+	import app_proxy
+}
+

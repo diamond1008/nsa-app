@@ -29,6 +29,7 @@ import type {
   Teacher,
 } from "../../lib/domainTypes";
 import { formatDate, formatDateTime, mutationMessage, statusLabel } from "../../lib/format";
+import { compressImageToWebP } from "../../lib/image";
 import { useOptionalAuth } from "../auth/AuthContext";
 import { adminApi } from "./adminApi";
 import { PersonAvatar } from "./PersonIdentity";
@@ -105,6 +106,8 @@ export function PersonProfilePage({
   const [weekStart, setWeekStart] = useState(currentWeekStart());
   const [calendarView, setCalendarView] = useState<CalendarView>("week");
   const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const range = calendarView === "week" ? weekRange(weekStart) : monthRange(weekStart);
 
   const summaryQuery = useQuery<ProfileSummary>({
@@ -247,10 +250,79 @@ export function PersonProfilePage({
             }
           />
 
+          {avatarError && (
+            <div className="mb-4">
+              <ErrorBanner message={avatarError} />
+            </div>
+          )}
+
           <Card className="mb-5 p-5 md:p-6">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center">
-              <div className="shrink-0 [&_div]:h-20 [&_div]:w-20 [&_div]:text-xl [&_img]:h-20 [&_img]:w-20">
+              <div className="relative shrink-0 group [&_div]:h-20 [&_div]:w-20 [&_div]:text-xl [&_img]:h-20 [&_img]:w-20">
                 <PersonAvatar fullName={profile.full_name} avatarUrl={profile.avatar_url} />
+                {!isReadOnly && (
+                  <label
+                    title="Cập nhật ảnh đại diện (tự động nén WebP)"
+                    className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-xl bg-navy/65 text-[11px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    {avatarBusy ? "Đang nén..." : "Đổi ảnh"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={avatarBusy}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        try {
+                          setAvatarBusy(true);
+                          setAvatarError(null);
+                          const webp = await compressImageToWebP(file);
+                          if (isStudent) {
+                            const s = profile as Student;
+                            await adminApi.updateStudent(s.id, {
+                              email: s.email,
+                              account_status: s.account_status,
+                              full_name: s.full_name,
+                              avatar_url: webp,
+                              phone: s.phone ?? "",
+                              date_of_birth: s.date_of_birth ?? "",
+                              gender: s.gender ?? "",
+                              address: s.address ?? "",
+                              emergency_contact_name: s.emergency_contact_name ?? "",
+                              emergency_contact_phone: s.emergency_contact_phone ?? "",
+                              status: s.status,
+                              enrolled_at: s.enrolled_at ?? "",
+                            });
+                          } else {
+                            const t = profile as Teacher;
+                            await adminApi.updateTeacher(t.id, {
+                              email: t.email,
+                              account_status: t.account_status,
+                              teacher_code: t.teacher_code,
+                              full_name: t.full_name,
+                              avatar_url: webp,
+                              phone: t.phone ?? "",
+                              specialization: t.specialization ?? "",
+                              status: t.status,
+                            });
+                          }
+                          await queryClient.invalidateQueries({
+                            queryKey: ["admin", kind, personId, "profile-summary"],
+                          });
+                          await queryClient.invalidateQueries({
+                            queryKey: ["admin", isStudent ? "students" : "teachers"],
+                          });
+                        } catch (err) {
+                          setAvatarError(mutationMessage(err));
+                        } finally {
+                          setAvatarBusy(false);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

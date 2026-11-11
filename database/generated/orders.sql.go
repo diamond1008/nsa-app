@@ -39,6 +39,7 @@ AND (
 AND (
   $5::uuid IS NULL
   OR o.created_by = $5::uuid
+  OR l.assigned_to = $5::uuid
 )
 AND (
   $6::timestamptz IS NULL
@@ -573,6 +574,7 @@ SELECT EXISTS (
     WHERE student_id = $1
       AND class_id = $2
       AND status NOT IN ('cancelled', 'refunded')
+      AND deleted_at IS NULL
 ) AS exists
 `
 
@@ -636,12 +638,17 @@ AND (
   OR o.lead_id = $4::uuid
 )
 AND (
-  $5::timestamptz IS NULL
-  OR o.created_at >= $5::timestamptz
+  $5::uuid IS NULL
+  OR o.created_by = $5::uuid
+  OR l.assigned_to = $5::uuid
 )
 AND (
   $6::timestamptz IS NULL
-  OR o.created_at <= $6::timestamptz
+  OR o.created_at >= $6::timestamptz
+)
+AND (
+  $7::timestamptz IS NULL
+  OR o.created_at <= $7::timestamptz
 )
 ORDER BY o.created_at DESC
 `
@@ -651,6 +658,7 @@ type ListAllOrdersForExportParams struct {
 	Status      NullOrderStatus    `json:"status"`
 	StudentID   pgtype.UUID        `json:"student_id"`
 	LeadID      pgtype.UUID        `json:"lead_id"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
 	CreatedFrom pgtype.Timestamptz `json:"created_from"`
 	CreatedTo   pgtype.Timestamptz `json:"created_to"`
 }
@@ -683,6 +691,7 @@ func (q *Queries) ListAllOrdersForExport(ctx context.Context, arg ListAllOrdersF
 		arg.Status,
 		arg.StudentID,
 		arg.LeadID,
+		arg.CreatedBy,
 		arg.CreatedFrom,
 		arg.CreatedTo,
 	)
@@ -764,6 +773,7 @@ AND (
 AND (
   $5::uuid IS NULL
   OR o.created_by = $5::uuid
+  OR l.assigned_to = $5::uuid
 )
 AND (
   $6::timestamptz IS NULL

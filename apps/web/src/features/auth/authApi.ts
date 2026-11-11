@@ -53,6 +53,13 @@ export function me(): Promise<UserInfo> {
   return api<UserInfo>("/auth/me");
 }
 
+export function updateMyAvatar(avatarUrl: string | null): Promise<UserInfo> {
+  return api<UserInfo>("/auth/me/avatar", {
+    method: "PATCH",
+    body: { avatar_url: avatarUrl },
+  });
+}
+
 export function changePassword(
   currentPassword: string,
   newPassword: string,

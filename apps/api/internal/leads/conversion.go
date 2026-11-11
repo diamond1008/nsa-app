@@ -176,6 +176,12 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 	if err != nil {
 		return ConvertResult{}, mapWriteError(err)
 	}
+	_ = q.SyncManagedUserIdentity(ctx, db.SyncManagedUserIdentityParams{
+		ID:        user.ID,
+		FullName:  data.Text(&fullName),
+		Phone:     phone,
+		AvatarUrl: pgtype.Text{},
+	})
 
 	if _, err := q.CreateStudentStatusHistory(ctx, db.CreateStudentStatusHistoryParams{
 		StudentID: profile.ID,
@@ -218,7 +224,7 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 	if strings.TrimSpace(input.Phone) != "" {
 		leadPhone = data.Text(stringPtr(strings.TrimSpace(input.Phone)))
 	}
-	_, _ = q.UpdateLead(ctx, db.UpdateLeadParams{
+	if _, err := q.UpdateLead(ctx, db.UpdateLeadParams{
 		ID:                 leadID,
 		FullName:           leadFullName,
 		Phone:              leadPhone,
@@ -235,7 +241,9 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		UtmTerm:            lead.UtmTerm,
 		InterestedCourseID: lead.InterestedCourseID,
 		Notes:              lead.Notes,
-	})
+	}); err != nil {
+		return ConvertResult{}, mapWriteError(err)
+	}
 
 	now := time.Now().UTC()
 	_, err = q.ConvertLead(ctx, db.ConvertLeadParams{

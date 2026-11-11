@@ -20,14 +20,9 @@ var roundRobinCounter uint64
 func (s *Service) getNextRoundRobinStaff(ctx context.Context) (pgtype.UUID, error) {
 	staffList, err := s.queries.ListActiveSaleStaffForRoundRobin(ctx)
 	if err != nil || len(staffList) == 0 {
-		fallbackList, fErr := s.queries.ListSaleStaff(ctx)
-		if fErr != nil || len(fallbackList) == 0 {
-			return pgtype.UUID{}, nil
-		}
-		idx := atomic.AddUint64(&roundRobinCounter, 1) % uint64(len(fallbackList))
-		return fallbackList[idx].ID, nil
+		return pgtype.UUID{}, nil
 	}
-	idx := atomic.AddUint64(&roundRobinCounter, 1) % uint64(len(staffList))
+	idx := (atomic.AddUint64(&roundRobinCounter, 1) - 1) % uint64(len(staffList))
 	return staffList[idx].ID, nil
 }
 
