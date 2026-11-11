@@ -32,10 +32,6 @@
 	import app_proxy
 }
 
-www.{$APP_DOMAIN:localhost} {
-	redir https://{$APP_DOMAIN:localhost}{uri} permanent
-}
-
 http://103.72.99.116 {
 	import app_proxy
 }

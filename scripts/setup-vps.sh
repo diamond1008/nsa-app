@@ -6,7 +6,7 @@ set -euo pipefail
 # ==============================================================================
 
 APP_DIR="${APP_DIR:-/opt/nsa-app}"
-APP_DOMAIN="${APP_DOMAIN:-newcitygroupsuleco.com.vn}"
+APP_DOMAIN="${APP_DOMAIN:-app.newcitygroupsuleco.com.vn}"
 TLS_EMAIL="${TLS_EMAIL:-admin@newcitygroupsuleco.com.vn}"
 SSH_PORT="${SSH_PORT:-24700}"
 
