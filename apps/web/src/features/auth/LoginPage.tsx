@@ -36,7 +36,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -64,12 +63,6 @@ export default function LoginPage() {
   const onSubmit = handleSubmit(async (values) => {
     await performLogin(values.email, values.password);
   });
-
-  const handleQuickLogin = async (email: string) => {
-    setValue("email", email);
-    setValue("password", "NsaDemo@123");
-    await performLogin(email, "NsaDemo@123");
-  };
 
   const handleOAuthClick = async (provider: "google" | "microsoft") => {
     setServerError("");
@@ -382,77 +375,6 @@ export default function LoginPage() {
             )}
             <span>{isSSORedirecting === "microsoft" ? "Đang chuyển hướng..." : "Microsoft"}</span>
           </button>
-        </div>
-
-        {/* Demo Fast Switch (Glass Pills) */}
-        <div className="mt-6 border-t border-slate-200/60 pt-5 text-center">
-          <p className="mb-2.5 text-[11px] font-medium text-slate-500">
-            Đăng nhập nhanh cho môi trường Demo:
-          </p>
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("admin@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Admin (Tất cả)
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("sale_admin@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Sale Manager
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("sale@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Sale 1
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("sale2@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Sale 2
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("sale3@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Sale 3
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("teacher@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Giảng viên
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleQuickLogin("student@nsa.local")}
-                className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/60 py-2 text-xs font-semibold text-[#0A2540] backdrop-blur-md transition-all duration-200 hover:border-[#0A2540]/40 hover:bg-white hover:shadow-md hover:scale-105 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-              >
-                Học viên
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
