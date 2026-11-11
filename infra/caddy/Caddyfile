@@ -22,17 +22,12 @@
 	@api path /api/* /health /ready /docs /openapi.yaml
 	reverse_proxy @api api:8080 {
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
 		header_up -True-Client-IP
 	}
 	reverse_proxy web:80
 }
 
 {$APP_DOMAIN:localhost} {
-	import app_proxy
-}
-
-http://103.72.99.116 {
 	import app_proxy
 }
 
