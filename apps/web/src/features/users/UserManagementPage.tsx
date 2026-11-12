@@ -24,6 +24,7 @@ import { compressImageToWebP } from "../../lib/image";
 import type { Role } from "../../lib/types";
 import type { Paginated } from "../../lib/domainTypes";
 import { useAuth } from "../auth/AuthContext";
+import { saleApi } from "../sale/saleApi";
 import {
   usersApi,
   type CreateUserInput,
@@ -353,6 +354,29 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
   }, [userItems]);
 
   const totalSaleCount = userItems?.length ?? 0;
+
+  const routingSettingsQuery = useQuery({
+    queryKey: ["sale", "routing-settings"],
+    queryFn: () => saleApi.getRoutingSettings(),
+    enabled: isSaleMode,
+  });
+
+  const updateRoutingSettingsMutation = useMutation({
+    mutationFn: (enabled: boolean) => saleApi.updateRoutingSettings(enabled),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["sale", "routing-settings"], data);
+      setActionSuccess(
+        data.auto_assign_enabled
+          ? "Đã BẬT cơ chế tự động phân bổ lead xoay vòng (Round-Robin)."
+          : "Đã TẮT cơ chế tự động phân bổ lead. Lead mới sẽ ở trạng thái Chờ phân công.",
+      );
+      setTimeout(() => setActionSuccess(null), 4000);
+    },
+    onError: (err: unknown) => {
+      setActionError(err instanceof Error ? err.message : "Không thể cập nhật cấu hình");
+      setTimeout(() => setActionError(null), 5000);
+    },
+  });
 
   const handleToggleAcceptingLeads = (u: ManagedUser) => {
     const nextVal = !(u.is_accepting_leads !== false);
@@ -809,21 +833,56 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
             </div>
 
             {isSaleMode && (
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-[210px]">
                 <label className="block text-xs font-semibold text-navy-heading">
-                  Nhận Lead tự động
+                  Tự động chia Lead (Round-Robin)
                 </label>
-                <div className="flex h-10 items-center justify-between rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/60 to-indigo-50/30 px-3.5 shadow-2xs">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Đang nhận
+                <div className="flex h-10 items-center justify-between gap-3 rounded-xl border border-blue-200/80 bg-gradient-to-r from-blue-50/70 to-indigo-50/40 px-3 shadow-2xs">
+                  <span className="text-xs font-bold text-navy flex items-center gap-1.5">
+                    <span
+                      className={clsx(
+                        "h-2 w-2 rounded-full",
+                        routingSettingsQuery.data?.auto_assign_enabled !== false
+                          ? "bg-emerald-500 animate-pulse"
+                          : "bg-slate-400",
+                      )}
+                    />
+                    {routingSettingsQuery.data?.auto_assign_enabled !== false ? (
+                      <span className="text-emerald-700 font-semibold">
+                        Bật ({activeLeadTakersCount}/{totalSaleCount})
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 font-medium">Đang Tắt</span>
+                    )}
                   </span>
-                  <span className="text-xs font-bold text-navy">
-                    <span className="text-[#0532e6] text-sm font-extrabold">
-                      {activeLeadTakersCount}
-                    </span>
-                    <span className="text-slate-500 font-normal"> / {totalSaleCount} Sale</span>
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = routingSettingsQuery.data?.auto_assign_enabled !== false;
+                      updateRoutingSettingsMutation.mutate(!current);
+                    }}
+                    disabled={updateRoutingSettingsMutation.isPending}
+                    title={
+                      routingSettingsQuery.data?.auto_assign_enabled !== false
+                        ? "Bấm để Tắt tự động chia lead cho sale"
+                        : "Bấm để Bật tự động chia lead cho sale"
+                    }
+                    className={clsx(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                      routingSettingsQuery.data?.auto_assign_enabled !== false
+                        ? "bg-[#0532e6]"
+                        : "bg-slate-300",
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                        routingSettingsQuery.data?.auto_assign_enabled !== false
+                          ? "translate-x-5"
+                          : "translate-x-0",
+                      )}
+                    />
+                  </button>
                 </div>
               </div>
             )}

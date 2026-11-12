@@ -14,6 +14,7 @@ import {
   Modal,
   PageHeader,
   Select,
+  SuccessBanner,
   Textarea,
 } from "../../components/ui";
 import { useAuth } from "../auth/AuthContext";
@@ -315,7 +316,97 @@ export function LeadPipelinePage() {
     });
   };
 
+  // Bulk Assign State & Mutation
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [bulkAssigneeId, setBulkAssigneeId] = useState("");
+  const [bulkActionSuccess, setBulkActionSuccess] = useState<string | null>(null);
+  const [bulkActionError, setBulkActionError] = useState<string | null>(null);
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: (data: { lead_ids: string[]; assignee_id: string }) =>
+      saleApi.bulkAssignLeads(data),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["sale", "leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "dashboard"] });
+      setSelectedLeadIds(new Set());
+      setBulkAssigneeId("");
+      setBulkActionSuccess(`Đã gán thành công ${res.updated} lead cho Sale được chọn.`);
+      setTimeout(() => setBulkActionSuccess(null), 4000);
+    },
+    onError: (err) => {
+      setBulkActionError(mutationMessage(err));
+      setTimeout(() => setBulkActionError(null), 5000);
+    },
+  });
+
+  const toggleSelectLead = (id: string) => {
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const items = leadsQuery.data?.items ?? [];
+    if (items.length === 0) return;
+    const allSelected = items.every((l) => selectedLeadIds.has(l.id));
+    if (allSelected) {
+      setSelectedLeadIds((prev) => {
+        const next = new Set(prev);
+        items.forEach((l) => next.delete(l.id));
+        return next;
+      });
+    } else {
+      setSelectedLeadIds((prev) => {
+        const next = new Set(prev);
+        items.forEach((l) => next.add(l.id));
+        return next;
+      });
+    }
+  };
+
+  const selectionColumn: Column<Lead> = {
+    header: (
+      <div className="flex items-center justify-center">
+        <input
+          type="checkbox"
+          aria-label="Chọn tất cả lead trên trang"
+          checked={
+            (leadsQuery.data?.items?.length ?? 0) > 0 &&
+            leadsQuery.data?.items.every((l) => selectedLeadIds.has(l.id))
+          }
+          onChange={(e) => {
+            e.stopPropagation();
+            toggleSelectAll();
+          }}
+          className="h-4 w-4 rounded border-slate-300 text-[#0532e6] focus:ring-[#0532e6] cursor-pointer"
+        />
+      </div>
+    ),
+    className: "w-10 text-center",
+    cell: (lead) => (
+      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
+        <input
+          type="checkbox"
+          aria-label={`Chọn lead ${lead.full_name}`}
+          checked={selectedLeadIds.has(lead.id)}
+          onChange={(e) => {
+            e.stopPropagation();
+            toggleSelectLead(lead.id);
+          }}
+          className="h-4 w-4 rounded border-slate-300 text-[#0532e6] focus:ring-[#0532e6] cursor-pointer"
+        />
+      </div>
+    ),
+  };
+
   const columns: Column<Lead>[] = [
+    ...(isAdmin ? [selectionColumn] : []),
     {
       header: "STT",
       className: "w-12 text-center font-medium text-gtext",
@@ -486,6 +577,8 @@ export function LeadPipelinePage() {
       />
 
       {exportError && <ErrorBanner message={exportError} />}
+      {bulkActionError && <ErrorBanner message={bulkActionError} />}
+      {bulkActionSuccess && <SuccessBanner message={bulkActionSuccess} />}
 
       {/* Filter Bar */}
       <FilterBar
@@ -647,6 +740,57 @@ export function LeadPipelinePage() {
           />
         )}
       </QueryState>
+
+      {/* Floating Bulk Assign Bar */}
+      {isAdmin && selectedLeadIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200/80 bg-white/95 px-5 py-3 shadow-2xl backdrop-blur-xl animate-fade-in-up">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-100 text-[#0532e6] font-bold text-xs">
+              {selectedLeadIds.size}
+            </span>
+            <span className="text-xs font-bold text-navy whitespace-nowrap">
+              Đã chọn {selectedLeadIds.size} lead
+            </span>
+          </div>
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={bulkAssigneeId}
+              onChange={(e) => setBulkAssigneeId(e.target.value)}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium focus:border-[#0532e6] focus:outline-hidden"
+            >
+              <option value="">-- Chọn Sale phụ trách --</option>
+              {staffQuery.data?.map((staff: SaleStaff) => (
+                <option key={staff.id} value={staff.id}>
+                  {staff.email}
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="primary"
+              className="h-9 text-xs px-3.5"
+              disabled={!bulkAssigneeId || bulkAssignMutation.isPending}
+              onClick={() => {
+                if (!bulkAssigneeId) return;
+                bulkAssignMutation.mutate({
+                  lead_ids: Array.from(selectedLeadIds),
+                  assignee_id: bulkAssigneeId,
+                });
+              }}
+            >
+              <Icon name="user-check" className="h-3.5 w-3.5 mr-1" />
+              {bulkAssignMutation.isPending ? "Đang gán..." : "Gán cho Sale này"}
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-9 text-xs px-2.5 text-slate-500 hover:text-slate-800"
+              onClick={() => setSelectedLeadIds(new Set())}
+            >
+              Bỏ chọn
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Thêm Lead Mới */}
       <Modal

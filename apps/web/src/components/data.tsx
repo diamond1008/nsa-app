@@ -72,7 +72,7 @@ export function StatusBadge({ value }: { value: string }) {
 }
 
 export interface Column<T> {
-  header: string;
+  header: ReactNode;
   cell: (item: T, rowIndex: number) => ReactNode;
   className?: string;
   sortKey?: string;
@@ -120,9 +120,9 @@ export function DataTable<T extends { id: string }>({
               rowClassName?.(item, rowIndex),
             )}
           >
-            {columns.map((column) => (
+            {columns.map((column, colIdx) => (
               <div
-                key={column.header || "action"}
+                key={typeof column.header === "string" && column.header ? column.header : colIdx}
                 className={clsx(
                   "flex items-start justify-between gap-4",
                   !column.header && "justify-end",
@@ -156,7 +156,7 @@ export function DataTable<T extends { id: string }>({
             <tr>
               {columns.map((column, colIdx) => (
                 <th
-                  key={column.header}
+                  key={typeof column.header === "string" ? column.header : colIdx}
                   aria-sort={
                     column.sortKey && sort?.key === column.sortKey
                       ? sort.order === "asc"
@@ -184,7 +184,11 @@ export function DataTable<T extends { id: string }>({
                   {column.sortKey && onSort ? (
                     <button
                       type="button"
-                      aria-label={`Sắp xếp theo ${column.header}`}
+                      aria-label={
+                        typeof column.header === "string"
+                          ? `Sắp xếp theo ${column.header}`
+                          : undefined
+                      }
                       onClick={() =>
                         onSort(
                           column.sortKey!,
@@ -224,9 +228,11 @@ export function DataTable<T extends { id: string }>({
                   rowClassName?.(item, rowIndex),
                 )}
               >
-                {columns.map((column) => (
+                {columns.map((column, colIdx) => (
                   <td
-                    key={column.header}
+                    key={
+                      typeof column.header === "string" && column.header ? column.header : colIdx
+                    }
                     className={clsx(
                       "border-b border-white/60 px-5 py-4 align-middle last:border-b-0",
                       column.className,

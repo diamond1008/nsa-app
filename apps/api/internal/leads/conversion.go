@@ -268,10 +268,21 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		return ConvertResult{}, fmt.Errorf("record pipeline history: %w", err)
 	}
 
-	// 8. Create Order (if class provided)
+	// 8. Create Order (if class or course provided)
 	var orderCode string
 	var orderIDStr string
+	var courseID pgtype.UUID
 	if hasClass {
+		courseID = classRow.CourseID
+	} else if strings.TrimSpace(input.CourseID) != "" {
+		if parsedCourseID, err := data.UUID(input.CourseID); err == nil {
+			courseID = parsedCourseID
+		}
+	} else if lead.InterestedCourseID.Valid {
+		courseID = lead.InterestedCourseID
+	}
+
+	if hasClass || courseID.Valid {
 		amountNum, err := data.Numeric(input.Amount)
 		if err != nil {
 			return ConvertResult{}, fmt.Errorf("invalid amount: %w", err)
@@ -289,7 +300,7 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 			OrderCode:      "", // trigger sequence
 			LeadID:         leadID,
 			StudentID:      profile.ID,
-			CourseID:       classRow.CourseID,
+			CourseID:       courseID,
 			ClassID:        classID,
 			Amount:         amountNum,
 			DiscountAmount: discountNum,
@@ -313,9 +324,11 @@ func (s *Service) Convert(ctx context.Context, actorID string, isAdmin bool, lea
 		"student_id":   data.UUIDString(profile.ID),
 		"student_code": profile.StudentCode,
 	}
-	if hasClass {
+	if orderIDStr != "" {
 		auditDetails["order_id"] = orderIDStr
 		auditDetails["order_code"] = orderCode
+	}
+	if hasClass {
 		auditDetails["class_id"] = data.UUIDString(classID)
 	}
 	if err := audit.Write(ctx, q, actorID, "lead.convert", "lead", leadID, nil, auditDetails); err != nil {

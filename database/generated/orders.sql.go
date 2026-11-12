@@ -11,6 +11,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const assignOrderClass = `-- name: AssignOrderClass :one
+UPDATE orders
+SET class_id = $1,
+    course_id = COALESCE($3, course_id)
+WHERE id = $2
+RETURNING id, order_code, lead_id, student_id, course_id, class_id, amount, discount_amount, final_amount, discount_note, status, payment_method, paid_at, notes, created_by, created_at, updated_at, deleted_at
+`
+
+type AssignOrderClassParams struct {
+	ClassID  pgtype.UUID `json:"class_id"`
+	ID       pgtype.UUID `json:"id"`
+	CourseID pgtype.UUID `json:"course_id"`
+}
+
+func (q *Queries) AssignOrderClass(ctx context.Context, arg AssignOrderClassParams) (Order, error) {
+	row := q.db.QueryRow(ctx, assignOrderClass, arg.ClassID, arg.ID, arg.CourseID)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.OrderCode,
+		&i.LeadID,
+		&i.StudentID,
+		&i.CourseID,
+		&i.ClassID,
+		&i.Amount,
+		&i.DiscountAmount,
+		&i.FinalAmount,
+		&i.DiscountNote,
+		&i.Status,
+		&i.PaymentMethod,
+		&i.PaidAt,
+		&i.Notes,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const countOrders = `-- name: CountOrders :one
 SELECT COUNT(*)
 FROM orders o

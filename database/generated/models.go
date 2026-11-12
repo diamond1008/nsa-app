@@ -1426,6 +1426,13 @@ type StudentTestRetakePermit struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
+type SystemSetting struct {
+	Key       string             `json:"key"`
+	Value     []byte             `json:"value"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy pgtype.UUID        `json:"updated_by"`
+}
+
 type TeacherAssignment struct {
 	ID             pgtype.UUID        `json:"id"`
 	ClassID        pgtype.UUID        `json:"class_id"`

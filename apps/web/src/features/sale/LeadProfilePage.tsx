@@ -33,7 +33,7 @@ import {
   getChannelLabel,
   getSourceLabel,
   LeadPipelineBadge,
-  PIPELINE_STATUS_OPTIONS,
+  MANUAL_PIPELINE_STATUS_OPTIONS,
   SOURCE_OPTIONS,
 } from "./saleShared";
 import { ConfirmChotLeadModal } from "./ConfirmChotLeadModal";
@@ -1106,16 +1106,11 @@ export function LeadProfilePage() {
             value={newStatus}
             onChange={(e) => setNewStatus(e.target.value as LeadPipelineStatus)}
           >
-            {PIPELINE_STATUS_OPTIONS.map((opt) => {
-              const isConvertedOnly = opt.value === "da_dang_ky" || opt.value === "dang_hoc";
-              const isDisabled = isConvertedOnly && !lead?.converted_student_id;
-              return (
-                <option key={opt.value} value={opt.value} disabled={isDisabled}>
-                  {opt.label}
-                  {isDisabled ? " (Cần Chốt học viên)" : ""}
-                </option>
-              );
-            })}
+            {MANUAL_PIPELINE_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </Select>
 
           <Textarea

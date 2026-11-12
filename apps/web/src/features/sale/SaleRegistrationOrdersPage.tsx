@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { DataTable, Pagination, QueryState } from "../../components/data";
 import type { Column } from "../../components/data";
 import { FilterBar, useDebouncedValue } from "../../components/filters";
 import { Icon } from "../../components/icons";
-import { Button, Input, PageHeader, Select } from "../../components/ui";
+import {
+  Button,
+  ErrorBanner,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  SuccessBanner,
+} from "../../components/ui";
 import { useAuth } from "../auth/AuthContext";
 import type { Order } from "../../lib/domainTypes";
-import { formatDate } from "../../lib/format";
+import { formatDate, mutationMessage } from "../../lib/format";
 import { saleKeys } from "../../lib/queryKeys";
 import { saleApi } from "./saleApi";
 import { formatVND } from "./saleShared";
@@ -20,6 +28,7 @@ import { parseOrderInstallmentPlan } from "./installmentUtils";
 export function SaleRegistrationOrdersPage() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole("ADMIN", "SALE_ADMIN");
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Filters & Pagination
@@ -128,6 +137,27 @@ export function SaleRegistrationOrdersPage() {
     }
   };
 
+  const [assigningClassOrder, setAssigningClassOrder] = useState<Order | null>(null);
+  const [targetClassId, setTargetClassId] = useState("");
+  const [assignClassError, setAssignClassError] = useState("");
+  const [assignClassSuccess, setAssignClassSuccess] = useState("");
+
+  const assignClassMutation = useMutation({
+    mutationFn: ({ orderId, classId }: { orderId: string; classId: string }) =>
+      saleApi.assignOrderClass(orderId, classId),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["sale", "orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sale", "classes"] });
+      setAssigningClassOrder(null);
+      setTargetClassId("");
+      setAssignClassSuccess(`Đã xếp thành công học viên vào lớp ${updated.class_code || ""}.`);
+      setTimeout(() => setAssignClassSuccess(""), 4000);
+    },
+    onError: (err) => {
+      setAssignClassError(mutationMessage(err));
+    },
+  });
+
   const columns: Column<Order>[] = [
     {
       header: "Mã phiếu ĐK",
@@ -148,7 +178,14 @@ export function SaleRegistrationOrdersPage() {
                 {order.student_code}
               </span>
             )}
-            <span>{order.class_code ? `Lớp: ${order.class_code}` : order.course_name}</span>
+            {order.class_code ? (
+              <span>Lớp: {order.class_code}</span>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded text-[11px]">
+                <Icon name="clock" className="h-3 w-3 text-amber-600" />
+                Phòng chờ: {order.course_name || order.course_code || "Chưa xếp lớp"}
+              </span>
+            )}
           </div>
         </div>
       ),
@@ -281,6 +318,18 @@ export function SaleRegistrationOrdersPage() {
               </Link>
             )}
 
+            {!order.class_id && order.status !== "cancelled" && order.status !== "refunded" && (
+              <Button
+                variant="ghost"
+                className="h-8 px-2 text-xs text-blue-800 hover:bg-blue-50 border border-blue-200/80 shadow-2xs font-semibold"
+                onClick={() => setAssigningClassOrder(order)}
+                title="Xếp học viên này vào lớp học đã mở"
+              >
+                <Icon name="user-check" className="mr-1 h-3.5 w-3.5 text-[#0532e6]" />
+                Xếp lớp
+              </Button>
+            )}
+
             {isAdmin && (
               <Button
                 variant="ghost"
@@ -331,6 +380,8 @@ export function SaleRegistrationOrdersPage() {
           </div>
         }
       />
+
+      {assignClassSuccess && <SuccessBanner message={assignClassSuccess} />}
 
       {/* Filter Bar */}
       <FilterBar
@@ -448,6 +499,116 @@ export function SaleRegistrationOrdersPage() {
           onClose={() => setEditingInstallmentOrder(null)}
           order={editingInstallmentOrder}
         />
+      )}
+
+      {/* Modal Xếp Lớp cho Học viên phòng chờ */}
+      {assigningClassOrder && (
+        <Modal
+          open={Boolean(assigningClassOrder)}
+          onClose={() => {
+            setAssigningClassOrder(null);
+            setTargetClassId("");
+            setAssignClassError("");
+          }}
+          title="Xếp Lớp Cho Học Viên (Phòng Chờ)"
+        >
+          <div className="space-y-4">
+            {assignClassError && <ErrorBanner message={assignClassError} />}
+
+            <div className="rounded-xl border border-blue-200/80 bg-blue-50/60 p-4 text-xs space-y-1.5">
+              <p>
+                <span className="text-slate-500">Học viên:</span>{" "}
+                <strong className="text-navy">
+                  {assigningClassOrder.student_name || assigningClassOrder.lead_name}
+                </strong>{" "}
+                {assigningClassOrder.student_code && (
+                  <span className="font-mono text-blue-700">
+                    ({assigningClassOrder.student_code})
+                  </span>
+                )}
+              </p>
+              <p>
+                <span className="text-slate-500">Khóa học đăng ký:</span>{" "}
+                <strong className="text-navy">
+                  {assigningClassOrder.course_name || assigningClassOrder.course_code || "—"}
+                </strong>
+              </p>
+              <p>
+                <span className="text-slate-500">Mã đơn hàng:</span>{" "}
+                <span className="font-mono font-semibold text-[#0532e6]">
+                  {assigningClassOrder.order_code}
+                </span>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Chọn lớp học khả dụng để xếp học viên vào *
+              </label>
+              <select
+                value={targetClassId}
+                onChange={(e) => setTargetClassId(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium shadow-2xs focus:border-[#0532e6] focus:outline-hidden"
+              >
+                <option value="">-- Chọn lớp học --</option>
+                {availableClasses
+                  .filter(
+                    (c) =>
+                      !assigningClassOrder.course_id ||
+                      c.course_id === assigningClassOrder.course_id,
+                  )
+                  .map((c) => {
+                    const enrolled = c.enrolled_students ?? 0;
+                    const max = c.maximum_students ?? 0;
+                    const remaining = Math.max(0, max - enrolled);
+                    return (
+                      <option key={c.id} value={c.id} disabled={remaining <= 0}>
+                        {c.course_code ? `[${c.course_code}] ` : ""}
+                        {c.name} ({c.class_code}) —{" "}
+                        {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn{" "}
+                        {remaining} chỗ ({enrolled}/{max})
+                      </option>
+                    );
+                  })}
+              </select>
+              {availableClasses.filter(
+                (c) =>
+                  !assigningClassOrder.course_id || c.course_id === assigningClassOrder.course_id,
+              ).length === 0 && (
+                <p className="mt-2 text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                  Chưa có lớp học nào mở tuyển sinh cho khóa học này. Vui lòng liên hệ Đào tạo để mở
+                  lớp mới trước khi xếp lớp.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAssigningClassOrder(null);
+                  setTargetClassId("");
+                  setAssignClassError("");
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="primary"
+                disabled={!targetClassId || assignClassMutation.isPending}
+                onClick={() => {
+                  if (!targetClassId) return;
+                  assignClassMutation.mutate({
+                    orderId: assigningClassOrder.id,
+                    classId: targetClassId,
+                  });
+                }}
+              >
+                {assignClassMutation.isPending ? "Đang xử lý..." : "Xác nhận xếp lớp"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

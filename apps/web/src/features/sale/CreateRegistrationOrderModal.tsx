@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import clsx from "clsx";
 import { Button, CurrencyInput, ErrorBanner, Modal, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import type { Lead } from "../../lib/domainTypes";
@@ -48,11 +49,20 @@ export function CreateRegistrationOrderModal({
   const [formError, setFormError] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState(defaultLeadId);
   const [selectedClassId, setSelectedClassId] = useState(defaultClassId);
+  const [enrollmentType, setEnrollmentType] = useState<"class" | "waitlist">(
+    availableClasses.length > 0 ? "class" : "waitlist",
+  );
+  const [selectedCourseId, setSelectedCourseId] = useState("");
   const [amount, setAmount] = useState<number>(15000000);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [discountNote, setDiscountNote] = useState("");
   const [installmentPlan, setInstallmentPlan] = useState<number>(1);
   const [orderNotes, setOrderNotes] = useState("");
+
+  const coursesQuery = useQuery({
+    queryKey: ["sale", "courses"],
+    queryFn: () => saleApi.listCourses(),
+  });
 
   useEffect(() => {
     if (defaultLeadId) setSelectedLeadId(defaultLeadId);
@@ -60,6 +70,12 @@ export function CreateRegistrationOrderModal({
   }, [defaultLeadId, defaultClassId]);
 
   const selectedLead = selectableLeads.find((l) => l.id === selectedLeadId);
+
+  useEffect(() => {
+    if (selectedLead?.interested_course_id && !selectedCourseId) {
+      setSelectedCourseId(selectedLead.interested_course_id);
+    }
+  }, [selectedLead, selectedCourseId]);
   const finalAmount = Math.max(0, amount - discountAmount);
   const installmentItems = useMemo(
     () => calculateInstallments(finalAmount, installmentPlan),
@@ -101,21 +117,28 @@ export function CreateRegistrationOrderModal({
       return;
     }
 
-    if (!selectedClassId) {
-      setFormError("Vui lòng chọn lớp học đang tuyển sinh.");
-      return;
-    }
+    if (enrollmentType === "class") {
+      if (!selectedClassId) {
+        setFormError("Vui lòng chọn lớp học đang tuyển sinh.");
+        return;
+      }
 
-    const selectedClass = availableClasses.find((c) => c.id === selectedClassId);
-    if (!selectedClass) {
-      setFormError("Vui lòng chọn lớp học đang tuyển sinh.");
-      return;
-    }
+      const selectedClass = availableClasses.find((c) => c.id === selectedClassId);
+      if (!selectedClass) {
+        setFormError("Vui lòng chọn lớp học đang tuyển sinh.");
+        return;
+      }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (selectedClass.start_date && selectedClass.start_date <= todayStr) {
-      setFormError("Lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới.");
-      return;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (selectedClass.start_date && selectedClass.start_date <= todayStr) {
+        setFormError("Lớp học đã tới ngày khai giảng, không thể lập phiếu đăng ký mới.");
+        return;
+      }
+    } else {
+      if (!selectedCourseId) {
+        setFormError("Vui lòng chọn khóa học đăng ký vào phòng chờ.");
+        return;
+      }
     }
 
     if (amount <= 0) {
@@ -138,7 +161,8 @@ export function CreateRegistrationOrderModal({
     createOrderMutation.mutate({
       lead_id: selectedLeadId,
       student_id: selectedLead.converted_student_id || undefined,
-      class_id: selectedClassId,
+      class_id: enrollmentType === "class" ? selectedClassId : undefined,
+      course_id: enrollmentType === "waitlist" ? selectedCourseId : undefined,
       amount,
       discount_amount: discountAmount,
       discount_note: discountNote || undefined,
@@ -173,18 +197,82 @@ export function CreateRegistrationOrderModal({
           )}
         </div>
 
-        {/* Target Class */}
+        {/* Enrollment Target Type */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Lớp học ghi danh <span className="text-red-500">*</span>
+            Hình thức ghi danh <span className="text-red-500">*</span>
           </label>
-          <ClassSelectorDropdown
-            value={selectedClassId}
-            onChange={setSelectedClassId}
-            classes={availableClasses}
-            required
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setEnrollmentType("class")}
+              className={clsx(
+                "flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-bold border transition-all cursor-pointer",
+                enrollmentType === "class"
+                  ? "bg-blue-50 border-[#0532e6] text-[#0532e6] shadow-2xs"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              <Icon name="academic" className="h-4 w-4" />
+              Lớp đang tuyển sinh
+            </button>
+            <button
+              type="button"
+              onClick={() => setEnrollmentType("waitlist")}
+              className={clsx(
+                "flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-bold border transition-all cursor-pointer",
+                enrollmentType === "waitlist"
+                  ? "bg-amber-50 border-amber-500 text-amber-900 shadow-2xs"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              <Icon name="clock" className="h-4 w-4 text-amber-600" />
+              Phòng chờ (Chưa mở lớp)
+            </button>
+          </div>
         </div>
+
+        {enrollmentType === "class" ? (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Lớp học ghi danh <span className="text-red-500">*</span>
+            </label>
+            <ClassSelectorDropdown
+              value={selectedClassId}
+              onChange={setSelectedClassId}
+              classes={availableClasses}
+              required
+            />
+            {availableClasses.length === 0 && (
+              <p className="mt-1.5 text-[11px] text-amber-700 bg-amber-50/80 p-2 rounded-lg border border-amber-200">
+                Chưa có lớp nào mở tuyển sinh. Bạn có thể bấm chọn{" "}
+                <strong>Phòng chờ (Chưa mở lớp)</strong> ở trên để ghi danh khóa học trước.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Khóa học đăng ký (Phòng chờ) <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedCourseId}
+              onChange={(e) => setSelectedCourseId(e.target.value)}
+              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium shadow-2xs focus:border-[#0532e6] focus:outline-hidden"
+            >
+              <option value="">-- Chọn khóa học đăng ký chờ mở lớp --</option>
+              {coursesQuery.data?.items?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  [{c.code}] {c.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Học viên sẽ được lưu vào danh sách <strong>Phòng chờ</strong> và có thể xếp lớp ngay
+              khi Đào tạo mở lớp mới.
+            </p>
+          </div>
+        )}
 
         {/* Tuition & Discount */}
         <div className="grid grid-cols-2 gap-3">

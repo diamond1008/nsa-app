@@ -56,6 +56,7 @@ type assignRequest struct {
 }
 
 type convertRequest struct {
+	CourseID       string  `json:"course_id"`
 	ClassID        string  `json:"class_id"`
 	Amount         float64 `json:"amount"`
 	DiscountAmount float64 `json:"discount_amount"`
@@ -216,6 +217,68 @@ func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, view)
 }
 
+type bulkAssignRequest struct {
+	LeadIDs    []string `json:"lead_ids"`
+	AssigneeID string   `json:"assignee_id"`
+}
+
+func (h *Handler) BulkAssign(w http.ResponseWriter, r *http.Request) {
+	actorID, _ := auth.UserIDFrom(r.Context())
+
+	var body bulkAssignRequest
+	if err := request.DecodeJSON(w, r, &body); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+
+	if len(body.LeadIDs) == 0 {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "lead_ids is required and must not be empty")
+		return
+	}
+	if body.AssigneeID == "" {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "assignee_id is required")
+		return
+	}
+
+	res, err := h.service.BulkAssign(r.Context(), actorID, BulkAssignInput{
+		LeadIDs:    body.LeadIDs,
+		AssigneeID: body.AssigneeID,
+	})
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+
+	response.OK(w, res)
+}
+
+func (h *Handler) GetRoutingSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.service.GetLeadRoutingSettings(r.Context())
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	response.OK(w, settings)
+}
+
+func (h *Handler) UpdateRoutingSettings(w http.ResponseWriter, r *http.Request) {
+	actorID, _ := auth.UserIDFrom(r.Context())
+
+	var body RoutingSettingsInput
+	if err := request.DecodeJSON(w, r, &body); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+
+	settings, err := h.service.UpdateLeadRoutingSettings(r.Context(), actorID, body)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+
+	response.OK(w, settings)
+}
+
 func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 	leadID := chi.URLParam(r, "leadID")
 	actorID, _ := auth.UserIDFrom(r.Context())
@@ -228,7 +291,7 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.ClassID != "" {
+	if body.ClassID != "" || body.CourseID != "" {
 		if body.Amount < 0 {
 			response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "amount cannot be negative")
 			return
@@ -244,6 +307,7 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Convert(r.Context(), actorID, isAdmin, leadID, ConvertInput{
+		CourseID:       body.CourseID,
 		ClassID:        body.ClassID,
 		Amount:         body.Amount,
 		DiscountAmount: body.DiscountAmount,
@@ -393,6 +457,8 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 		response.Fail(w, http.StatusBadRequest, "CLASS_FULL", "Target class is at maximum capacity")
 	case errors.Is(err, ErrInvalidStatusTransition):
 		response.Fail(w, http.StatusBadRequest, "INVALID_PIPELINE_TRANSITION", "Invalid pipeline status value")
+	case errors.Is(err, ErrSystemOnlyPipelineStatus):
+		response.Fail(w, http.StatusBadRequest, "SYSTEM_ONLY_PIPELINE_STATUS", "Trạng thái này do hệ thống tự động xử lý")
 	case errors.Is(err, ErrUnauthorizedAccess):
 		response.Fail(w, http.StatusForbidden, "FORBIDDEN", "You do not have access to this lead")
 	case errors.Is(err, ErrInvalidAssignee):

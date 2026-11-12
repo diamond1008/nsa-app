@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import clsx from "clsx";
 
 import { QueryState } from "../../components/data";
 import { Icon } from "../../components/icons";
@@ -38,6 +39,8 @@ export function LeadConvertPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [classId, setClassId] = useState("");
+  const [enrollmentMode, setEnrollmentMode] = useState<"class" | "waitlist">("class");
+  const [courseId, setCourseId] = useState("");
   const [amount, setAmount] = useState<number>(15000000);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [discountNote, setDiscountNote] = useState("");
@@ -57,6 +60,11 @@ export function LeadConvertPage() {
       saleApi.listClasses({
         capacity: "available",
       }),
+  });
+
+  const coursesQuery = useQuery({
+    queryKey: ["sale", "courses"],
+    queryFn: () => saleApi.listCourses(),
   });
 
   const convertMutation = useMutation({
@@ -106,8 +114,11 @@ export function LeadConvertPage() {
       setEmail(lead.email || "");
       setPhone(lead.phone || "");
       setPassword((prev) => prev || generateStudentPassword());
+      if (lead.interested_course_id && !courseId) {
+        setCourseId(lead.interested_course_id);
+      }
     }
-  }, [lead]);
+  }, [lead, courseId]);
 
   const finalAmount = Math.max(0, amount - discountAmount);
 
@@ -138,9 +149,16 @@ export function LeadConvertPage() {
       return;
     }
 
-    if (!classId) {
-      setFormError("Vui lòng chọn lớp học để ghi danh.");
-      return;
+    if (enrollmentMode === "class") {
+      if (!classId) {
+        setFormError("Vui lòng chọn lớp học để ghi danh.");
+        return;
+      }
+    } else {
+      if (!courseId) {
+        setFormError("Vui lòng chọn khóa học để đăng ký vào phòng chờ.");
+        return;
+      }
     }
 
     if (!password.trim()) {
@@ -149,7 +167,8 @@ export function LeadConvertPage() {
     }
 
     convertMutation.mutate({
-      class_id: classId,
+      class_id: enrollmentMode === "class" ? classId : undefined,
+      course_id: enrollmentMode === "waitlist" ? courseId : undefined,
       amount,
       discount_amount: discountAmount,
       discount_note: discountNote.trim() || undefined,
@@ -487,37 +506,94 @@ export function LeadConvertPage() {
                 </div>
               </div>
 
-              {/* Class Selection */}
-              <div>
-                <label className="mb-1 block text-sm font-bold text-navy-heading">
-                  Chọn lớp học mở ghi danh *
+              {/* Class Selection or Waitlist Mode */}
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-navy-heading">
+                  Hình thức ghi danh & Lớp học *
                 </label>
-                <p className="mb-2 text-xs text-gtext">
-                  Chỉ các lớp đang mở (open/active) và còn chỗ trống mới hiển thị ở đây.
-                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEnrollmentMode("class")}
+                    className={clsx(
+                      "flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold border transition-all cursor-pointer",
+                      enrollmentMode === "class"
+                        ? "bg-blue-50 border-[#0532e6] text-[#0532e6] shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+                    )}
+                  >
+                    <Icon name="academic" className="h-4 w-4" />
+                    Lớp đang mở tuyển sinh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEnrollmentMode("waitlist")}
+                    className={clsx(
+                      "flex items-center justify-center gap-2 rounded-xl p-3 text-xs font-bold border transition-all cursor-pointer",
+                      enrollmentMode === "waitlist"
+                        ? "bg-amber-50 border-amber-500 text-amber-900 shadow-2xs"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+                    )}
+                  >
+                    <Icon name="clock" className="h-4 w-4 text-amber-600" />
+                    Phòng chờ (Chưa mở lớp)
+                  </button>
+                </div>
 
-                <Select label="" value={classId} onChange={(e) => setClassId(e.target.value)}>
-                  <option value="">-- Chọn lớp học --</option>
-                  {availableClasses.map((c) => {
-                    const enrolled = c.enrolled_students ?? 0;
-                    const max = c.maximum_students ?? 0;
-                    const remaining = Math.max(0, max - enrolled);
-                    const isMatched = c.course_id === lead?.interested_course_id;
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {isMatched ? "★ [Đúng khóa quan tâm] " : ""}
-                        {c.course_code ? `[${c.course_code}] ` : ""}
-                        {c.name} ({c.class_code}) —{" "}
-                        {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn{" "}
-                        {remaining} chỗ ({enrolled}/{max})
-                      </option>
-                    );
-                  })}
-                </Select>
-                {availableClasses.length === 0 && !classesQuery.isLoading && (
-                  <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                    Hiện chưa có lớp học nào khả dụng còn chỗ trống.
-                  </p>
+                {enrollmentMode === "class" ? (
+                  <div>
+                    <p className="mb-2 text-xs text-gtext">
+                      Chỉ các lớp đang mở (open/active) và còn chỗ trống mới hiển thị ở đây.
+                    </p>
+                    <Select label="" value={classId} onChange={(e) => setClassId(e.target.value)}>
+                      <option value="">-- Chọn lớp học --</option>
+                      {availableClasses.map((c) => {
+                        const enrolled = c.enrolled_students ?? 0;
+                        const max = c.maximum_students ?? 0;
+                        const remaining = Math.max(0, max - enrolled);
+                        const isMatched = c.course_id === lead?.interested_course_id;
+                        return (
+                          <option key={c.id} value={c.id}>
+                            {isMatched ? "★ [Đúng khóa quan tâm] " : ""}
+                            {c.course_code ? `[${c.course_code}] ` : ""}
+                            {c.name} ({c.class_code}) —{" "}
+                            {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn{" "}
+                            {remaining} chỗ ({enrolled}/{max})
+                          </option>
+                        );
+                      })}
+                    </Select>
+                    {availableClasses.length === 0 && !classesQuery.isLoading && (
+                      <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+                        Hiện chưa có lớp học nào khả dụng. Vui lòng chọn{" "}
+                        <strong>Phòng chờ (Chưa mở lớp)</strong> ở trên để tạo hồ sơ và ghi danh
+                        khóa học trước.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">
+                      Khóa học đăng ký vào phòng chờ *
+                    </label>
+                    <select
+                      value={courseId}
+                      onChange={(e) => setCourseId(e.target.value)}
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium shadow-2xs focus:border-[#0532e6] focus:outline-hidden"
+                    >
+                      <option value="">-- Chọn khóa học đăng ký chờ mở lớp --</option>
+                      {coursesQuery.data?.items?.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          [{c.code}] {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1.5 text-[11px] text-slate-500">
+                      Học viên sẽ được cấp mã học viên, tạo tài khoản và đơn hàng ở trạng thái{" "}
+                      <strong>Phòng chờ</strong>. Sau này khi có lớp mở, Sale hoặc Quản lý chỉ cần
+                      bấm <strong>Xếp lớp</strong>.
+                    </p>
+                  </div>
                 )}
               </div>
 

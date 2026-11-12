@@ -8,17 +8,18 @@ import (
 )
 
 var (
-	ErrNotFound                = errors.New("lead not found")
-	ErrAlreadyConverted        = errors.New("lead is already converted")
-	ErrClassFull               = errors.New("class capacity exceeded")
-	ErrClassNotFound           = errors.New("class not found or not active")
-	ErrInvalidStatusTransition = errors.New("invalid pipeline status")
-	ErrUnauthorizedAccess      = errors.New("unauthorized access to lead")
-	ErrInvalidAssignee         = errors.New("invalid assignee user")
-	ErrEmailAlreadyExists      = errors.New("email already exists")
-	ErrInvalidCSV              = errors.New("invalid CSV content")
-	ErrLeadLocked              = errors.New("hồ sơ học viên đã được khóa thông tin định danh, chỉ được phép cập nhật ghi chú")
-	ErrLeadNotConvertedYet     = errors.New("chỉ lead đã được chốt (đã cấp mã học viên) mới có thể chuyển sang trạng thái đã đăng ký. Vui lòng bấm Chốt học viên.")
+	ErrNotFound                 = errors.New("lead not found")
+	ErrAlreadyConverted         = errors.New("lead is already converted")
+	ErrClassFull                = errors.New("class capacity exceeded")
+	ErrClassNotFound            = errors.New("class not found or not active")
+	ErrInvalidStatusTransition  = errors.New("invalid pipeline status")
+	ErrUnauthorizedAccess       = errors.New("unauthorized access to lead")
+	ErrInvalidAssignee          = errors.New("invalid assignee user")
+	ErrEmailAlreadyExists       = errors.New("email already exists")
+	ErrInvalidCSV               = errors.New("invalid CSV content")
+	ErrLeadLocked               = errors.New("hồ sơ học viên đã được khóa thông tin định danh, chỉ được phép cập nhật ghi chú")
+	ErrLeadNotConvertedYet      = errors.New("chỉ lead đã được chốt (đã cấp mã học viên) mới có thể chuyển sang trạng thái đã đăng ký. Vui lòng bấm Chốt học viên.")
+	ErrSystemOnlyPipelineStatus = errors.New("trạng thái này do hệ thống tự động xử lý")
 )
 
 // View represents the full JSON view of a Lead.
@@ -113,6 +114,7 @@ type StatusInput struct {
 
 // ConvertInput defines parameters for 1-Click Convert.
 type ConvertInput struct {
+	CourseID       string
 	ClassID        string
 	Amount         float64
 	DiscountAmount float64
@@ -123,6 +125,28 @@ type ConvertInput struct {
 	Email          string
 	FullName       string
 	Phone          string
+}
+
+// BulkAssignInput defines payload for bulk lead assignment.
+type BulkAssignInput struct {
+	LeadIDs    []string `json:"lead_ids"`
+	AssigneeID string   `json:"assignee_id"`
+}
+
+// BulkAssignResult defines result counts for bulk lead assignment.
+type BulkAssignResult struct {
+	Updated int `json:"updated"`
+	Failed  int `json:"failed"`
+}
+
+// RoutingSettingsView represents sale auto-assignment status.
+type RoutingSettingsView struct {
+	AutoAssignEnabled bool `json:"auto_assign_enabled"`
+}
+
+// RoutingSettingsInput represents update payload for sale auto-assignment.
+type RoutingSettingsInput struct {
+	AutoAssignEnabled bool `json:"auto_assign_enabled"`
 }
 
 // ConvertResult contains the generated entities after conversion.

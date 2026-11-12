@@ -17,6 +17,14 @@ export const PIPELINE_STATUS_OPTIONS: Array<{ value: LeadPipelineStatus; label: 
   { value: "ket_thuc", label: "Kết thúc" },
 ];
 
+export const MANUAL_PIPELINE_STATUS_OPTIONS: Array<{ value: LeadPipelineStatus; label: string }> = [
+  { value: "data_moi", label: "Data mới" },
+  { value: "knm_thue_bao", label: "KNM / Thuê bao" },
+  { value: "goi_lai_sau", label: "Gọi lại sau" },
+  { value: "follow", label: "Follow / Chăm sóc" },
+  { value: "tu_choi", label: "Từ chối" },
+];
+
 export const SOURCE_OPTIONS: Array<{ value: LeadSource; label: string }> = [
   { value: "facebook", label: "Facebook" },
   { value: "tiktok", label: "TikTok" },

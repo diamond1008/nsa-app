@@ -524,6 +524,11 @@ func mountSaleRoutes(
 			r.With(saleManagerOnly).Get("/revenue", orderHandler.Revenue)
 		})
 
+		r.Route("/settings", func(r chi.Router) {
+			r.With(saleManagerOnly).Get("/lead-routing", leadHandler.GetRoutingSettings)
+			r.With(saleManagerOnly).Put("/lead-routing", leadHandler.UpdateRoutingSettings)
+		})
+
 		r.Route("/leads", func(r chi.Router) {
 			r.Get("/", leadHandler.List)
 			r.Post("/", leadHandler.Create)
@@ -531,6 +536,7 @@ func mountSaleRoutes(
 			r.With(saleManagerOnly).Get("/export", leadHandler.ExportExcel)
 			r.With(saleManagerOnly).Get("/template", leadHandler.Template)
 			r.With(saleManagerOnly).Post("/import", leadHandler.Import)
+			r.With(saleManagerOnly).Post("/bulk-assign", leadHandler.BulkAssign)
 			r.Get("/{leadID}", leadHandler.Get)
 			r.Put("/{leadID}", leadHandler.Update)
 			r.Patch("/{leadID}/status", leadHandler.UpdateStatus)
@@ -557,6 +563,7 @@ func mountSaleRoutes(
 			r.Get("/export", orderHandler.ExportExcel)
 			r.Get("/{orderID}", orderHandler.Get)
 			r.Patch("/{orderID}/status", orderHandler.UpdateStatus)
+			r.Patch("/{orderID}/assign-class", orderHandler.AssignClass)
 		})
 	})
 }

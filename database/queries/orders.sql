@@ -287,6 +287,13 @@ UPDATE orders
 SET deleted_at = NOW()
 WHERE id = $1;
 
+-- name: AssignOrderClass :one
+UPDATE orders
+SET class_id = $1,
+    course_id = COALESCE(sqlc.narg(course_id), course_id)
+WHERE id = $2
+RETURNING *;
+
 -- name: HasActiveOrderForStudentClass :one
 SELECT EXISTS (
     SELECT 1

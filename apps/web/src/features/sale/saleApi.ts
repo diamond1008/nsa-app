@@ -51,6 +51,7 @@ export interface CreateLeadInput {
 }
 
 export interface ConvertLeadInput {
+  course_id?: string;
   class_id?: string;
   amount?: number;
   discount_amount?: number;
@@ -128,6 +129,9 @@ export const saleApi = {
   assignLead: (id: string, assigned_to: string) =>
     patch<Lead>(`/sale/leads/${id}/assign`, { assigned_to }),
 
+  bulkAssignLeads: (data: { lead_ids: string[]; assignee_id: string }) =>
+    post<{ updated: number; failed: number }>("/sale/leads/bulk-assign", data),
+
   convertLead: (id: string, data: ConvertLeadInput) =>
     post<ConvertResult>(`/sale/leads/${id}/convert`, data),
 
@@ -195,6 +199,14 @@ export const saleApi = {
     status: string,
     extra: { payment_method?: string; notes?: string } = {},
   ) => patch<Order>(`/sale/orders/${id}/status`, { status, ...extra }),
+
+  assignOrderClass: (orderId: string, classId: string) =>
+    patch<Order>(`/sale/orders/${orderId}/assign-class`, { class_id: classId }),
+
+  // Settings
+  getRoutingSettings: () => get<{ auto_assign_enabled: boolean }>("/sale/settings/lead-routing"),
+  updateRoutingSettings: (auto_assign_enabled: boolean) =>
+    put<{ auto_assign_enabled: boolean }>("/sale/settings/lead-routing", { auto_assign_enabled }),
 
   // Courses & Classes (for lead interested course & convert dropdowns)
   listCourses: () =>

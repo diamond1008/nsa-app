@@ -422,6 +422,9 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, isAdmin bool
 	if !isValidPipelineStatus(targetStatus) {
 		return View{}, ErrInvalidStatusTransition
 	}
+	if !isAllowedManualPipelineStatus(targetStatus) {
+		return View{}, ErrSystemOnlyPipelineStatus
+	}
 
 	if (targetStatus == db.LeadPipelineStatusDaDangKy || targetStatus == db.LeadPipelineStatusDangHoc) && !existing.ConvertedStudentID.Valid {
 		return View{}, ErrLeadNotConvertedYet
@@ -799,6 +802,19 @@ func isValidPipelineStatus(s db.LeadPipelineStatus) bool {
 		db.LeadPipelineStatusDaDangKy,
 		db.LeadPipelineStatusDangHoc,
 		db.LeadPipelineStatusKetThuc:
+		return true
+	default:
+		return false
+	}
+}
+
+func isAllowedManualPipelineStatus(s db.LeadPipelineStatus) bool {
+	switch s {
+	case db.LeadPipelineStatusDataMoi,
+		db.LeadPipelineStatusKnmThueBao,
+		db.LeadPipelineStatusGoiLaiSau,
+		db.LeadPipelineStatusFollow,
+		db.LeadPipelineStatusTuChoi:
 		return true
 	default:
 		return false

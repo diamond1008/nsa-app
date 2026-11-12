@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -209,6 +210,34 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		PaymentMethod: body.PaymentMethod,
 		Notes:         body.Notes,
 	})
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+
+	response.OK(w, view)
+}
+
+type assignClassRequest struct {
+	ClassID string `json:"class_id"`
+}
+
+func (h *Handler) AssignClass(w http.ResponseWriter, r *http.Request) {
+	orderID := chi.URLParam(r, "orderID")
+	actorID, _ := auth.UserIDFrom(r.Context())
+
+	var body assignClassRequest
+	if err := request.DecodeJSON(w, r, &body); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+
+	if strings.TrimSpace(body.ClassID) == "" {
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "class_id is required")
+		return
+	}
+
+	view, err := h.service.AssignClass(r.Context(), actorID, orderID, body.ClassID)
 	if err != nil {
 		h.handleError(w, r, err)
 		return

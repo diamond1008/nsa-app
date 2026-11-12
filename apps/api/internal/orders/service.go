@@ -414,6 +414,121 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID string, orderIDValue
 	return view, nil
 }
 
+func (s *Service) AssignClass(ctx context.Context, actorID string, orderIDValue, classIDValue string) (View, error) {
+	orderID, err := data.UUID(orderIDValue)
+	if err != nil {
+		return View{}, ErrOrderNotFound
+	}
+	classID, err := data.UUID(classIDValue)
+	if err != nil {
+		return View{}, errors.New("lớp học không hợp lệ")
+	}
+	actorUUID, err := data.UUID(actorID)
+	if err != nil {
+		return View{}, fmt.Errorf("invalid actor ID: %w", err)
+	}
+
+	claims, _ := auth.ClaimsFrom(ctx)
+	isManager := claims != nil && claims.HasAnyRole(auth.RoleAdmin, "SALE_ADMIN", "ACADEMIC_ADMIN")
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return View{}, fmt.Errorf("begin assign class: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := s.queries.WithTx(tx)
+
+	existing, err := q.GetOrder(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return View{}, ErrOrderNotFound
+	}
+	if err != nil {
+		return View{}, fmt.Errorf("get order: %w", err)
+	}
+
+	if !isManager && existing.CreatedBy != actorUUID {
+		return View{}, ErrForbiddenOrderAccess
+	}
+
+	if existing.Status == db.OrderStatusCancelled || existing.Status == db.OrderStatusRefunded {
+		return View{}, errors.New("không thể xếp lớp cho đơn hàng đã hủy hoặc hoàn tiền")
+	}
+
+	classRow, err := q.GetAdminClass(ctx, classID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return View{}, errors.New("lớp học không tồn tại")
+	}
+	if err != nil {
+		return View{}, fmt.Errorf("read target class: %w", err)
+	}
+
+	// Verify class belongs to course if order has course_id
+	if existing.CourseID.Valid && classRow.CourseID.Valid && existing.CourseID != classRow.CourseID {
+		return View{}, errors.New("lớp học không thuộc khóa học của đơn hàng này")
+	}
+
+	// Check student does not already have an active order for this class
+	if existing.StudentID.Valid {
+		hasActiveOrder, err := q.HasActiveOrderForStudentClass(ctx, db.HasActiveOrderForStudentClassParams{
+			StudentID: existing.StudentID,
+			ClassID:   classID,
+		})
+		if err != nil {
+			return View{}, fmt.Errorf("check active order for student class: %w", err)
+		}
+		if hasActiveOrder && (!existing.ClassID.Valid || existing.ClassID != classID) {
+			return View{}, ErrLeadAlreadyHasOrder
+		}
+	}
+
+	targetCourseID := existing.CourseID
+	if !targetCourseID.Valid && classRow.CourseID.Valid {
+		targetCourseID = classRow.CourseID
+	}
+
+	_, err = q.AssignOrderClass(ctx, db.AssignOrderClassParams{
+		ClassID:  classID,
+		CourseID: targetCourseID,
+		ID:       orderID,
+	})
+	if err != nil {
+		return View{}, fmt.Errorf("assign order class: %w", err)
+	}
+
+	// Enroll student in class if not enrolled yet
+	if existing.StudentID.Valid {
+		var existingEnrollmentID pgtype.UUID
+		err = tx.QueryRow(ctx, "SELECT id FROM class_enrollments WHERE class_id = $1 AND student_id = $2", classID, existing.StudentID).Scan(&existingEnrollmentID)
+		if err != nil && errors.Is(err, pgx.ErrNoRows) {
+			_, err = q.CreateClassEnrollment(ctx, db.CreateClassEnrollmentParams{
+				ClassID:   classID,
+				StudentID: existing.StudentID,
+				CreatedBy: actorUUID,
+			})
+			if err != nil {
+				return View{}, fmt.Errorf("enroll student in class: %w", err)
+			}
+		}
+	}
+
+	updated, err := q.GetOrder(ctx, orderID)
+	if err != nil {
+		return View{}, fmt.Errorf("read updated order: %w", err)
+	}
+
+	view := viewFromGetRow(updated)
+	if err := audit.Write(ctx, q, actorID, "order.assign_class", "order", orderID, viewFromGetRow(existing), view); err != nil {
+		return View{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return View{}, fmt.Errorf("commit assign class: %w", err)
+	}
+
+	return view, nil
+}
+
 func (s *Service) RevenueReport(ctx context.Context) (RevenueReportView, error) {
 	summaryRow, err := s.queries.GetRevenueSummary(ctx)
 	if err != nil {

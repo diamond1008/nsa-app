@@ -88,6 +88,35 @@ func TestIsValidPipelineStatus(t *testing.T) {
 	}
 }
 
+func TestIsAllowedManualPipelineStatus(t *testing.T) {
+	manualStatuses := []db.LeadPipelineStatus{
+		db.LeadPipelineStatusDataMoi,
+		db.LeadPipelineStatusKnmThueBao,
+		db.LeadPipelineStatusGoiLaiSau,
+		db.LeadPipelineStatusFollow,
+		db.LeadPipelineStatusTuChoi,
+	}
+
+	for _, s := range manualStatuses {
+		if !isAllowedManualPipelineStatus(s) {
+			t.Errorf("expected manual status %s to be allowed", s)
+		}
+	}
+
+	systemStatuses := []db.LeadPipelineStatus{
+		db.LeadPipelineStatusDaDangKy,
+		db.LeadPipelineStatusDangHoc,
+		db.LeadPipelineStatusKetThuc,
+		"unknown",
+	}
+
+	for _, s := range systemStatuses {
+		if isAllowedManualPipelineStatus(s) {
+			t.Errorf("expected system status %s to NOT be allowed manually", s)
+		}
+	}
+}
+
 func TestNormalizeColumnHeader(t *testing.T) {
 	tests := []struct {
 		input    string
