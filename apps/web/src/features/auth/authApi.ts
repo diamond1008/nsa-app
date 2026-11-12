@@ -60,6 +60,18 @@ export function updateMyAvatar(avatarUrl: string | null): Promise<UserInfo> {
   });
 }
 
+export interface UpdateMyProfileInput {
+  full_name: string;
+  phone?: string;
+}
+
+export function updateMyProfile(input: UpdateMyProfileInput): Promise<UserInfo> {
+  return api<UserInfo>("/auth/me/profile", {
+    method: "PATCH",
+    body: input,
+  });
+}
+
 export function changePassword(
   currentPassword: string,
   newPassword: string,
@@ -67,5 +79,11 @@ export function changePassword(
   return api<{ message: string }>("/auth/change-password", {
     method: "POST",
     body: { current_password: currentPassword, new_password: newPassword },
+  });
+}
+
+export function revokeOtherSessions(): Promise<{ message: string }> {
+  return api<{ message: string }>("/auth/me/revoke-other-sessions", {
+    method: "POST",
   });
 }

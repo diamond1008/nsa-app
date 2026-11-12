@@ -12,7 +12,6 @@ import { aiWorkflowApi } from "../features/ai-workflows/aiWorkflowApi";
 import { AIWorkflowDrawer, GeminiSparkleStar } from "../features/ai-workflows/AIWorkflowDrawer";
 import type { NotificationList } from "../lib/domainTypes";
 import { formatDateTime } from "../lib/format";
-import { compressImageToWebP } from "../lib/image";
 import type { Role } from "../lib/types";
 
 export interface NavSubItem {
@@ -237,14 +236,13 @@ function isGroupActive(pathname: string, group: NavGroup): boolean {
 }
 
 export default function AppLayout() {
-  const { user, logout, hasRole, updateMyAvatar } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isClosingMenu, setIsClosingMenu] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
-  const [avatarUpdating, setAvatarUpdating] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const mainScrollRef = useRef<HTMLElement | null>(null);
@@ -602,22 +600,6 @@ export default function AppLayout() {
     .join("")
     .toUpperCase();
 
-  const handleSelfAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || !updateMyAvatar) return;
-    try {
-      setAvatarUpdating(true);
-      const webpDataUrl = await compressImageToWebP(file);
-      await updateMyAvatar(webpDataUrl);
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
-    } catch {
-      // ignore invalid image
-    } finally {
-      setAvatarUpdating(false);
-    }
-  };
-
   const handleLogout = async () => {
     await logout();
     navigate("/login", { replace: true });
@@ -933,13 +915,24 @@ export default function AppLayout() {
         >
           {/* User profile row */}
           <div className="relative group">
-            <div className="flex h-11 w-full items-center overflow-hidden rounded-lg">
+            <NavLink
+              to="/account"
+              onClick={() => {
+                if (mobile) closeMobileMenu();
+              }}
+              className={({ isActive }) =>
+                clsx(
+                  "flex h-11 w-full items-center overflow-hidden rounded-lg transition-all duration-150 ease-out select-none cursor-pointer",
+                  isActive
+                    ? "bg-white/85 text-[#0532e6] shadow-xs border border-white/95 font-semibold"
+                    : "text-slate-700 hover:bg-white/60 active:bg-white/80",
+                )
+              }
+              title="Quản lý tài khoản cá nhân"
+            >
               {/* Left slot: exactly w-14 (56px) shrink-0, centered at 28px in ALL states */}
               <div className="flex h-11 w-14 shrink-0 items-center justify-center">
-                <label
-                  title="Bấm để cập nhật ảnh đại diện (tự động nén WebP)"
-                  className="group/avatar relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-navy text-xs font-bold text-white shadow-2xs transition-all duration-150 ease-out active:duration-75 active:scale-90 hover:scale-105"
-                >
+                <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-navy text-xs font-bold text-white shadow-2xs transition-transform duration-150 group-hover:scale-105">
                   {userAvatarUrl ? (
                     <img
                       src={userAvatarUrl}
@@ -949,33 +942,26 @@ export default function AppLayout() {
                   ) : (
                     initials
                   )}
-                  <span className="absolute inset-0 flex items-center justify-center bg-navy/70 text-[9px] font-bold text-white opacity-0 transition-opacity group-hover/avatar:opacity-100">
-                    {avatarUpdating ? "..." : "Sửa"}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={avatarUpdating}
-                    onChange={(e) => void handleSelfAvatarChange(e)}
-                    className="hidden"
-                  />
-                </label>
+                </div>
               </div>
               {/* Right slot */}
               <div
                 className={clsx(
-                  "min-w-0 flex-1 truncate pr-2 transition-opacity duration-200",
+                  "min-w-0 flex-1 truncate pr-2 transition-opacity duration-200 text-left",
                   collapsed && !mobile ? "opacity-0 pointer-events-none w-0" : "opacity-100",
                 )}
               >
-                <p className="truncate text-xs font-semibold text-slate-900">{displayName}</p>
+                <p className="truncate text-xs font-semibold text-slate-900 group-hover:text-[#0532e6] transition-colors">
+                  {displayName}
+                </p>
                 <p className="truncate text-[10px] text-gtext">{user.email}</p>
               </div>
-            </div>
+            </NavLink>
             {collapsed && !mobile && (
-              <div className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 whitespace-nowrap rounded-lg bg-white/90 backdrop-blur-xl text-slate-800 font-medium text-xs px-3 py-1.5 shadow-xl border border-white/90">
-                <p className="font-semibold">{displayName}</p>
+              <div className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 whitespace-nowrap rounded-lg bg-white/95 backdrop-blur-xl text-slate-800 font-medium text-xs px-3 py-1.5 shadow-xl border border-white/90">
+                <p className="font-semibold text-slate-900">{displayName}</p>
                 <p className="text-[10px] text-gtext">{user.email}</p>
+                <p className="text-[10px] text-[#0532e6] font-semibold mt-0.5">Tài khoản cá nhân</p>
               </div>
             )}
           </div>

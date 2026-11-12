@@ -98,19 +98,23 @@ func (q *Queries) GetTeacherProfileByUserID(ctx context.Context, userID pgtype.U
 
 const getUserByEmail = `-- name: GetUserByEmail :one
 
-SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url, COALESCE(phone, '')::varchar(50) AS phone, last_login_at, created_at, COALESCE(employee_code, '')::varchar(50) AS employee_code
 FROM users
 WHERE email = $1
 `
 
 type GetUserByEmailRow struct {
-	ID                 pgtype.UUID `json:"id"`
-	Email              string      `json:"email"`
-	PasswordHash       string      `json:"password_hash"`
-	Status             UserStatus  `json:"status"`
-	MustChangePassword bool        `json:"must_change_password"`
-	FullName           string      `json:"full_name"`
-	AvatarUrl          pgtype.Text `json:"avatar_url"`
+	ID                 pgtype.UUID        `json:"id"`
+	Email              string             `json:"email"`
+	PasswordHash       string             `json:"password_hash"`
+	Status             UserStatus         `json:"status"`
+	MustChangePassword bool               `json:"must_change_password"`
+	FullName           string             `json:"full_name"`
+	AvatarUrl          pgtype.Text        `json:"avatar_url"`
+	Phone              string             `json:"phone"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	EmployeeCode       string             `json:"employee_code"`
 }
 
 // Authentication and identity queries (PostgreSQL, pgx/v5).
@@ -126,24 +130,32 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.MustChangePassword,
 		&i.FullName,
 		&i.AvatarUrl,
+		&i.Phone,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.EmployeeCode,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url, COALESCE(phone, '')::varchar(50) AS phone, last_login_at, created_at, COALESCE(employee_code, '')::varchar(50) AS employee_code
 FROM users
 WHERE id = $1
 `
 
 type GetUserByIDRow struct {
-	ID                 pgtype.UUID `json:"id"`
-	Email              string      `json:"email"`
-	PasswordHash       string      `json:"password_hash"`
-	Status             UserStatus  `json:"status"`
-	MustChangePassword bool        `json:"must_change_password"`
-	FullName           string      `json:"full_name"`
-	AvatarUrl          pgtype.Text `json:"avatar_url"`
+	ID                 pgtype.UUID        `json:"id"`
+	Email              string             `json:"email"`
+	PasswordHash       string             `json:"password_hash"`
+	Status             UserStatus         `json:"status"`
+	MustChangePassword bool               `json:"must_change_password"`
+	FullName           string             `json:"full_name"`
+	AvatarUrl          pgtype.Text        `json:"avatar_url"`
+	Phone              string             `json:"phone"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	EmployeeCode       string             `json:"employee_code"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error) {
@@ -157,6 +169,10 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDR
 		&i.MustChangePassword,
 		&i.FullName,
 		&i.AvatarUrl,
+		&i.Phone,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.EmployeeCode,
 	)
 	return i, err
 }
@@ -225,6 +241,46 @@ WHERE id = $1 AND revoked_at IS NULL
 
 func (q *Queries) RevokeRefreshToken(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, revokeRefreshToken, id)
+	return err
+}
+
+const syncStudentNameAndPhone = `-- name: SyncStudentNameAndPhone :exec
+UPDATE student_profiles
+SET
+  full_name = CASE WHEN $1::text <> '' THEN $1::text ELSE full_name END,
+  phone = $2,
+  updated_at = NOW()
+WHERE user_id = $3
+`
+
+type SyncStudentNameAndPhoneParams struct {
+	FullName string      `json:"full_name"`
+	Phone    pgtype.Text `json:"phone"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) SyncStudentNameAndPhone(ctx context.Context, arg SyncStudentNameAndPhoneParams) error {
+	_, err := q.db.Exec(ctx, syncStudentNameAndPhone, arg.FullName, arg.Phone, arg.UserID)
+	return err
+}
+
+const syncTeacherNameAndPhone = `-- name: SyncTeacherNameAndPhone :exec
+UPDATE teacher_profiles
+SET
+  full_name = CASE WHEN $1::text <> '' THEN $1::text ELSE full_name END,
+  phone = $2,
+  updated_at = NOW()
+WHERE user_id = $3
+`
+
+type SyncTeacherNameAndPhoneParams struct {
+	FullName string      `json:"full_name"`
+	Phone    pgtype.Text `json:"phone"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) SyncTeacherNameAndPhone(ctx context.Context, arg SyncTeacherNameAndPhoneParams) error {
+	_, err := q.db.Exec(ctx, syncTeacherNameAndPhone, arg.FullName, arg.Phone, arg.UserID)
 	return err
 }
 
@@ -298,5 +354,22 @@ type UpdateUserPasswordParams struct {
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :exec
+UPDATE users
+SET full_name = $2, phone = $3, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateUserProfileParams struct {
+	ID       pgtype.UUID `json:"id"`
+	FullName pgtype.Text `json:"full_name"`
+	Phone    pgtype.Text `json:"phone"`
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
+	_, err := q.db.Exec(ctx, updateUserProfile, arg.ID, arg.FullName, arg.Phone)
 	return err
 }

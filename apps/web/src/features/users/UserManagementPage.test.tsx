@@ -74,6 +74,7 @@ const sampleUsers: ManagedUser[] = [
     roles: ["SALE"],
     full_name: "Lê Tư Vấn",
     phone: "0933333333",
+    employee_code: "NV000001",
   },
 ];
 
@@ -141,6 +142,11 @@ describe("UserManagementPage", () => {
     // Verify status badges
     expect(screen.getAllByText("Hoạt động").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Tạm khóa").length).toBeGreaterThanOrEqual(1);
+
+    // Verify target codes (HV, GV, NV)
+    expect(screen.getByText("HV0001")).toBeInTheDocument();
+    expect(screen.getByText("GV0001")).toBeInTheDocument();
+    expect(screen.getByText("NV000001")).toBeInTheDocument();
   });
 
   it("opens slide-over drawer and displays audit history when clicking user row and audit tab", async () => {

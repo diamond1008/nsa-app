@@ -2,12 +2,12 @@
 -- Naming: sqlc generates one Go method per "name:" annotation.
 
 -- name: GetUserByEmail :one
-SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url, COALESCE(phone, '')::varchar(50) AS phone, last_login_at, created_at, COALESCE(employee_code, '')::varchar(50) AS employee_code
 FROM users
 WHERE email = $1;
 
 -- name: GetUserByID :one
-SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url
+SELECT id, email, password_hash, status, must_change_password, COALESCE(full_name, '')::varchar(255) AS full_name, avatar_url, COALESCE(phone, '')::varchar(50) AS phone, last_login_at, created_at, COALESCE(employee_code, '')::varchar(50) AS employee_code
 FROM users
 WHERE id = $1;
 
@@ -72,3 +72,24 @@ WHERE user_id = $1;
 UPDATE teacher_profiles
 SET avatar_url = $2, updated_at = NOW()
 WHERE user_id = $1;
+
+-- name: UpdateUserProfile :exec
+UPDATE users
+SET full_name = $2, phone = $3, updated_at = NOW()
+WHERE id = $1;
+
+-- name: SyncStudentNameAndPhone :exec
+UPDATE student_profiles
+SET
+  full_name = CASE WHEN sqlc.arg('full_name')::text <> '' THEN sqlc.arg('full_name')::text ELSE full_name END,
+  phone = sqlc.narg('phone'),
+  updated_at = NOW()
+WHERE user_id = sqlc.arg('user_id');
+
+-- name: SyncTeacherNameAndPhone :exec
+UPDATE teacher_profiles
+SET
+  full_name = CASE WHEN sqlc.arg('full_name')::text <> '' THEN sqlc.arg('full_name')::text ELSE full_name END,
+  phone = sqlc.narg('phone'),
+  updated_at = NOW()
+WHERE user_id = sqlc.arg('user_id');

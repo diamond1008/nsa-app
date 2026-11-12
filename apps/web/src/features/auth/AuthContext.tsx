@@ -26,6 +26,8 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   refreshUser?: () => Promise<UserInfo>;
   updateMyAvatar?: (avatarUrl: string | null) => Promise<UserInfo>;
+  updateMyProfile?: (input: authApi.UpdateMyProfileInput) => Promise<UserInfo>;
+  revokeOtherSessions?: () => Promise<{ message: string }>;
   hasRole: (...roles: Role[]) => boolean;
   homePath: (u?: UserInfo | null) => string;
 }
@@ -128,6 +130,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updated;
   }, []);
 
+  const updateMyProfile = useCallback(async (input: authApi.UpdateMyProfileInput) => {
+    const updated = await authApi.updateMyProfile(input);
+    setUser(updated);
+    return updated;
+  }, []);
+
+  const revokeOtherSessions = useCallback(async () => {
+    return authApi.revokeOtherSessions();
+  }, []);
+
   const value = useMemo(
     () => ({
       status,
@@ -138,6 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshUser,
       updateMyAvatar,
+      updateMyProfile,
+      revokeOtherSessions,
       hasRole,
       homePath: homePathFor,
     }),
@@ -150,6 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshUser,
       updateMyAvatar,
+      updateMyProfile,
+      revokeOtherSessions,
       hasRole,
     ],
   );

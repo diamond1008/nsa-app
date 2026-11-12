@@ -12,6 +12,7 @@ SELECT
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
   COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
+  COALESCE(u.employee_code, '')::varchar(50) AS employee_code,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -50,6 +51,7 @@ WHERE
     sqlc.narg('search')::text IS NULL
     OR u.email ILIKE '%' || sqlc.narg('search') || '%'
     OR u.full_name ILIKE '%' || sqlc.narg('search') || '%'
+    OR u.employee_code ILIKE '%' || sqlc.narg('search') || '%'
     OR sp.student_code ILIKE '%' || sqlc.narg('search') || '%'
     OR tp.teacher_code ILIKE '%' || sqlc.narg('search') || '%'
   )
@@ -83,6 +85,7 @@ WHERE
     sqlc.narg('search')::text IS NULL
     OR u.email ILIKE '%' || sqlc.narg('search') || '%'
     OR u.full_name ILIKE '%' || sqlc.narg('search') || '%'
+    OR u.employee_code ILIKE '%' || sqlc.narg('search') || '%'
     OR sp.student_code ILIKE '%' || sqlc.narg('search') || '%'
     OR tp.teacher_code ILIKE '%' || sqlc.narg('search') || '%'
   );
@@ -99,6 +102,7 @@ SELECT
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
   COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
+  COALESCE(u.employee_code, '')::varchar(50) AS employee_code,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -124,7 +128,7 @@ GROUP BY u.id, sp.student_code, tp.teacher_code, sp.avatar_url, tp.avatar_url;
 -- name: CreateUserAccount :one
 INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone, avatar_url)
 VALUES ($1, $2, $3, FALSE, $4, $5, $6)
-RETURNING id, email, status, must_change_password, full_name, phone, avatar_url, created_at, updated_at;
+RETURNING id, email, status, must_change_password, full_name, phone, avatar_url, COALESCE(employee_code, '')::varchar(50) AS employee_code, created_at, updated_at;
 
 -- name: UpdateUserStatus :one
 UPDATE users

@@ -1111,6 +1111,10 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                               <span className="inline-flex items-center font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-xs tabular-nums whitespace-nowrap">
                                 {u.teacher_code}
                               </span>
+                            ) : u.employee_code ? (
+                              <span className="inline-flex items-center font-semibold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg text-xs tabular-nums whitespace-nowrap">
+                                {u.employee_code}
+                              </span>
                             ) : (
                               <span className="text-gtext">—</span>
                             )}
@@ -1645,10 +1649,12 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
                             <span className="text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-mono text-xs whitespace-nowrap">
                               Giảng viên: {selectedUser.teacher_code}
                             </span>
-                          ) : (
-                            <span className="text-gtext font-normal italic">
-                              Không có (Nhân sự nội bộ)
+                          ) : selectedUser.employee_code ? (
+                            <span className="text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md font-mono text-xs whitespace-nowrap">
+                              Nhân viên: {selectedUser.employee_code}
                             </span>
+                          ) : (
+                            <span className="text-gtext font-normal italic">Chưa cấp mã</span>
                           )}
                         </p>
                       </div>

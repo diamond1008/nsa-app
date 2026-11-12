@@ -50,6 +50,7 @@ WHERE
     $4::text IS NULL
     OR u.email ILIKE '%' || $4 || '%'
     OR u.full_name ILIKE '%' || $4 || '%'
+    OR u.employee_code ILIKE '%' || $4 || '%'
     OR sp.student_code ILIKE '%' || $4 || '%'
     OR tp.teacher_code ILIKE '%' || $4 || '%'
   )
@@ -77,7 +78,7 @@ func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, 
 const createUserAccount = `-- name: CreateUserAccount :one
 INSERT INTO users (email, password_hash, status, must_change_password, full_name, phone, avatar_url)
 VALUES ($1, $2, $3, FALSE, $4, $5, $6)
-RETURNING id, email, status, must_change_password, full_name, phone, avatar_url, created_at, updated_at
+RETURNING id, email, status, must_change_password, full_name, phone, avatar_url, COALESCE(employee_code, '')::varchar(50) AS employee_code, created_at, updated_at
 `
 
 type CreateUserAccountParams struct {
@@ -97,6 +98,7 @@ type CreateUserAccountRow struct {
 	FullName           pgtype.Text        `json:"full_name"`
 	Phone              pgtype.Text        `json:"phone"`
 	AvatarUrl          pgtype.Text        `json:"avatar_url"`
+	EmployeeCode       string             `json:"employee_code"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
@@ -119,6 +121,7 @@ func (q *Queries) CreateUserAccount(ctx context.Context, arg CreateUserAccountPa
 		&i.FullName,
 		&i.Phone,
 		&i.AvatarUrl,
+		&i.EmployeeCode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -137,6 +140,7 @@ SELECT
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
   COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
+  COALESCE(u.employee_code, '')::varchar(50) AS employee_code,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -171,6 +175,7 @@ type GetUserDetailRow struct {
 	FullName            string             `json:"full_name"`
 	Phone               string             `json:"phone"`
 	AvatarUrl           pgtype.Text        `json:"avatar_url"`
+	EmployeeCode        string             `json:"employee_code"`
 	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
 	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
 	RoleCodes           []string           `json:"role_codes"`
@@ -193,6 +198,7 @@ func (q *Queries) GetUserDetail(ctx context.Context, id pgtype.UUID) (GetUserDet
 		&i.FullName,
 		&i.Phone,
 		&i.AvatarUrl,
+		&i.EmployeeCode,
 		&i.IsAcceptingLeads,
 		&i.LeadAssignmentOrder,
 		&i.RoleCodes,
@@ -282,6 +288,7 @@ SELECT
   COALESCE(u.full_name, '')::varchar(255) AS full_name,
   COALESCE(u.phone, '')::varchar(50) AS phone,
   COALESCE(NULLIF(u.avatar_url, ''), NULLIF(sp.avatar_url, ''), tp.avatar_url) AS avatar_url,
+  COALESCE(u.employee_code, '')::varchar(50) AS employee_code,
   COALESCE(u.is_accepting_leads, true)::boolean AS is_accepting_leads,
   COALESCE(u.lead_assignment_order, 0)::int AS lead_assignment_order,
   ARRAY_AGG(DISTINCT r.code ORDER BY r.code)::text[] AS role_codes,
@@ -320,6 +327,7 @@ WHERE
     $4::text IS NULL
     OR u.email ILIKE '%' || $4 || '%'
     OR u.full_name ILIKE '%' || $4 || '%'
+    OR u.employee_code ILIKE '%' || $4 || '%'
     OR sp.student_code ILIKE '%' || $4 || '%'
     OR tp.teacher_code ILIKE '%' || $4 || '%'
   )
@@ -348,6 +356,7 @@ type ListUsersRow struct {
 	FullName            string             `json:"full_name"`
 	Phone               string             `json:"phone"`
 	AvatarUrl           pgtype.Text        `json:"avatar_url"`
+	EmployeeCode        string             `json:"employee_code"`
 	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
 	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
 	RoleCodes           []string           `json:"role_codes"`
@@ -384,6 +393,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.FullName,
 			&i.Phone,
 			&i.AvatarUrl,
+			&i.EmployeeCode,
 			&i.IsAcceptingLeads,
 			&i.LeadAssignmentOrder,
 			&i.RoleCodes,

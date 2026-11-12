@@ -199,6 +199,7 @@ func (s *Service) List(ctx context.Context, claims *auth.AccessClaims, filter Li
 			Phone:               r.Phone,
 			AvatarURL:           data.TextPointer(r.AvatarUrl),
 			Roles:               r.RoleCodes,
+			EmployeeCode:        r.EmployeeCode,
 			StudentCode:         r.StudentCode,
 			TeacherCode:         r.TeacherCode,
 			CreatedByEmail:      r.CreatedByEmail,
@@ -247,6 +248,7 @@ func (s *Service) Get(ctx context.Context, claims *auth.AccessClaims, id string)
 		Phone:               row.Phone,
 		AvatarURL:           data.TextPointer(row.AvatarUrl),
 		Roles:               row.RoleCodes,
+		EmployeeCode:        row.EmployeeCode,
 		StudentCode:         row.StudentCode,
 		TeacherCode:         row.TeacherCode,
 		CreatedByEmail:      row.CreatedByEmail,
@@ -344,7 +346,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 	}
 
 	// Create linked minimal domain profiles for STUDENT or TEACHER if needed
-	var studentCode, teacherCode string
+	var studentCode, teacherCode, employeeCode string
 	if targetRole == auth.RoleStudent {
 		now := time.Now().UTC()
 		sName := fullNameTrimmed
@@ -390,17 +392,25 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		if err != nil && !dberror.IsCode(err, dberror.UniqueViolation) {
 			return UserView{}, fmt.Errorf("create teacher profile: %w", err)
 		}
+	} else {
+		// Staff and Admin roles have employee_code auto-assigned by DB trigger on user_roles
+		detail, err := q.GetUserDetail(ctx, createdUser.ID)
+		if err != nil {
+			return UserView{}, fmt.Errorf("load generated employee code: %w", err)
+		}
+		employeeCode = detail.EmployeeCode
 	}
 
 	auditPayload := map[string]any{
-		"email":        email,
-		"role":         targetRole,
-		"status":       string(status),
-		"full_name":    fullNameTrimmed,
-		"phone":        phoneTrimmed,
-		"avatar_url":   avatar.Redact(normalizedAvatarURL),
-		"student_code": studentCode,
-		"teacher_code": teacherCode,
+		"email":         email,
+		"role":          targetRole,
+		"status":        string(status),
+		"full_name":     fullNameTrimmed,
+		"phone":         phoneTrimmed,
+		"avatar_url":    avatar.Redact(normalizedAvatarURL),
+		"student_code":  studentCode,
+		"teacher_code":  teacherCode,
+		"employee_code": employeeCode,
 	}
 
 	if err := audit.Write(ctx, q, claims.UserID, "user.create", "user", createdUser.ID, nil, auditPayload); err != nil {
@@ -422,6 +432,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.AccessClaims, input C
 		Phone:               phoneTrimmed,
 		AvatarURL:           normalizedAvatarURL,
 		Roles:               []string{targetRole},
+		EmployeeCode:        employeeCode,
 		StudentCode:         studentCode,
 		TeacherCode:         teacherCode,
 		CreatedByEmail:      claims.Email,
@@ -601,6 +612,7 @@ func (s *Service) UpdateProfile(ctx context.Context, claims *auth.AccessClaims, 
 			Phone:               ph,
 			AvatarURL:           normalizedAvatarURL,
 			Roles:               existing.RoleCodes,
+			EmployeeCode:        existing.EmployeeCode,
 			StudentCode:         existing.StudentCode,
 			TeacherCode:         existing.TeacherCode,
 			CreatedByEmail:      existing.CreatedByEmail,

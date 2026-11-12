@@ -24,11 +24,15 @@ export interface UserInfo {
   id: string;
   email: string;
   full_name?: string;
+  phone?: string;
   avatar_url?: string | null;
+  employee_code?: string;
   roles: Role[];
   must_change_password: boolean;
   student_profile?: ProfileRef;
   teacher_profile?: ProfileRef;
+  last_login_at?: string | null;
+  created_at?: string;
 }
 
 export interface TokenBundle {

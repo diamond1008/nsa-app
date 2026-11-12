@@ -1499,6 +1499,7 @@ type User struct {
 	IsAcceptingLeads    bool               `json:"is_accepting_leads"`
 	LeadAssignmentOrder int32              `json:"lead_assignment_order"`
 	AvatarUrl           pgtype.Text        `json:"avatar_url"`
+	EmployeeCode        pgtype.Text        `json:"employee_code"`
 }
 
 type UserRole struct {

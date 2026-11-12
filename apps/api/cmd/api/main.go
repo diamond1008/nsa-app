@@ -184,6 +184,8 @@ func run() error {
 				r.Post("/change-password", authHandler.ChangePassword)
 				r.Get("/me", authHandler.Me)
 				r.Patch("/me/avatar", authHandler.UpdateMyAvatar)
+				r.Patch("/me/profile", authHandler.UpdateMyProfile)
+				r.Post("/me/revoke-other-sessions", authHandler.RevokeOtherSessions)
 			})
 		})
 

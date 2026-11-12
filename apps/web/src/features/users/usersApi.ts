@@ -15,6 +15,7 @@ export interface ManagedUser {
   phone: string;
   avatar_url?: string | null;
   roles: Role[];
+  employee_code?: string;
   student_code?: string;
   teacher_code?: string;
   created_by_email?: string;

@@ -134,6 +134,10 @@ const AIWorkflowHubPage = lazyLoad(
   () => import("../features/ai-workflows/AIWorkflowHubPage"),
   "AIWorkflowHubPage",
 );
+const PersonalAccountPage = lazyLoad(
+  () => import("../features/account/PersonalAccountPage"),
+  "PersonalAccountPage",
+);
 
 /** Blocks everything until the silent refresh finishes; forces login when anonymous. */
 function RequireAuth({ children }: { children?: ReactNode }) {
@@ -207,6 +211,15 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
+          // Personal account management (available to all authenticated roles)
+          {
+            path: "/account",
+            element: <PersonalAccountPage />,
+          },
+          {
+            path: "/tai-khoan",
+            element: <Navigate to="/account" replace />,
+          },
           // Sale CRM routes
           {
             path: "/sale",

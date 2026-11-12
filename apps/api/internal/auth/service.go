@@ -58,11 +58,15 @@ type UserInfo struct {
 	ID                 string       `json:"id"`
 	Email              string       `json:"email"`
 	FullName           string       `json:"full_name,omitempty"`
+	Phone              string       `json:"phone,omitempty"`
 	AvatarURL          *string      `json:"avatar_url,omitempty"`
+	EmployeeCode       string       `json:"employee_code,omitempty"`
 	Roles              []string     `json:"roles"`
 	MustChangePassword bool         `json:"must_change_password"`
 	StudentProfile     *ProfileInfo `json:"student_profile,omitempty"`
 	TeacherProfile     *ProfileInfo `json:"teacher_profile,omitempty"`
+	LastLoginAt        *time.Time   `json:"last_login_at,omitempty"`
+	CreatedAt          time.Time    `json:"created_at"`
 }
 
 // TokenBundle is the result of a successful login or refresh.
@@ -134,7 +138,11 @@ func (s *Service) Login(ctx context.Context, email, password string) (*TokenBund
 		return nil, fmt.Errorf("login roles: %w", err)
 	}
 
-	bundle, err := s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false)
+	var lastLogin *time.Time
+	if user.LastLoginAt.Valid {
+		lastLogin = &user.LastLoginAt.Time
+	}
+	bundle, err := s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false, user.Phone, lastLogin, user.CreatedAt.Time, user.EmployeeCode)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +185,11 @@ func (s *Service) LoginSSO(ctx context.Context, provider, email string) (*TokenB
 		}
 	}
 
-	bundle, err := s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false)
+	var lastLogin *time.Time
+	if user.LastLoginAt.Valid {
+		lastLogin = &user.LastLoginAt.Time
+	}
+	bundle, err := s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false, user.Phone, lastLogin, user.CreatedAt.Time, user.EmployeeCode)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +487,11 @@ func (s *Service) Refresh(ctx context.Context, presentedToken string) (*TokenBun
 	if err != nil {
 		return nil, fmt.Errorf("refresh roles: %w", err)
 	}
-	return s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false)
+	var lastLogin *time.Time
+	if user.LastLoginAt.Valid {
+		lastLogin = &user.LastLoginAt.Time
+	}
+	return s.issueBundle(ctx, user.ID, user.Email, user.FullName, data.TextPointer(user.AvatarUrl), roles, false, user.Phone, lastLogin, user.CreatedAt.Time, user.EmployeeCode)
 }
 
 // Logout revokes the presented refresh token. Idempotent by design.
@@ -543,16 +559,87 @@ func (s *Service) Me(ctx context.Context, userID string) (*UserInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("me roles: %w", err)
 	}
+	var lastLogin *time.Time
+	if user.LastLoginAt.Valid {
+		lastLogin = &user.LastLoginAt.Time
+	}
 	info := &UserInfo{
 		ID:                 userID,
 		Email:              user.Email,
 		FullName:           user.FullName,
+		Phone:              user.Phone,
 		AvatarURL:          data.TextPointer(user.AvatarUrl),
+		EmployeeCode:       user.EmployeeCode,
 		Roles:              roles,
 		MustChangePassword: user.MustChangePassword,
+		LastLoginAt:        lastLogin,
+		CreatedAt:          user.CreatedAt.Time,
 	}
 	s.attachProfiles(ctx, uid, info)
 	return info, nil
+}
+
+// UpdateMyProfile updates full_name and phone for the authenticated user and syncs to student/teacher profiles.
+func (s *Service) UpdateMyProfile(ctx context.Context, userID string, fullName string, rawPhone *string) (*UserInfo, error) {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	fn := strings.TrimSpace(fullName)
+	if fn == "" {
+		return nil, errors.New("họ và tên không được để trống")
+	}
+	if len([]rune(fn)) > 200 {
+		return nil, errors.New("họ và tên không được vượt quá 200 ký tự")
+	}
+
+	var phoneVal string
+	if rawPhone != nil {
+		raw := strings.TrimSpace(*rawPhone)
+		if raw != "" {
+			cleanPhone := strings.NewReplacer(" ", "", "-", "", ".", "", "(", "", ")", "").Replace(raw)
+			if !strings.HasPrefix(cleanPhone, "0") {
+				return nil, errors.New("số điện thoại phải bắt đầu bằng chữ số 0")
+			}
+			for _, c := range cleanPhone {
+				if c < '0' || c > '9' {
+					return nil, errors.New("số điện thoại chỉ được chứa các chữ số")
+				}
+			}
+			if len(cleanPhone) < 10 || len(cleanPhone) > 11 {
+				return nil, errors.New("số điện thoại phải gồm 10 hoặc 11 chữ số")
+			}
+			phoneVal = cleanPhone
+		}
+	}
+
+	fnText := data.Text(&fn)
+	var phText pgtype.Text
+	if phoneVal != "" {
+		phText = data.Text(&phoneVal)
+	}
+
+	if err := s.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
+		ID:       uid,
+		FullName: fnText,
+		Phone:    phText,
+	}); err != nil {
+		return nil, fmt.Errorf("update user profile: %w", err)
+	}
+
+	_ = s.queries.SyncStudentNameAndPhone(ctx, db.SyncStudentNameAndPhoneParams{
+		UserID:   uid,
+		FullName: fn,
+		Phone:    phText,
+	})
+	_ = s.queries.SyncTeacherNameAndPhone(ctx, db.SyncTeacherNameAndPhoneParams{
+		UserID:   uid,
+		FullName: fn,
+		Phone:    phText,
+	})
+
+	return s.Me(ctx, userID)
 }
 
 // UpdateMyAvatar updates the authenticated user's WebP avatar across users, student_profiles, and teacher_profiles.
@@ -583,8 +670,33 @@ func (s *Service) UpdateMyAvatar(ctx context.Context, userID string, rawAvatarUR
 	return s.Me(ctx, userID)
 }
 
+// RevokeOtherSessions revokes all sessions for the user and issues a fresh refresh token for the current session.
+func (s *Service) RevokeOtherSessions(ctx context.Context, userID string) (string, time.Time, error) {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return "", time.Time{}, ErrUserNotFound
+	}
+	if err := s.queries.RevokeAllRefreshTokensForUser(ctx, uid); err != nil {
+		return "", time.Time{}, fmt.Errorf("revoke tokens: %w", err)
+	}
+	refreshToken, err := GenerateRefreshToken()
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	refreshExpiresAt := time.Now().UTC().Add(s.refreshTTL)
+	_, err = s.queries.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
+		UserID:    uid,
+		TokenHash: HashRefreshToken(refreshToken),
+		ExpiresAt: pgtype.Timestamptz{Time: refreshExpiresAt, Valid: true},
+	})
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("re-issue refresh token: %w", err)
+	}
+	return refreshToken, refreshExpiresAt, nil
+}
+
 // issueBundle creates the access token + persisted refresh token pair.
-func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email string, fullName string, avatarURL *string, roles []string, mustChangePassword bool) (*TokenBundle, error) {
+func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email string, fullName string, avatarURL *string, roles []string, mustChangePassword bool, phone string, lastLoginAt *time.Time, createdAt time.Time, employeeCode string) (*TokenBundle, error) {
 	userIDStr := data.UUIDString(userID)
 	accessToken, accessExpiresAt, err := s.tokens.Issue(userIDStr, email, roles)
 	if err != nil {
@@ -608,9 +720,13 @@ func (s *Service) issueBundle(ctx context.Context, userID pgtype.UUID, email str
 		ID:                 userIDStr,
 		Email:              email,
 		FullName:           fullName,
+		Phone:              phone,
 		AvatarURL:          avatarURL,
+		EmployeeCode:       employeeCode,
 		Roles:              roles,
 		MustChangePassword: mustChangePassword,
+		LastLoginAt:        lastLoginAt,
+		CreatedAt:          createdAt,
 	}
 	s.attachProfiles(ctx, userID, info)
 

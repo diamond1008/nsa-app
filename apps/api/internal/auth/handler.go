@@ -285,6 +285,58 @@ func (h *Handler) UpdateMyAvatar(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, info)
 }
 
+type updateProfileRequest struct {
+	FullName string  `json:"full_name"`
+	Phone    *string `json:"phone"`
+}
+
+// UpdateMyProfile handles PATCH /api/v1/auth/me/profile (requires auth).
+func (h *Handler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFrom(r.Context())
+	if !ok {
+		response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+	var req updateProfileRequest
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		response.Fail(w, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON")
+		return
+	}
+	info, err := h.svc.UpdateMyProfile(r.Context(), userID, req.FullName, req.Phone)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Account no longer exists")
+			return
+		}
+		response.Fail(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	response.OK(w, info)
+}
+
+// RevokeOtherSessions handles POST /api/v1/auth/me/revoke-other-sessions (requires auth).
+func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFrom(r.Context())
+	if !ok {
+		response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		return
+	}
+	newToken, expiresAt, err := h.svc.RevokeOtherSessions(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Account no longer exists")
+			return
+		}
+		response.InternalError(w, h.log, RequestIDFrom(r.Context()), err)
+		return
+	}
+	h.setRefreshCookie(w, newToken, expiresAt)
+	response.OK(w, map[string]string{"message": "Đã đăng xuất khỏi tất cả các thiết bị khác thành công."})
+}
+
 // ---------- Helpers ----------
 
 // setRefreshCookie writes the refresh token cookie (HttpOnly, SameSite=None when Secure,

@@ -17,6 +17,7 @@ type UserView struct {
 	Phone               string     `json:"phone"`
 	AvatarURL           *string    `json:"avatar_url"`
 	Roles               []string   `json:"roles"`
+	EmployeeCode        string     `json:"employee_code,omitempty"`
 	StudentCode         string     `json:"student_code,omitempty"`
 	TeacherCode         string     `json:"teacher_code,omitempty"`
 	CreatedByEmail      string     `json:"created_by_email,omitempty"`
