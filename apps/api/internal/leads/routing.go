@@ -187,8 +187,11 @@ func (s *Service) ListSaleStaff(ctx context.Context) ([]SaleStaffView, error) {
 	items := make([]SaleStaffView, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, SaleStaffView{
-			ID:    data.UUIDString(row.ID),
-			Email: row.Email,
+			ID:           data.UUIDString(row.ID),
+			Email:        row.Email,
+			FullName:     row.FullName,
+			EmployeeCode: row.EmployeeCode,
+			AvatarURL:    row.AvatarUrl,
 		})
 	}
 	return items, nil

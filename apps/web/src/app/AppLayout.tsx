@@ -38,10 +38,12 @@ const NAV_GROUPS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { to: "/sale", label: "Tổng quan", end: true },
         { to: "/sale/leads", label: "Quản lý Lead" },
+        { to: "/sale/hoc-vien", label: "Học viên" },
         { to: "/sale/phieu-dang-ky", label: "Phiếu đăng ký" },
         { to: "/sale/phieu-thu", label: "Phiếu thu" },
         { to: "/sale/reports", label: "Báo cáo" },
         { to: "/sale/ai-workflows", label: "Trợ lý Quy trình AI" },
+        { to: "/sale/users", label: "Đội ngũ Sale" },
       ],
     },
     {
@@ -403,7 +405,7 @@ export default function AppLayout() {
             )}
           </button>
           {notificationsOpen && (
-            <div className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/90 bg-white/85 backdrop-blur-3xl shadow-elevated animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/90 bg-white/85 backdrop-blur-3xl shadow-elevated animate-ios-spring-pop">
               <div className="border-b border-white/70 bg-white/40 px-4 py-3">
                 <b className="text-sm text-navy">Thông báo</b>
                 <p className="text-xs text-gtext">{notifications.data?.unread ?? 0} chưa đọc</p>
@@ -659,7 +661,7 @@ export default function AppLayout() {
 
             {/* Tagline tooltip when collapsed and hovering logo */}
             {collapsed && !mobile && isHoveredLogo && (
-              <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-full bg-white px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-xl border border-slate-200/90 animate-in fade-in zoom-in-95 duration-150">
+              <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-full bg-white px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-xl border border-slate-200/90 animate-ios-spring-pop">
                 Mở rộng thanh điều hướng
               </div>
             )}
@@ -711,7 +713,7 @@ export default function AppLayout() {
 
                 {/* Tagline tooltip when hovering collapse button in expanded mode */}
                 {isHoveredCollapse && (
-                  <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-full bg-white px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-xl border border-slate-200/90 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-full bg-white px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-xl border border-slate-200/90 animate-ios-spring-pop">
                     Thu nhỏ thanh điều hướng
                   </div>
                 )}
@@ -792,7 +794,7 @@ export default function AppLayout() {
                   !mobile &&
                   (group.to ? (
                     <div
-                      className="absolute left-full top-0 z-50 flex items-center h-11 pl-2 drop-shadow-md animate-in fade-in zoom-in-95 duration-100"
+                      className="absolute left-full top-0 z-50 flex items-center h-11 pl-2 drop-shadow-md animate-ios-spring-pop"
                       onMouseEnter={() => handleMouseEnterFlyout(group.id)}
                       onMouseLeave={handleMouseLeaveGroup}
                     >
@@ -803,14 +805,14 @@ export default function AppLayout() {
                           setHoveredGroupId(null);
                           setShowTooltipBadge(false);
                         }}
-                        className="flex items-center bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-slate-800 rounded-lg shadow-md border border-white/90 whitespace-nowrap cursor-pointer hover:text-[#0532e6] transition-colors"
+                        className="flex items-center bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-slate-800 rounded-lg shadow-md border border-white/90 whitespace-nowrap cursor-pointer hover:text-[#0532e6] transition-colors ios-press"
                       >
                         {group.label}
                       </button>
                     </div>
                   ) : (
                     <div
-                      className="absolute left-full top-0 z-50 flex flex-col min-w-[210px] drop-shadow-2xl animate-in fade-in zoom-in-95 duration-100"
+                      className="absolute left-full top-0 z-50 flex flex-col min-w-[210px] drop-shadow-2xl animate-ios-spring-pop"
                       onMouseEnter={() => handleMouseEnterFlyout(group.id)}
                       onMouseLeave={handleMouseLeaveGroup}
                     >

@@ -579,7 +579,9 @@ export function PersonalAccountPage() {
                 )}
 
                 {/* Sale shortcuts */}
-                {(user.roles.includes("SALE_ADMIN") || user.roles.includes("SALE")) && (
+                {(user.roles.includes("ADMIN") ||
+                  user.roles.includes("SALE_ADMIN") ||
+                  user.roles.includes("SALE")) && (
                   <>
                     <Link
                       to="/sale/leads"
@@ -601,6 +603,18 @@ export function PersonalAccountPage() {
                       </span>
                       <Icon name="chevron-right" className="h-3.5 w-3.5 text-slate-400" />
                     </Link>
+                    {(user.roles.includes("ADMIN") || user.roles.includes("SALE_ADMIN")) && (
+                      <Link
+                        to="/sale/users"
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 transition-all text-xs font-semibold text-slate-800"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon name="users" className="h-4 w-4 text-indigo-600" />
+                          Quản lý Đội ngũ Sale
+                        </span>
+                        <Icon name="chevron-right" className="h-3.5 w-3.5 text-slate-400" />
+                      </Link>
+                    )}
                     <Link
                       to="/sale/phieu-dang-ky"
                       className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 transition-all text-xs font-semibold text-slate-800"

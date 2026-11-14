@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 
@@ -766,6 +767,35 @@ export function UserManagementPage({ mode = "all" }: UserManagementPageProps) {
           </Button>
         }
       />
+
+      {/* Admin Mode Switcher: Cho phép Admin chuyển đổi quản lý Tất cả tài khoản hoặc Đội ngũ Sale */}
+      {user?.roles?.includes("ADMIN") && (
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/70 border border-white/80 shadow-2xs backdrop-blur-md w-fit">
+          <Link
+            to="/admin/users"
+            className={clsx(
+              "px-4 py-1.5 rounded-xl text-xs font-bold transition-all ios-press",
+              mode === "all"
+                ? "bg-white text-navy shadow-xs border border-white/90"
+                : "text-slate-500 hover:text-navy hover:bg-white/50",
+            )}
+          >
+            Tất cả tài khoản
+          </Link>
+          <Link
+            to="/sale/users"
+            className={clsx(
+              "px-4 py-1.5 rounded-xl text-xs font-bold transition-all ios-press flex items-center gap-1.5",
+              mode === "sale"
+                ? "bg-white text-[#0532e6] shadow-xs border border-white/90"
+                : "text-slate-500 hover:text-navy hover:bg-white/50",
+            )}
+          >
+            <Icon name="user-check" className="h-3.5 w-3.5" />
+            Đội ngũ Sale & Phân bổ Lead
+          </Link>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <FilterBar

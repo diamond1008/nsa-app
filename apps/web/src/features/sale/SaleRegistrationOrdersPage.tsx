@@ -23,6 +23,7 @@ import { formatVND } from "./saleShared";
 import { CreateRegistrationOrderModal } from "./CreateRegistrationOrderModal";
 import { UpdateOrderStatusModal } from "./UpdateOrderStatusModal";
 import { EditInstallmentsModal } from "./EditInstallmentsModal";
+import { ClassSelectorDropdown } from "./SaleDropdowns";
 import { parseOrderInstallmentPlan } from "./installmentUtils";
 
 export function SaleRegistrationOrdersPage() {
@@ -511,6 +512,7 @@ export function SaleRegistrationOrdersPage() {
             setAssignClassError("");
           }}
           title="Xếp Lớp Cho Học Viên (Phòng Chờ)"
+          className="max-w-2xl"
         >
           <div className="space-y-4">
             {assignClassError && <ErrorBanner message={assignClassError} />}
@@ -545,32 +547,16 @@ export function SaleRegistrationOrdersPage() {
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Chọn lớp học khả dụng để xếp học viên vào *
               </label>
-              <select
+              <ClassSelectorDropdown
                 value={targetClassId}
-                onChange={(e) => setTargetClassId(e.target.value)}
-                className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium shadow-2xs focus:border-[#0532e6] focus:outline-hidden"
-              >
-                <option value="">-- Chọn lớp học --</option>
-                {availableClasses
-                  .filter(
-                    (c) =>
-                      !assigningClassOrder.course_id ||
-                      c.course_id === assigningClassOrder.course_id,
-                  )
-                  .map((c) => {
-                    const enrolled = c.enrolled_students ?? 0;
-                    const max = c.maximum_students ?? 0;
-                    const remaining = Math.max(0, max - enrolled);
-                    return (
-                      <option key={c.id} value={c.id} disabled={remaining <= 0}>
-                        {c.course_code ? `[${c.course_code}] ` : ""}
-                        {c.name} ({c.class_code}) —{" "}
-                        {c.start_date ? `Khai giảng: ${formatDate(c.start_date)} · ` : ""}Còn{" "}
-                        {remaining} chỗ ({enrolled}/{max})
-                      </option>
-                    );
-                  })}
-              </select>
+                onChange={setTargetClassId}
+                classes={availableClasses.filter(
+                  (c) =>
+                    !assigningClassOrder.course_id || c.course_id === assigningClassOrder.course_id,
+                )}
+                placeholder="-- Chọn lớp học mở tuyển sinh --"
+                required
+              />
               {availableClasses.filter(
                 (c) =>
                   !assigningClassOrder.course_id || c.course_id === assigningClassOrder.course_id,

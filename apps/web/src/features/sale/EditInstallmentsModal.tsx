@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { Button, ErrorBanner, Modal } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import type { Order } from "../../lib/domainTypes";
-import { mutationMessage } from "../../lib/format";
+import { formatDate, mutationMessage } from "../../lib/format";
 import { saleKeys } from "../../lib/queryKeys";
 import { saleApi } from "./saleApi";
 import { formatVND } from "./saleShared";
@@ -122,7 +122,12 @@ export function EditInstallmentsModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={`Sửa Kế Hoạch Đợt Đóng: ${order.order_code}`}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Sửa Kế Hoạch Đợt Đóng: ${order.order_code}`}
+      className="max-w-2xl sm:max-w-3xl"
+    >
       <div className="space-y-4">
         {formError && <ErrorBanner message={formError} />}
 
@@ -172,30 +177,14 @@ export function EditInstallmentsModal({
           <>
             {/* Pick Number of Remaining Installments */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-slate-800">
-                Chia số tiền còn lại ({formatVND(remainingAmount)}) thành mấy đợt?
-              </label>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0532e6] border border-blue-100 shrink-0">
-                    <Icon name="calendar" className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-800">
-                        Số đợt còn lại tùy ý:
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-[11px] font-bold text-[#0532e6] border border-blue-200/80">
-                        {newRemainingRounds === 1
-                          ? "1 đợt (Thu hết phần còn lại)"
-                          : `Chia làm ${newRemainingRounds} đợt`}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Dự kiến ~{formatVND(Math.round(remainingAmount / newRemainingRounds))}/đợt
-                    </p>
-                  </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200/90 bg-white">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">
+                    Chia số tiền còn lại ({formatVND(remainingAmount)}) thành mấy đợt?
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Dự kiến ~{formatVND(Math.round(remainingAmount / newRemainingRounds))}/đợt
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-1.5 self-start sm:self-center">
@@ -203,7 +192,7 @@ export function EditInstallmentsModal({
                     type="button"
                     onClick={() => handleUpdateRemainingRounds(newRemainingRounds - 1)}
                     disabled={newRemainingRounds <= 1}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-base"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-sm"
                     title="Giảm 1 đợt"
                   >
                     -
@@ -216,14 +205,14 @@ export function EditInstallmentsModal({
                       value={customRoundsInput || String(newRemainingRounds)}
                       onChange={(e) => handleCustomChange(e.target.value)}
                       onBlur={handleCustomBlur}
-                      className="w-16 h-9 text-center text-sm font-extrabold text-[#0532e6] rounded-xl border border-slate-300 focus:border-[#0532e6] focus:ring-2 focus:ring-[#0532e6]/20 bg-slate-50/80"
+                      className="w-14 h-8 text-center text-xs font-bold text-[#0532e6] rounded-lg border border-slate-300 focus:border-[#0532e6] focus:ring-1 focus:ring-[#0532e6]/20 bg-slate-50/80"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => handleUpdateRemainingRounds(newRemainingRounds + 1)}
                     disabled={newRemainingRounds >= 20}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-base"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-sm"
                     title="Tăng 1 đợt"
                   >
                     +
@@ -235,7 +224,7 @@ export function EditInstallmentsModal({
 
             {/* Preview of the updated installment schedule */}
             {previewMeta && (
-              <div className="space-y-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-3 text-xs">
+              <div className="space-y-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-3.5 text-xs">
                 <div className="flex items-center justify-between text-slate-700 font-semibold text-[11px]">
                   <span>Kế hoạch đóng mới ({previewMeta.total_installments} đợt tổng cộng):</span>
                   <span className="text-[#0532e6] font-bold">{formatVND(order.final_amount)}</span>
@@ -264,9 +253,12 @@ export function EditInstallmentsModal({
                           >
                             {inst.round}
                           </span>
-                          <span className="font-medium">
-                            Đợt {inst.round} ({inst.percentage}%)
-                          </span>
+                          <span className="font-medium">Đợt {inst.round}</span>
+                          {inst.due_date && (
+                            <span className="text-[11px] text-slate-400">
+                              (Hạn: {formatDate(inst.due_date)})
+                            </span>
+                          )}
                           {isPaid ? (
                             <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-full">
                               ✓ Đã thu ({inst.receipt_code || "PT"})
@@ -284,8 +276,7 @@ export function EditInstallmentsModal({
                 </div>
                 <p className="text-[11px] text-slate-500 italic pt-1">
                   * Các đợt đã thu tiền trước đây ({paidInstallments.length} đợt) được bảo lưu
-                  nguyên trạng. Số tiền còn lại được phân bổ đều cho {newRemainingRounds} đợt kế
-                  tiếp.
+                  nguyên trạng. Số tiền còn lại được phân bổ cho {newRemainingRounds} đợt kế tiếp.
                 </p>
               </div>
             )}

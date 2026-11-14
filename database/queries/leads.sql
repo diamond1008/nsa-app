@@ -247,7 +247,10 @@ ORDER BY month_revenue DESC, converted_leads DESC, total_leads DESC;
 -- name: ListSaleStaff :many
 SELECT DISTINCT
   u.id,
-  u.email
+  u.email,
+  COALESCE(u.full_name, '')::varchar AS full_name,
+  COALESCE(u.employee_code, '')::varchar AS employee_code,
+  COALESCE(u.avatar_url, '')::text AS avatar_url
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 JOIN roles r ON r.id = ur.role_id

@@ -20,6 +20,7 @@ import { saleApi } from "./saleApi";
 import type { ConvertLeadInput } from "./saleApi";
 import type { ConvertResult, TrainingClass } from "../../lib/domainTypes";
 import { formatVND, generateStudentPassword, getSourceLabel } from "./saleShared";
+import { CourseSelectorDropdown } from "./SaleDropdowns";
 
 export function LeadConvertPage() {
   const { id } = useParams<{ id: string }>();
@@ -573,21 +574,16 @@ export function LeadConvertPage() {
                   </div>
                 ) : (
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                       Khóa học đăng ký vào phòng chờ *
                     </label>
-                    <select
+                    <CourseSelectorDropdown
                       value={courseId}
-                      onChange={(e) => setCourseId(e.target.value)}
-                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium shadow-2xs focus:border-[#0532e6] focus:outline-hidden"
-                    >
-                      <option value="">-- Chọn khóa học đăng ký chờ mở lớp --</option>
-                      {coursesQuery.data?.items?.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          [{c.code}] {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setCourseId}
+                      courses={coursesQuery.data?.items ?? []}
+                      required
+                      placeholder="-- Chọn khóa học đăng ký chờ mở lớp --"
+                    />
                     <p className="mt-1.5 text-[11px] text-slate-500">
                       Học viên sẽ được cấp mã học viên, tạo tài khoản và đơn hàng ở trạng thái{" "}
                       <strong>Phòng chờ</strong>. Sau này khi có lớp mở, Sale hoặc Quản lý chỉ cần

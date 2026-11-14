@@ -1083,7 +1083,10 @@ func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLea
 const listSaleStaff = `-- name: ListSaleStaff :many
 SELECT DISTINCT
   u.id,
-  u.email
+  u.email,
+  COALESCE(u.full_name, '')::varchar AS full_name,
+  COALESCE(u.employee_code, '')::varchar AS employee_code,
+  COALESCE(u.avatar_url, '')::text AS avatar_url
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 JOIN roles r ON r.id = ur.role_id
@@ -1092,8 +1095,11 @@ ORDER BY u.email ASC
 `
 
 type ListSaleStaffRow struct {
-	ID    pgtype.UUID `json:"id"`
-	Email string      `json:"email"`
+	ID           pgtype.UUID `json:"id"`
+	Email        string      `json:"email"`
+	FullName     string      `json:"full_name"`
+	EmployeeCode string      `json:"employee_code"`
+	AvatarUrl    string      `json:"avatar_url"`
 }
 
 func (q *Queries) ListSaleStaff(ctx context.Context) ([]ListSaleStaffRow, error) {
@@ -1105,7 +1111,13 @@ func (q *Queries) ListSaleStaff(ctx context.Context) ([]ListSaleStaffRow, error)
 	items := []ListSaleStaffRow{}
 	for rows.Next() {
 		var i ListSaleStaffRow
-		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FullName,
+			&i.EmployeeCode,
+			&i.AvatarUrl,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

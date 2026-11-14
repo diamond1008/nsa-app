@@ -705,6 +705,9 @@ export interface Order {
 export interface SaleStaff {
   id: string;
   email: string;
+  full_name?: string;
+  employee_code?: string;
+  avatar_url?: string;
 }
 
 export interface SaleDashboardStats {

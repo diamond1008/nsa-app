@@ -53,7 +53,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex h-10 touch-manipulation items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold select-none cursor-pointer",
+        "inline-flex h-10 touch-manipulation items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold select-none cursor-pointer ios-press",
         "transition-colors duration-150 active:opacity-90",
         "disabled:cursor-not-allowed disabled:opacity-50",
         buttonStyles[variant],
@@ -356,7 +356,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
               maxHeight: `${dropdownCoords.maxHeight ?? 260}px`,
               zIndex: 10005,
             }}
-            className="max-w-[min(32rem,calc(100vw-24px))] overflow-y-auto overscroll-contain rounded-2xl border border-white/95 bg-white/95 backdrop-blur-3xl p-1.5 shadow-[0_20px_50px_rgba(7,20,38,0.2),0_0_0_1px_rgba(255,255,255,0.9)] animate-in fade-in zoom-in-95 duration-150 motion-reduce:animate-none"
+            className="max-w-[min(32rem,calc(100vw-24px))] overflow-y-auto overscroll-contain rounded-2xl border border-white/95 bg-white/95 backdrop-blur-3xl p-1.5 shadow-[0_20px_50px_rgba(7,20,38,0.2),0_0_0_1px_rgba(255,255,255,0.9)] animate-ios-spring-pop motion-reduce:animate-none"
           >
             {options.map((opt, idx) => {
               const isSelected = opt.value === stringVal;
@@ -447,11 +447,20 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   );
 });
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
+export function Card({
+  className,
+  interactive = false,
+  children,
+}: {
+  className?: string;
+  interactive?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div
       className={clsx(
-        "rounded-2xl border border-white/85 bg-white/70 backdrop-blur-xl p-5 shadow-card md:p-6 transition-all duration-200",
+        "rounded-2xl border border-white/85 bg-white/70 backdrop-blur-xl p-5 shadow-card md:p-6",
+        interactive ? "ios-card-interactive cursor-pointer" : "transition-all duration-200",
         className,
       )}
     >
@@ -491,7 +500,10 @@ export function FullPageLoading() {
 
 export function Skeleton({ className }: { className?: string }) {
   return (
-    <div aria-hidden className={clsx("animate-pulse rounded-lg bg-slate-200/80", className)} />
+    <div
+      aria-hidden
+      className={clsx("instagram-shimmer rounded-lg border border-slate-200/50", className)}
+    />
   );
 }
 
@@ -741,7 +753,7 @@ export function Modal({
         aria-labelledby={titleId}
         onKeyDown={trapFocus}
         className={clsx(
-          "max-h-[90dvh] w-full max-w-xl overscroll-contain rounded-t-3xl sm:rounded-3xl border border-white/95 bg-white/90 backdrop-blur-3xl shadow-[0_32px_80px_rgba(7,20,38,0.22),0_0_0_1px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] flex flex-col animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none",
+          "max-h-[90dvh] w-full max-w-xl overscroll-contain rounded-t-3xl sm:rounded-3xl border border-white/95 bg-white/90 backdrop-blur-3xl shadow-[0_32px_80px_rgba(7,20,38,0.22),0_0_0_1px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] flex flex-col animate-ios-spring-pop motion-reduce:animate-none",
           className,
         )}
       >
@@ -757,7 +769,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 touch-manipulation items-center justify-center rounded-xl text-gtext transition-colors duration-150 hover:bg-gbg2 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0532e6]"
+            className="flex h-9 w-9 touch-manipulation items-center justify-center rounded-xl text-gtext transition-colors duration-150 hover:bg-gbg2 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0532e6] ios-press cursor-pointer"
             aria-label="Đóng"
           >
             <Icon name="close" className="h-5 w-5" />

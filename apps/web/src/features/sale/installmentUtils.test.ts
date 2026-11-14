@@ -91,7 +91,7 @@ describe("installmentUtils", () => {
       user_notes: userNote,
     });
 
-    expect(serialized).toContain("[CHÍNH SÁCH ĐÓNG HỌC PHÍ: Đóng 3 lần (40% - 30% - 30%)]");
+    expect(serialized).toContain("[KẾ HOẠCH ĐÓNG HỌC PHÍ: 3 đợt]");
     expect(serialized).toContain("Khách hẹn đóng đợt 2 vào tuần sau");
     expect(serialized).toContain("<!--INSTALLMENT_DATA:");
 

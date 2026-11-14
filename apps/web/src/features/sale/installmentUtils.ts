@@ -57,8 +57,9 @@ export function getInstallmentPlanOption(count: number): InstallmentPlanOption {
 
 export interface InstallmentItem {
   round: number; // 1, 2, ...
-  percentage: number;
+  percentage?: number;
   amount: number;
+  due_date?: string;
   status: "pending" | "paid";
   receipt_code?: string;
   payment_method?: string;
@@ -331,21 +332,21 @@ export function formatOrderNotesWithInstallments(
   userNotes: string,
   metadata: InstallmentMetadata,
 ): string {
-  const plan = getInstallmentPlanOption(metadata.total_installments || metadata.plan_type);
+  const totalCount = metadata.installments?.length || metadata.total_installments || 1;
   const lines: string[] = [];
-  lines.push(`[CHÍNH SÁCH ĐÓNG HỌC PHÍ: ${plan.label}]`);
+  lines.push(`[KẾ HOẠCH ĐÓNG HỌC PHÍ: ${totalCount} đợt]`);
 
   metadata.installments.forEach((inst) => {
+    const dueStr = inst.due_date ? ` (Hạn nộp: ${inst.due_date})` : "";
+    const pctStr = inst.percentage ? ` (${inst.percentage}%)` : "";
     const statusText =
       inst.status === "paid"
         ? `Đã thu (${inst.receipt_code || "PT"}, ${formatVND(inst.amount)})`
         : `Chưa thu (${formatVND(inst.amount)})`;
-    lines.push(
-      `• Đợt ${inst.round} (${inst.percentage}%): ${formatVND(inst.amount)} - ${statusText}`,
-    );
+    lines.push(`• Đợt ${inst.round}${pctStr}: ${formatVND(inst.amount)}${dueStr} - ${statusText}`);
   });
 
-  if (userNotes.trim()) {
+  if (userNotes?.trim()) {
     lines.push(`Ghi chú: ${userNotes.trim()}`);
   }
 

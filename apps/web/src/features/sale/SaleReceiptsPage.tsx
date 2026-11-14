@@ -142,7 +142,9 @@ export function SaleReceiptsPage() {
           discountAmount: order.discount_amount,
           round: inst.round,
           totalRounds: meta.total_installments,
-          percentage: inst.percentage,
+          percentage:
+            inst.percentage ??
+            (order.final_amount > 0 ? Math.round((inst.amount / order.final_amount) * 100) : 0),
           paymentMethod: inst.payment_method || order.payment_method || undefined,
           status: "paid",
           paidAt: inst.paid_at || order.paid_at || order.created_at,

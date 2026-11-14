@@ -470,3 +470,135 @@ body {
   animation: geminiSlideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
+
+/* ==========================================================================
+   iOS & Instagram Animation System (Spring Physics, Shimmer & Tactile Touch)
+   ========================================================================== */
+
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-ios-sheet: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-ios-press: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Tactile iOS Press / Click Feedback */
+.ios-press {
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease-out,
+    filter 0.16s ease-out !important;
+  will-change: transform;
+}
+.ios-press:active {
+  transform: scale(0.965) !important;
+}
+
+.ios-card-interactive {
+  transition:
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease-out,
+    border-color 0.22s ease-out;
+  will-change: transform, box-shadow;
+}
+.ios-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 28px -4px rgba(0, 18, 88, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
+}
+.ios-card-interactive:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: 0 4px 12px -2px rgba(0, 18, 88, 0.05);
+}
+
+/* iOS Spring Pop-In (Elastic entrance for Modals, Dropdowns & Popovers) */
+@keyframes springPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.93) translateY(6px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.018) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-ios-spring-pop {
+  animation: springPopIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Instagram Specular Shimmer Skeleton */
+@keyframes instagramShimmerSweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.instagram-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(238, 242, 246, 0.8) 0%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(238, 242, 246, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: instagramShimmerSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Staggered entrance for lists and dashboard grids */
+@keyframes staggerFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-stagger-1 {
+  animation: staggerFadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 40ms;
+}
+.animate-stagger-2 {
+  animation: staggerFadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 90ms;
+}
+.animate-stagger-3 {
+  animation: staggerFadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 140ms;
+}
+.animate-stagger-4 {
+  animation: staggerFadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 190ms;
+}
+
+/* iOS Segmented Pill Slider Track */
+.ios-pill-track {
+  background: rgba(238, 242, 246, 0.7);
+  backdrop-filter: blur(12px);
+  padding: 3px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 1px 2px rgba(0, 18, 88, 0.04);
+}
+
+.ios-pill-item {
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ios-pill-item-active {
+  background: #ffffff;
+  color: #0532e6;
+  box-shadow:
+    0 2px 8px rgba(5, 50, 230, 0.12),
+    0 1px 2px rgba(0, 18, 88, 0.04);
+}

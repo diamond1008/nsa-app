@@ -160,8 +160,11 @@ type ConvertResult struct {
 
 // SaleStaffView represents a staff user for assignment selection.
 type SaleStaffView struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
+	ID           string `json:"id"`
+	Email        string `json:"email"`
+	FullName     string `json:"full_name"`
+	EmployeeCode string `json:"employee_code"`
+	AvatarURL    string `json:"avatar_url"`
 }
 
 // ActionAlerts captures items requiring immediate manager/team action.

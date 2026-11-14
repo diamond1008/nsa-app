@@ -22,6 +22,7 @@ import type { Course, Lead, SaleStaff } from "../../lib/domainTypes";
 import { formatDate, mutationMessage } from "../../lib/format";
 import { LeadChartsView } from "./LeadChartsView";
 import { LeadDetailDrawer } from "./LeadDetailDrawer";
+import { SaleStaffSelectorDropdown } from "./SaleDropdowns";
 import { saleApi } from "./saleApi";
 import type { CreateLeadInput, DuplicateCheckResponse, LeadImportResult } from "./saleApi";
 import {
@@ -754,18 +755,12 @@ export function LeadPipelinePage() {
           </div>
           <div className="h-4 w-px bg-slate-200 hidden sm:block" />
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <SaleStaffSelectorDropdown
               value={bulkAssigneeId}
-              onChange={(e) => setBulkAssigneeId(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-navy font-medium focus:border-[#0532e6] focus:outline-hidden"
-            >
-              <option value="">-- Chọn Sale phụ trách --</option>
-              {staffQuery.data?.map((staff: SaleStaff) => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.email}
-                </option>
-              ))}
-            </select>
+              onChange={setBulkAssigneeId}
+              staffList={staffQuery.data ?? []}
+              placeholder="-- Chọn Sale phụ trách --"
+            />
             <Button
               variant="primary"
               className="h-9 text-xs px-3.5"
